@@ -4,6 +4,15 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
 import dotenv from "dotenv";
+import fs from "fs";
+import { exec } from "child_process";
+import crypto from "crypto";
+import { promisify } from "util";
+
+const execPromise = promisify(exec);
+const writeFilePromise = promisify(fs.writeFile);
+const unlinkPromise = promisify(fs.unlink);
+const readFilePromise = promisify(fs.readFile);
 
 dotenv.config();
 
@@ -15,7 +24,7 @@ async function startServer() {
   const PORT = 3000;
 
   // Middleware to handle JSON payloads - set a large limit for videos
-  app.use(express.json({ limit: "50mb" }));
+  app.use(express.json({ limit: "150mb" }));
 
   // Initialize Gemini
   const apiKey = process.env.GEMINI_API_KEY;
@@ -127,6 +136,90 @@ async function startServer() {
     } catch (error: any) {
       console.error("Voiceover Error:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Server-side Merging Endpoint
+  app.post("/api/merge", async (req, res) => {
+    const tempId = crypto.randomBytes(8).toString("hex");
+    const tempDir = path.join(process.cwd(), "temp");
+    
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const videoPath = path.join(tempDir, `video_${tempId}.mp4`);
+    const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
+    const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
+
+    try {
+      const { videoBase64, audioBase64 } = req.body;
+      
+      const videoBuffer = Buffer.from(videoBase64, 'base64');
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+
+      await writeFilePromise(videoPath, videoBuffer);
+      await writeFilePromise(audioPath, audioBuffer);
+
+      // Get Durations to handle speed adjustment
+      const getDuration = async (filePath: string) => {
+        try {
+          const { stderr } = await execPromise(`ffmpeg -i "${filePath}" 2>&1`);
+          const match = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+          if (match) {
+            const h = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const s = parseInt(match[3]);
+            const ms = parseInt(match[4]);
+            return h * 3600 + m * 60 + s + ms / 100;
+          }
+        } catch (e) {
+          // ffmpeg -i returns non-zero exit code usually, so we catch it
+          const errStr = String(e);
+          const match = errStr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+          if (match) {
+            const h = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const s = parseInt(match[3]);
+            const ms = parseInt(match[4]);
+            return h * 3600 + m * 60 + s + ms / 100;
+          }
+        }
+        return 0;
+      };
+
+      const vDur = await getDuration(videoPath);
+      const aDur = await getDuration(audioPath);
+
+      let ffmpegCmd = "";
+      if (vDur > 0 && aDur > vDur) {
+        const speed = aDur / vDur;
+        let atempoFilter = `atempo=${speed}`;
+        if (speed > 2.0) {
+            atempoFilter = `atempo=2.0,atempo=${speed/2.0}`;
+        }
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]${atempoFilter}[aout]" -map 0:v:0 -map "[aout]" -c:v copy "${outputPath}"`;
+      } else {
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
+      }
+
+      await execPromise(ffmpegCmd);
+
+      const outputBuffer = await readFilePromise(outputPath);
+      res.json({ videoBase64: outputBuffer.toString("base64") });
+
+    } catch (error: any) {
+      console.error("Merge Error:", error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      // Cleanup
+      try {
+        if (fs.existsSync(videoPath)) await unlinkPromise(videoPath);
+        if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
+        if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
+      } catch (cleanError) {
+        console.error("Cleanup Error:", cleanError);
+      }
     }
   });
 

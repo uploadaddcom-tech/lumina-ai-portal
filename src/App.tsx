@@ -30,8 +30,6 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -61,10 +59,17 @@ const api = {
     });
     if (!res.ok) throw new Error("Voiceover failed");
     return (await res.json()).audioData;
+  },
+  async merge(videoBase64: string, audioBase64: string) {
+    const res = await fetch("/api/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, audioBase64 }),
+    });
+    if (!res.ok) throw new Error("Merge failed");
+    return (await res.json()).videoBase64;
   }
 };
-
-const ffmpeg = new FFmpeg();
 
 const getTools = (lang: Language) => [
   {
@@ -723,7 +728,6 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
   const [isMerging, setIsMerging] = useState(false);
   const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
-  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -843,99 +847,40 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     }
   };
 
-  const loadFFmpeg = async () => {
-    if (ffmpegLoaded) return;
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
-    setFfmpegLoaded(true);
-  };
-
   const performMerge = async (videoFile: File, audioUrl: string) => {
     setIsMerging(true);
     setMergedVideoUrl(null);
 
     try {
-      await loadFFmpeg();
+      const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = error => reject(error);
+        });
+      };
 
-      // Read files
-      const videoData = await fetchFile(videoFile);
+      const videoBase64 = await fileToBase64(videoFile);
+      
       const audioResponse = await fetch(audioUrl);
-      const audioData = await fetchFile(await audioResponse.blob());
+      const audioBlob = await audioResponse.blob();
+      const audioBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+        reader.readAsDataURL(audioBlob);
+      });
 
-      await ffmpeg.writeFile("video.mp4", videoData);
-      await ffmpeg.writeFile("audio.wav", audioData);
-
-      const getVideoDuration = async () => {
-        let duration = 0;
-        const logHandler = ({ message }: { message: string }) => {
-          const match = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
-          if (match) {
-            const h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            const s = parseInt(match[3]);
-            const ms = parseInt(match[4]);
-            duration = h * 3600 + m * 60 + s + ms / 100;
-          }
-        };
-        ffmpeg.on('log', logHandler);
-        await ffmpeg.exec(['-i', 'video.mp4']);
-        ffmpeg.off('log', logHandler);
-        return duration;
-      };
-
-      const getAudioDuration = async () => {
-        let duration = 0;
-        const logHandler = ({ message }: { message: string }) => {
-          const match = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
-          if (match) {
-            const h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            const s = parseInt(match[3]);
-            const ms = parseInt(match[4]);
-            duration = h * 3600 + m * 60 + s + ms / 100;
-          }
-        };
-        ffmpeg.on('log', logHandler);
-        await ffmpeg.exec(['-i', 'audio.wav']);
-        ffmpeg.off('log', logHandler);
-        return duration;
-      };
-
-      const vDur = await getVideoDuration();
-      const aDur = await getAudioDuration();
-
-      if (vDur > 0 && aDur > vDur) {
-        const speed = aDur / vDur;
-        let atempoFilter = `atempo=${speed}`;
-        if (speed > 2.0) {
-            atempoFilter = `atempo=2.0,atempo=${speed/2.0}`;
+      const mergedBase64 = await api.merge(videoBase64, audioBase64);
+      
+      if (mergedBase64) {
+        const binaryString = atob(mergedBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
-        await ffmpeg.exec([
-            "-i", "video.mp4", 
-            "-i", "audio.wav", 
-            "-filter_complex", `[1:a]${atempoFilter}[aout]`, 
-            "-map", "0:v:0", 
-            "-map", "[aout]", 
-            "-c:v", "copy", 
-            "output.mp4"
-        ]);
-      } else {
-        await ffmpeg.exec([
-            "-i", "video.mp4", 
-            "-i", "audio.wav", 
-            "-map", "0:v:0", 
-            "-map", "1:a:0", 
-            "-c:v", "copy", 
-            "-shortest",
-            "output.mp4"
-        ]);
+        setMergedVideoUrl(URL.createObjectURL(new Blob([bytes], { type: "video/mp4" })));
       }
-
-      const data = await ffmpeg.readFile("output.mp4");
-      setMergedVideoUrl(URL.createObjectURL(new Blob([(data as any).buffer], { type: "video/mp4" })));
     } catch (err) {
       console.error(err);
     } finally {
