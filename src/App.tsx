@@ -427,8 +427,8 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        setError(lang === "EN" ? "File size must be under 20MB." : "ဖိုင်အရွယ်အစားသည် 20MB အောက်သာ ဖြစ်ရပါမည်။");
+      if (selectedFile.size > 300 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 300MB." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
         return;
       }
       setFile(selectedFile);
@@ -562,8 +562,8 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        setError(lang === "EN" ? "File size must be under 20MB." : "ဖိုင်အရွယ်အစားသည် 20MB အောက်သာ ဖြစ်ရပါမည်။");
+      if (selectedFile.size > 300 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 300MB." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
         return;
       }
       setFile(selectedFile);
@@ -738,8 +738,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        setError(lang === "EN" ? "File size must be under 20MB for this demo." : "ဖိုင်အရွယ်အစားသည် 20MB အောက်သာ ဖြစ်ရပါမည်။");
+      if (selectedFile.size > 300 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 300MB for this demo." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
         return;
       }
       setFile(selectedFile);

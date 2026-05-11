@@ -24,7 +24,7 @@ async function startServer() {
   const PORT = 3000;
 
   // Middleware to handle JSON payloads - set a large limit for videos
-  app.use(express.json({ limit: "150mb" }));
+  app.use(express.json({ limit: "300mb" }));
 
   // Initialize Gemini
   const apiKey = process.env.GEMINI_API_KEY;
