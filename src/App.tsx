@@ -1,0 +1,1560 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { 
+  ArrowRight,
+  ArrowLeft,
+  Bell, 
+  Camera, 
+  Cpu, 
+  Library, 
+  Music, 
+  Play, 
+  Star, 
+  Subtitles, 
+  Type,
+  Zap,
+  CloudUpload,
+  Sparkles,
+  ListOrdered,
+  Briefcase,
+  Smile,
+  Trophy,
+  BookOpen,
+  Lightbulb,
+  Check
+} from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { translations, Language } from "./translations";
+import Markdown from "react-markdown";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
+
+// Internal API Helpers to replace GeminiService.ts
+const api = {
+  async recap(videoBase64: string, mimeType: string, style: string, lang: Language) {
+    const res = await fetch("/api/recap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType, style, lang }),
+    });
+    if (!res.ok) throw new Error("Recap failed");
+    return (await res.json()).text;
+  },
+  async transcribe(videoBase64: string, mimeType: string, lang: Language) {
+    const res = await fetch("/api/transcribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType, lang }),
+    });
+    if (!res.ok) throw new Error("Transcription failed");
+    return (await res.json()).text;
+  },
+  async voiceover(text: string, voiceName: string) {
+    const res = await fetch("/api/voiceover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voiceName }),
+    });
+    if (!res.ok) throw new Error("Voiceover failed");
+    return (await res.json()).audioData;
+  }
+};
+
+const ffmpeg = new FFmpeg();
+
+const getTools = (lang: Language) => [
+  {
+    id: "recap-master",
+    title: translations[lang].tools.recapMaster.title,
+    description: translations[lang].tools.recapMaster.desc,
+    icon: Zap,
+    color: "bg-red-500/20",
+    iconColor: "text-red-400",
+    badge: "PRO"
+  },
+  {
+    id: "video-recapper",
+    title: translations[lang].tools.videoRecapper.title,
+    description: translations[lang].tools.videoRecapper.desc,
+    icon: Play,
+    color: "bg-blue-500/20",
+    iconColor: "text-blue-400",
+    badge: "NEW"
+  },
+  {
+    id: "video-recap",
+    title: translations[lang].tools.videoRecap.title,
+    description: translations[lang].tools.videoRecap.desc,
+    icon: Camera,
+    color: "bg-purple-500/20",
+    iconColor: "text-purple-400"
+  },
+  {
+    id: "subtitle-editor",
+    title: translations[lang].tools.subtitleEditor.title,
+    description: translations[lang].tools.subtitleEditor.desc,
+    icon: Subtitles,
+    color: "bg-blue-600/20",
+    iconColor: "text-blue-500"
+  },
+  {
+    id: "auto-recap",
+    title: translations[lang].tools.autoRecap.title,
+    description: translations[lang].tools.autoRecap.desc,
+    icon: Star,
+    color: "bg-indigo-500/20",
+    iconColor: "text-indigo-400",
+    badge: "NEW"
+  },
+  {
+    id: "video-transcribe",
+    title: translations[lang].tools.videoTranscribe.title,
+    description: translations[lang].tools.videoTranscribe.desc,
+    icon: Type,
+    color: "bg-teal-500/20",
+    iconColor: "text-teal-400",
+    badge: "NEW"
+  },
+  {
+    id: "ai-voiceover",
+    title: translations[lang].tools.aiVoiceover.title,
+    description: translations[lang].tools.aiVoiceover.desc,
+    icon: Music,
+    color: "bg-orange-500/20",
+    iconColor: "text-orange-400"
+  }
+];
+
+const getRecapStyles = (lang: Language) => [
+  {
+    id: "step-by-step",
+    title: translations[lang].styles.stepByStep.title,
+    description: translations[lang].styles.stepByStep.desc,
+    icon: ListOrdered,
+    color: "bg-cyan-500/10",
+    iconColor: "text-cyan-400"
+  },
+  {
+    id: "material-list",
+    title: translations[lang].styles.materialList.title,
+    description: translations[lang].styles.materialList.desc,
+    icon: Briefcase,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
+  },
+  {
+    id: "funny-commentary",
+    title: translations[lang].styles.funnyCommentary.title,
+    description: translations[lang].styles.funnyCommentary.desc,
+    icon: Smile,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
+  },
+  {
+    id: "epic-exaggerated",
+    title: translations[lang].styles.epicExaggerated.title,
+    description: translations[lang].styles.epicExaggerated.desc,
+    icon: Trophy,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
+  },
+  {
+    id: "project-story",
+    title: translations[lang].styles.projectStory.title,
+    description: translations[lang].styles.projectStory.desc,
+    icon: BookOpen,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
+  },
+  {
+    id: "pro-tips",
+    title: translations[lang].styles.proTips.title,
+    description: translations[lang].styles.proTips.desc,
+    icon: Lightbulb,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
+  },
+  {
+    id: "quick-summary",
+    title: translations[lang].styles.quickSummary.title,
+    description: translations[lang].styles.quickSummary.desc,
+    icon: Zap,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
+  },
+  {
+    id: "real-time-narration",
+    title: translations[lang].styles.realTimeNarration.title,
+    description: translations[lang].styles.realTimeNarration.desc,
+    icon: Play,
+    color: "bg-blue-500/10",
+    iconColor: "text-blue-400"
+  }
+];
+
+interface ViewProps {
+  onBack: () => void;
+  lang: Language;
+  setLang: (l: Language) => void;
+}
+
+const createWavBlob = (pcmData: Uint8Array, sampleRate: number) => {
+  const buffer = new ArrayBuffer(44 + pcmData.length);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + pcmData.length, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // Mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, pcmData.length, true);
+
+  const pcmView = new Uint8Array(buffer, 44);
+  pcmView.set(pcmData);
+
+  return new Blob([buffer], { type: 'audio/wav' });
+};
+
+function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
+  const [text, setText] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState("Kore");
+  const [selectedMood, setSelectedMood] = useState("story");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const t = translations[lang].voiceover;
+
+  const handleGenerate = async () => {
+    if (!text.trim()) return;
+    setIsGenerating(true);
+    setError(null);
+    setAudioUrl(null);
+
+    try {
+      const base64 = await api.voiceover(text, selectedVoice);
+      if (base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const wavBlob = createWavBlob(bytes, 24000);
+        const url = URL.createObjectURL(wavBlob);
+        setAudioUrl(url);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to generate voiceover.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const playAudio = () => {
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
+              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Music className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{t.headline}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
+            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
+            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <section className="space-y-6">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t.inputPlaceholder}
+            className="w-full h-40 bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 text-base font-medium text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/30 transition-all resize-none shadow-xl"
+          />
+          
+          <div className="bg-[#0f172a]/40 backdrop-blur-sm rounded-2xl p-6 border border-white/5 shadow-xl flex flex-wrap gap-8">
+            <div className="flex-1 space-y-3 min-w-[200px]">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{t.selectVoice}</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(t.voices).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedVoice(key)}
+                    className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
+                      selectedVoice === key 
+                        ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20" 
+                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                    }`}
+                  >
+                    {(label as string).split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 min-w-[200px]">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{t.selectMood}</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(t.moods).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedMood(key)}
+                    className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
+                      selectedMood === key 
+                        ? "bg-purple-600 border-purple-500 text-white shadow-xl shadow-purple-500/20" 
+                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                    }`}
+                  >
+                    {label as string}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center pt-4">
+            <button 
+              onClick={handleGenerate}
+              disabled={!text.trim() || isGenerating}
+              className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-3 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+                !text.trim() || isGenerating 
+                  ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                  : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white"
+              }`}
+            >
+              {isGenerating ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+              {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : t.generate}
+            </button>
+          </div>
+          {error && <p className="text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
+        </section>
+
+        <AnimatePresence>
+          {audioUrl && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl flex flex-col items-center gap-4 max-w-xs mx-auto group relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-3 opacity-50">
+                <Sparkles className="w-4 h-4 text-blue-500" />
+              </div>
+              
+              <div className="w-16 h-16 bg-blue-600/10 rounded-2xl flex items-center justify-center group relative cursor-pointer border border-blue-500/20" onClick={playAudio}>
+                <div className="absolute inset-0 bg-blue-500/20 rounded-2xl animate-ping opacity-10" />
+                <Music className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform duration-500" />
+              </div>
+
+              <div className="flex flex-col items-center gap-2.5 w-full text-center">
+                <button 
+                  onClick={playAudio}
+                  className="w-full h-11 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 flex items-center justify-center gap-3 transition-all font-black text-[10px] uppercase tracking-widest text-white shadow-lg active:scale-[0.98]"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white/20" /> {t.preview}
+                </button>
+                <a 
+                  href={audioUrl} 
+                  download="voiceover.wav"
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center gap-3 transition-all font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 active:scale-[0.98]"
+                >
+                  <CloudUpload className="w-3.5 h-3.5" /> {t.download}
+                </a>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[lang].transcribe; // Reuse transcribe translations as they are very similar
+  const toolTitle = translations[lang].tools.videoRecapper.title;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 20 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 20MB." : "ဖိုင်အရွယ်အစားသည် 20MB အောက်သာ ဖြစ်ရပါမည်။");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!file) return;
+    
+    setIsGenerating(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const transcription = await api.transcribe(base64, file.type, lang);
+        setResult(transcription || "");
+        setIsGenerating(false);
+      };
+    } catch (err) {
+      console.error(err);
+      setError(lang === "EN" ? "Failed to analyze video. Please try again." : "ဗီဒီယိုကို စစ်ဆေးရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
+              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Play className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{toolTitle}</h1>
+            </div>
+          </div>
+          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
+            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
+            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <section className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2 border border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
+          <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+              file ? "border-blue-500/50 bg-blue-500/5" : "border-white/10 hover:border-blue-500/30 hover:bg-white/5"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-white/5 group-hover:bg-blue-500/10"
+            }`}>
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
+            </div>
+            <div className="space-y-0.5 text-center">
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}>
+                {file ? file.name : translations[lang].recapMaster.browseFiles}
+              </h3>
+              <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest leading-none">
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+              </p>
+            </div>
+          </div>
+          {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
+        </section>
+
+        <div className="flex justify-center pt-2">
+          <button 
+            onClick={handleGenerate}
+            disabled={!file || isGenerating}
+            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+              !file || isGenerating 
+                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white"
+            }`}
+          >
+            {isGenerating ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {isGenerating ? (lang === "EN" ? "ANALYZING..." : "စစ်ဆေးနေသည်...") : (lang === "EN" ? "START RECAP" : "Recap စတင်မည်")}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {result && (
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                    <Sparkles className="w-6 h-6 text-blue-400/50" />
+                  </div>
+                </div>
+                
+                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-headings:italic prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
+                  <Markdown>{result}</Markdown>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function TranscribeView({ onBack, lang, setLang }: ViewProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[lang].transcribe;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 20 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 20MB." : "ဖိုင်အရွယ်အစားသည် 20MB အောက်သာ ဖြစ်ရပါမည်။");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!file) return;
+    
+    setIsGenerating(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const transcription = await api.transcribe(base64, file.type, lang);
+        setResult(transcription || "");
+        setIsGenerating(false);
+      };
+    } catch (err) {
+      console.error(err);
+      setError(lang === "EN" ? "Failed to transcribe. Please try again." : "ဘာသာပြန်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
+              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Type className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{t.headline}</h1>
+            </div>
+          </div>
+          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
+            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
+            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <section className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2 border border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
+          <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+              file ? "border-blue-500/50 bg-blue-500/5" : "border-white/10 hover:border-blue-500/30 hover:bg-white/5"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-white/5 group-hover:bg-blue-500/10"
+            }`}>
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
+            </div>
+            <div className="space-y-0.5 text-center">
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}>
+                {file ? file.name : translations[lang].recapMaster.browseFiles}
+              </h3>
+              <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest leading-none">
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+              </p>
+            </div>
+          </div>
+          {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
+        </section>
+
+        <div className="flex justify-center pt-2">
+          <button 
+            onClick={handleGenerate}
+            disabled={!file || isGenerating}
+            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+              !file || isGenerating 
+                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white shadow-blue-500/30"
+            }`}
+          >
+            {isGenerating ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : t.generate}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {result && (
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                    <Sparkles className="w-6 h-6 text-blue-400/50" />
+                  </div>
+                </div>
+                
+                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-headings:italic prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
+                  <Markdown>{result}</Markdown>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                      <ListOrdered className="w-4 h-4" />
+                    </div>
+                    {t.actionsTitle}
+                  </h3>
+                  <ul className="space-y-3">
+                    {t.actions.map((action, i) => (
+                      <li key={i} className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-3 bg-white/[0.02] p-4 rounded-2xl border border-white/5 transition-all hover:bg-white/[0.04]">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> {action}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    {t.usageTitle}
+                  </h3>
+                  <div className="bg-white/[0.02] p-8 rounded-2xl border border-white/5 h-full">
+                    <p className="text-[11px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">{t.usage}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
+  const [selectedStyle, setSelectedStyle] = useState("step-by-step");
+  const [file, setFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Voiceover Integration
+  const [isVoiceoverGenerating, setIsVoiceoverGenerating] = useState(false);
+  const [voiceoverAudioUrl, setVoiceoverAudioUrl] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState("Kore");
+  const [selectedMood, setSelectedMood] = useState("story");
+
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[lang].recapMaster;
+  const vt = translations[lang].voiceover;
+  const styles = getRecapStyles(lang);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 20 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 20MB for this demo." : "ဖိုင်အရွယ်အစားသည် 20MB အောက်သာ ဖြစ်ရပါမည်။");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+      setVoiceoverAudioUrl(null);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = (reader.result as string).split(",")[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!file) return;
+    
+    setIsGenerating(true);
+    setError(null);
+    setResult(null);
+    setVoiceoverAudioUrl(null);
+
+    try {
+      const base64 = await fileToBase64(file);
+      const recap = await api.recap(base64, file.type, selectedStyle, lang);
+      setResult(recap || "");
+
+      // Auto-trigger voiceover generation
+      if (recap) {
+        setIsVoiceoverGenerating(true);
+        try {
+          const cleanText = recap.replace(/[#*`_~]/g, '');
+          const voice64 = await api.voiceover(cleanText, selectedVoice);
+          if (voice64) {
+            const binaryString = atob(voice64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const wavBlob = createWavBlob(bytes, 24000);
+            const url = URL.createObjectURL(wavBlob);
+            setVoiceoverAudioUrl(url);
+
+            // Auto play audio
+            const audio = new Audio(url);
+            audio.play();
+
+            // Auto trigger merge
+            performMerge(file, url);
+          }
+        } catch (vErr) {
+          console.error("Auto voiceover failed:", vErr);
+        } finally {
+          setIsVoiceoverGenerating(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateVoiceover = async () => {
+    if (!result || !file) return;
+    setIsVoiceoverGenerating(true);
+    setVoiceoverAudioUrl(null);
+
+    try {
+      // Clean markdown for better TTS
+      const cleanText = result.replace(/[#*`_~]/g, '');
+      const base64 = await api.voiceover(cleanText, selectedVoice);
+      if (base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const wavBlob = createWavBlob(bytes, 24000);
+        const url = URL.createObjectURL(wavBlob);
+        setVoiceoverAudioUrl(url);
+
+        // Auto trigger merge on manual regeneration too
+        performMerge(file, url);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsVoiceoverGenerating(false);
+    }
+  };
+
+  const playVoiceover = () => {
+    if (voiceoverAudioUrl) {
+      new Audio(voiceoverAudioUrl).play();
+    }
+  };
+
+  const loadFFmpeg = async () => {
+    if (ffmpegLoaded) return;
+    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+    setFfmpegLoaded(true);
+  };
+
+  const performMerge = async (videoFile: File, audioUrl: string) => {
+    setIsMerging(true);
+    setMergedVideoUrl(null);
+
+    try {
+      await loadFFmpeg();
+
+      // Read files
+      const videoData = await fetchFile(videoFile);
+      const audioResponse = await fetch(audioUrl);
+      const audioData = await fetchFile(await audioResponse.blob());
+
+      await ffmpeg.writeFile("video.mp4", videoData);
+      await ffmpeg.writeFile("audio.wav", audioData);
+
+      const getVideoDuration = async () => {
+        let duration = 0;
+        const logHandler = ({ message }: { message: string }) => {
+          const match = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+          if (match) {
+            const h = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const s = parseInt(match[3]);
+            const ms = parseInt(match[4]);
+            duration = h * 3600 + m * 60 + s + ms / 100;
+          }
+        };
+        ffmpeg.on('log', logHandler);
+        await ffmpeg.exec(['-i', 'video.mp4']);
+        ffmpeg.off('log', logHandler);
+        return duration;
+      };
+
+      const getAudioDuration = async () => {
+        let duration = 0;
+        const logHandler = ({ message }: { message: string }) => {
+          const match = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+          if (match) {
+            const h = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const s = parseInt(match[3]);
+            const ms = parseInt(match[4]);
+            duration = h * 3600 + m * 60 + s + ms / 100;
+          }
+        };
+        ffmpeg.on('log', logHandler);
+        await ffmpeg.exec(['-i', 'audio.wav']);
+        ffmpeg.off('log', logHandler);
+        return duration;
+      };
+
+      const vDur = await getVideoDuration();
+      const aDur = await getAudioDuration();
+
+      if (vDur > 0 && aDur > vDur) {
+        const speed = aDur / vDur;
+        let atempoFilter = `atempo=${speed}`;
+        if (speed > 2.0) {
+            atempoFilter = `atempo=2.0,atempo=${speed/2.0}`;
+        }
+        await ffmpeg.exec([
+            "-i", "video.mp4", 
+            "-i", "audio.wav", 
+            "-filter_complex", `[1:a]${atempoFilter}[aout]`, 
+            "-map", "0:v:0", 
+            "-map", "[aout]", 
+            "-c:v", "copy", 
+            "output.mp4"
+        ]);
+      } else {
+        await ffmpeg.exec([
+            "-i", "video.mp4", 
+            "-i", "audio.wav", 
+            "-map", "0:v:0", 
+            "-map", "1:a:0", 
+            "-c:v", "copy", 
+            "-shortest",
+            "output.mp4"
+        ]);
+      }
+
+      const data = await ffmpeg.readFile("output.mp4");
+      setMergedVideoUrl(URL.createObjectURL(new Blob([(data as any).buffer], { type: "video/mp4" })));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const handleMerge = () => {
+    if (file && voiceoverAudioUrl) {
+      performMerge(file, voiceoverAudioUrl);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
+              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{t.headline}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
+            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
+            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        {/* Upload Section */}
+        <section className="space-y-4">
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              className="hidden" 
+              accept="video/mp4,video/quicktime"
+              onChange={handleFileChange}
+            />
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+                file ? "border-blue-500/50 bg-blue-500/5" : "border-white/10 hover:border-blue-500/30 hover:bg-white/5"
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-white/5 group-hover:bg-blue-500/10"
+              }`}>
+                {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
+              </div>
+              <div className="space-y-0.5">
+                <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}>
+                  {file ? file.name : t.browseFiles}
+                </h3>
+                <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest leading-none">
+                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : t.fileLimit}
+                </p>
+              </div>
+            </div>
+            {error && (
+              <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>
+            )}
+          </div>
+        </section>
+
+        {/* Style Selection */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Sparkles className="w-4 h-4 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight uppercase italic">{t.selectStyle}</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {styles.map((style) => (
+              <button
+                key={style.id}
+                onClick={() => setSelectedStyle(style.id)}
+                className={`group flex items-start gap-4 p-4 rounded-2xl border text-left transition-all relative ${
+                  selectedStyle === style.id 
+                    ? "bg-blue-600 border-blue-500 text-white shadow-2xl shadow-blue-500/10 -translate-y-1" 
+                    : "bg-[#0f172a]/60 backdrop-blur-sm border-white/[0.05] text-slate-500 hover:border-white/10 hover:text-slate-300"
+                }`}
+              >
+                <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                  selectedStyle === style.id ? "bg-white/20" : "bg-white/5 group-hover:bg-white/10"
+                }`}>
+                  <style.icon className={`w-4 h-4 ${
+                    selectedStyle === style.id ? "text-white" : "text-slate-400 transition-colors group-hover:text-slate-300"
+                  }`} />
+                </div>
+                <div className="space-y-1 pr-6">
+                  <h4 className="text-[13px] font-black tracking-tight uppercase italic">
+                    {style.title}
+                  </h4>
+                  <p className={`text-[10px] leading-relaxed font-bold uppercase tracking-widest line-clamp-2 ${
+                    selectedStyle === style.id ? "text-blue-100" : "text-slate-600"
+                  }`}>
+                    {style.description}
+                  </p>
+                </div>
+                {selectedStyle === style.id && (
+                  <div className="absolute top-4 right-4">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Voiceover Settings */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+              <Music className="w-4 h-4 text-purple-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight uppercase italic">{vt.headline}</h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl flex flex-wrap gap-8">
+            <div className="flex-1 space-y-3 min-w-[200px]">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{vt.selectVoice}</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(vt.voices).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedVoice(key)}
+                    className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
+                      selectedVoice === key 
+                        ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20" 
+                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                    }`}
+                  >
+                    {(label as string).split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 min-w-[200px]">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{vt.selectMood}</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(vt.moods).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedMood(key)}
+                    className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
+                      selectedMood === key 
+                        ? "bg-purple-600 border-purple-500 text-white shadow-xl shadow-purple-500/20" 
+                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                    }`}
+                  >
+                    {label as string}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Action Button */}
+        <div className="flex justify-center pt-4">
+          <button 
+            onClick={handleGenerate}
+            disabled={!file || isGenerating}
+            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+              !file || isGenerating 
+                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white"
+            }`}
+          >
+             <div className="flex items-center gap-3">
+              {isGenerating ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+              {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : t.generate}
+             </div>
+          </button>
+        </div>
+
+        {/* Result Section */}
+        <AnimatePresence>
+          {result && (
+            <motion.section 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8 pt-8"
+            >
+              <div className="flex items-center gap-3 text-white">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  <Zap className="w-5 h-5 text-blue-400" />
+                </div>
+                <h2 className="text-2xl font-black tracking-tight uppercase italic">{lang === "EN" ? "Generated Recap" : "ထုတ်လုပ်ထားသော Recap"}</h2>
+              </div>
+              
+              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                    <Sparkles className="w-6 h-6 text-blue-400/50" />
+                  </div>
+                </div>
+                
+                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-headings:italic prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
+                  <Markdown>{result}</Markdown>
+                </div>
+              </div>
+
+              {/* Audio result if ready */}
+              {voiceoverAudioUrl && (
+                <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-3xl p-8 border border-white/5 shadow-2xl space-y-8">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                      <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
+                        <Music className="w-7 h-7 text-blue-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-white uppercase tracking-widest">{t.voiceoverTitle}</h3>
+                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded inline-block mt-1">Audio Ready for Deployment</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-gap-4 gap-3">
+                      <button 
+                        onClick={playVoiceover}
+                        className="w-14 h-14 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 flex items-center justify-center transition-all active:scale-90"
+                      >
+                        <Play className="w-6 h-6 text-white fill-white/20" />
+                      </button>
+                      <a 
+                        href={voiceoverAudioUrl} 
+                        download="recap_voiceover.wav"
+                        className="w-14 h-14 bg-blue-600/20 hover:bg-blue-600/30 rounded-2xl border border-blue-500/20 flex items-center justify-center transition-all active:scale-90"
+                      >
+                        <CloudUpload className="w-6 h-6 text-blue-400" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-white/5 flex flex-col gap-6">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={handleMerge}
+                        disabled={isMerging}
+                        className={`h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 transition-all active:scale-95 ${
+                          isMerging ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-purple-600 hover:bg-purple-700 text-white shadow-2xl shadow-purple-500/30"
+                        }`}
+                      >
+                        {isMerging ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        {isMerging ? t.merging : t.mergeWithVideo}
+                      </button>
+
+                      {mergedVideoUrl && (
+                        <motion.div 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-xl"
+                        >
+                          <Check className="w-5 h-5 text-green-500" />
+                          <span className="text-[11px] font-black text-green-500 uppercase tracking-widest">{t.mergeSuccess}</span>
+                        </motion.div>
+                      )}
+                    </div>
+
+                    {mergedVideoUrl && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-6 bg-white/[0.03] rounded-2xl border border-white/10 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
+                            <Play className="w-6 h-6 text-slate-400" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-white uppercase tracking-[0.2em] block">RECAP_FINAL.MP4</span>
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">System Bound Master Output</span>
+                          </div>
+                        </div>
+                        <a 
+                          href={mergedVideoUrl} 
+                          download="recap_master_final.mp4"
+                          className="h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
+                        >
+                          <CloudUpload className="w-4 h-4" />
+                          {t.downloadMerged}
+                        </a>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Breakdown Panels */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                      <ListOrdered className="w-4 h-4" />
+                    </div>
+                    {t.actionsTitle}
+                  </h3>
+                  <ul className="space-y-3">
+                    {t.actions.map((action, i) => (
+                      <li key={i} className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-3 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> {action}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    {t.usageTitle}
+                  </h3>
+                  <div className="bg-white/[0.02] p-8 rounded-2xl border border-white/5 h-full">
+                    <p className="text-[11px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">{t.usage}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Regeneration Section */}
+              <div className="pt-8 border-t border-white/5 flex flex-col gap-4">
+                <button 
+                  onClick={handleGenerateVoiceover}
+                  disabled={isVoiceoverGenerating || !result}
+                  className={`h-12 px-10 self-start rounded-full font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 ${
+                    isVoiceoverGenerating || !result ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                  }`}
+                >
+                  {isVoiceoverGenerating ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap className="w-4 h-4 text-blue-500" />}
+                  {isVoiceoverGenerating ? (lang === "EN" ? "Regenerating..." : "ပြန်လည်ထုတ်လုပ်နေသည်...") : (lang === "EN" ? "Regenerate Neural Voice" : "အသံပြန်ထုတ်မည်")}
+                </button>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [lang, setLang] = useState<Language>("EN");
+
+  const tNav = translations[lang].nav;
+  const tHero = translations[lang].hero;
+  const tools = getTools(lang);
+
+  return (
+    <div className="min-h-screen bg-page-bg selection:bg-cyan-500/30">
+      <AnimatePresence mode="wait">
+        {activeToolId === "recap-master" ? (
+          <motion.div
+            key="recap-master"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <RecapMasterView 
+              onBack={() => setActiveToolId(null)} 
+              lang={lang}
+              setLang={setLang}
+            />
+          </motion.div>
+        ) : activeToolId === "video-recapper" ? (
+          <motion.div
+            key="video-recapper"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <VideoRecapperView 
+              onBack={() => setActiveToolId(null)} 
+              lang={lang}
+              setLang={setLang}
+            />
+          </motion.div>
+        ) : activeToolId === "ai-voiceover" ? (
+          <motion.div
+            key="ai-voiceover"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <VoiceoverView 
+              onBack={() => setActiveToolId(null)} 
+              lang={lang}
+              setLang={setLang}
+            />
+          </motion.div>
+        ) : activeToolId === "video-transcribe" ? (
+          <motion.div
+            key="video-transcribe"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <TranscribeView 
+              onBack={() => setActiveToolId(null)} 
+              lang={lang}
+              setLang={setLang}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            id="lumina-portal"
+            className="text-slate-300 relative overflow-hidden"
+          >
+            <div className="hero-glow animate-pulse" />
+            <div className="absolute inset-0 noise-overlay" />
+            
+            {/* Header */}
+            <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/40 backdrop-blur-3xl">
+              <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                <div className="flex items-center gap-12">
+                  <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80">
+                    <div className="w-10 h-10 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
+                      <Cpu className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex flex-col -gap-1">
+                      <span className="text-2xl font-black tracking-tighter text-white uppercase italic leading-none">LUMINA</span>
+                      <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
+                    </div>
+                  </div>
+                  
+                  <nav className="hidden lg:flex items-center gap-10">
+                    <a href="#" className="relative px-1 py-1 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-white">
+                      {tNav.dashboard}
+                      <motion.div layoutId="nav-underline" className="absolute -bottom-2 left-0 right-0 h-1 bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] rounded-full" />
+                    </a>
+                    <div className="flex items-center gap-3 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-all cursor-pointer group">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                      <span>{tNav.aiRecap}</span>
+                      <span className="text-[8px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-sm border border-blue-500/20 font-sans">ARC-1</span>
+                    </div>
+                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-colors">{tNav.library}</a>
+                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-colors">{tNav.apiDocs}</a>
+                  </nav>
+                </div>
+
+                <div className="flex items-center gap-8">
+                  {/* Language Switcher */}
+                  <div className="flex items-center bg-white/[0.02] p-1 rounded-xl border border-white/5 ring-1 ring-white/5">
+                    <button 
+                      onClick={() => setLang("EN")}
+                      className={`px-4 py-1.5 rounded-lg text-[10px] font-tech font-black transition-all ${lang === "EN" ? "bg-white/10 text-white shadow-2xl border border-white/10" : "text-slate-600 hover:text-slate-400"}`}
+                    >
+                      EN
+                    </button>
+                    <button 
+                      onClick={() => setLang("MY")}
+                      className={`px-4 py-1.5 rounded-lg text-[10px] font-tech font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}
+                    >
+                      MY
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-5 border-l border-white/[0.08] pl-8">
+                    <button id="notification-btn" className="p-2.5 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5 active:scale-95">
+                      <Bell className="w-4.5 h-4.5 text-slate-400 group-hover:text-white" />
+                      <div className="absolute top-3 right-3 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-page-bg shadow-[0_0_10px_rgba(239,68,68,0.6)]" />
+                    </button>
+                    <div id="profile-btn" className="w-9 h-9 rounded-xl bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-2xl cursor-pointer hover:scale-105 hover:rotate-3 transition-all duration-300">
+                       <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center overflow-hidden">
+                          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" className="w-full h-full object-cover" />
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="pt-36 pb-32 px-6 max-w-7xl mx-auto relative z-10">
+              {/* Hero Section */}
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "circOut" }}
+                className="mb-16 text-center md:text-left relative"
+              >
+                <div className="flex items-center justify-center md:justify-start gap-4 mb-6">
+                  <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md text-[9px] font-tech font-bold tracking-[0.3em] text-blue-400 uppercase">Beta Access Ready</span>
+                  <div className="w-1.5 h-1.5 bg-slate-800 rounded-full" />
+                  <span className="text-[9px] font-tech font-bold text-slate-500 uppercase tracking-[0.2em]">{lang === "EN" ? "Systems Nominal" : "စနစ်များ အဆင်သင့်ရှိသည်"}</span>
+                </div>
+                
+                <div className="relative inline-block">
+                  <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter text-white mb-6 uppercase leading-[0.85] selection:bg-blue-500/50">
+                    {tHero.title}<br />
+                    <span className="brand-gradient drop-shadow-2xl">{tHero.dashboard}</span>
+                  </h1>
+                  <div className="absolute -right-8 top-0 hidden md:block">
+                     <Sparkles className="w-8 h-8 text-blue-400/20 animate-pulse" />
+                  </div>
+                </div>
+
+                <p className="text-base text-slate-400 max-w-xl leading-relaxed font-medium mx-auto md:mx-0 opacity-80 mb-2">
+                  {tHero.description}
+                </p>
+                <div className="w-20 h-1 bg-blue-600/30 rounded-full mt-4 mx-auto md:mx-0" />
+              </motion.div>
+
+              {/* Dashboard Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {tools.map((tool, index) => {
+                  const glowClass = 
+                    tool.id === 'recap-master' ? 'card-glow-red' :
+                    tool.id === 'video-recapper' ? 'card-glow-blue' :
+                    tool.id === 'video-recap' ? 'card-glow-purple' :
+                    tool.id === 'subtitle-editor' ? 'card-glow-blue' :
+                    tool.id === 'auto-recap' ? 'card-glow-indigo' :
+                    tool.id === 'video-transcribe' ? 'card-glow-teal' :
+                    tool.id === 'ai-voiceover' ? 'card-glow-orange' : 'card-glow-blue';
+
+                  return (
+                    <motion.div
+                      key={tool.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: index * 0.05 }}
+                      className="group relative bg-[#0f172a]/40 backdrop-blur-md border border-white/[0.04] rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-white/[0.02] hover:-translate-y-3 hover:border-white/10 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden"
+                      onClick={() => setActiveToolId(tool.id)}
+                    >
+                      {/* Background Glow */}
+                      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ${glowClass}`} />
+                      <div className="scanline group-hover:block hidden" />
+                      
+                      {tool.badge && (
+                        <div className="absolute top-0 right-0 p-4">
+                          <div className={`text-[9px] ${tool.badge === 'PRO' ? 'bg-orange-500' : 'bg-blue-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                            {tool.badge}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-50 transition-all translate-x-4 group-hover:translate-x-0 hidden md:block">
+                        <ArrowRight className="w-5 h-5 text-white" />
+                      </div>
+                      
+                      <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-inner relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
+                        <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_currentColor]`} />
+                      </div>
+
+                      <div className="relative z-10">
+                        <h3 className="text-xl font-black text-white mb-3 tracking-tighter group-hover:brand-gradient transition-all uppercase italic leading-none">
+                          {tool.title}
+                        </h3>
+                        <p className="text-[10px] text-slate-500 line-clamp-3 mb-10 leading-relaxed font-tech font-bold uppercase tracking-widest group-hover:text-slate-400 transition-colors">
+                          {tool.description}
+                        </p>
+                      </div>
+
+                      <div className="mt-auto relative z-10">
+                        <div className="relative w-full h-12 rounded-xl overflow-hidden group/btn transition-all active:scale-[0.98] border border-white/5">
+                          <div className="absolute inset-0 bg-white/5 group-hover/btn:bg-white/10 transition-all duration-300" />
+                          <div className="relative flex items-center justify-between px-4 h-full">
+                            <span className="text-[10px] font-tech font-black uppercase tracking-[0.2em] text-slate-400 group-hover/btn:text-white transition-colors">Initialize Tool</span>
+                            <div className="w-6 h-6 bg-white/5 rounded-lg flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
+                               <ArrowRight className="w-3 h-3 text-slate-500 group-hover/btn:text-white transition-all" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Side decoration */}
+                      <div className="absolute top-1/2 left-0 h-8 w-1 bg-blue-600 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all rounded-r-full" />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </main>
+
+            {/* Subtle floating elements */}
+            <div className="fixed top-1/4 -left-20 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px] pointer-events-none" />
+            <div className="fixed bottom-1/4 -right-20 w-96 h-96 bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none" />
+
+            {/* Footer / Meta Data */}
+            <footer className="fixed bottom-0 left-0 right-0 h-16 border-t border-white/[0.03] bg-page-bg/40 backdrop-blur-xl z-50 flex items-center justify-between px-8 pointer-events-none md:pointer-events-auto">
+               <div className="flex items-center gap-6">
+                 <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                    <span className="text-[9px] font-tech font-black text-slate-500 tracking-[0.2em] uppercase">Core Sync: Active</span>
+                 </div>
+                 <div className="w-px h-4 bg-white/5" />
+                 <span className="text-[9px] font-tech font-black text-slate-600 tracking-[0.2em] uppercase hidden sm:block">AI-Studio Cluster: West-Europe-1</span>
+               </div>
+               
+               <div className="flex items-center gap-6">
+                 <span className="text-[10px] font-tech font-black text-slate-600 tracking-[0.3em] uppercase italic">© 2026 Lumina Neural Systems</span>
+               </div>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
