@@ -13,6 +13,7 @@ import {
   Music, 
   Play, 
   Star, 
+  Maximize,
   Subtitles, 
   Type,
   Zap,
@@ -62,11 +63,11 @@ const api = {
     if (!res.ok) throw new Error("Voiceover failed");
     return (await res.json()).audioData;
   },
-  async merge(videoBase64: string, audioBase64: string) {
+  async merge(videoBase64: string, audioBase64: string, logoBase64?: string, logoSize?: number, logoPosition?: string, videoRatio?: string, videoScale?: number) {
     const res = await fetch("/api/merge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, audioBase64 }),
+      body: JSON.stringify({ videoBase64, audioBase64, logoBase64, logoSize, logoPosition, videoRatio, videoScale }),
     });
     if (!res.ok) throw new Error("Merge failed");
     return (await res.json()).videoBase64;
@@ -740,6 +741,19 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [isMerging, setIsMerging] = useState(false);
   const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
   
+  // Logo Settings
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoSize, setLogoSize] = useState(100);
+  const [logoPosition, setLogoPosition] = useState("top-right");
+  const [showLogoSettings, setShowLogoSettings] = useState(false);
+  
+  // Video Ratio Settings
+  const [videoRatio, setVideoRatio] = useState("16:9");
+  const [videoScale, setVideoScale] = useState(100);
+  const [showRatioSettings, setShowRatioSettings] = useState(false);
+  
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[lang].recapMaster;
@@ -874,6 +888,11 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
       const videoBase64 = await fileToBase64(videoFile);
       
+      let logoBase64 = undefined;
+      if (logoFile) {
+        logoBase64 = await fileToBase64(logoFile);
+      }
+      
       const audioResponse = await fetch(audioUrl);
       const audioBlob = await audioResponse.blob();
       const audioBase64 = await new Promise<string>((resolve) => {
@@ -882,7 +901,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         reader.readAsDataURL(audioBlob);
       });
 
-      const mergedBase64 = await api.merge(videoBase64, audioBase64);
+      const mergedBase64 = await api.merge(videoBase64, audioBase64, logoBase64, logoSize, logoPosition, videoRatio, videoScale);
       
       if (mergedBase64) {
         const binaryString = atob(mergedBase64);
@@ -1060,27 +1079,369 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           </div>
         </section>
 
-        {/* Action Button */}
-        <div className="flex justify-center pt-4">
-          <button 
-            onClick={handleGenerate}
-            disabled={!file || isGenerating}
-            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
-              !file || isGenerating 
-                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
-                : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white"
-            }`}
-          >
-             <div className="flex items-center gap-3">
-              {isGenerating ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Zap className="w-4 h-4" />
+        {/* Ratio Selection Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Maximize className="w-4 h-4 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Frame & Fit" : "ဗီဒီယို Ratio နှင့် Frame"}</h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Ratio Setting" : "Frame ချိန်ညှိမှုများ"}
+                </label>
+                <button 
+                  onClick={() => setShowRatioSettings(true)}
+                  className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black"
+                >
+                  <Maximize className="w-4 h-4" />
+                  <span className="text-[10px] uppercase tracking-widest">{videoRatio} Setting</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Logo Customization Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+              <Camera className="w-4 h-4 text-emerald-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Logo Customization" : "Logo စိတ်ကြိုက်ပြင်ဆင်ခြင်း"}</h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Upload Button */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Upload Logo" : "Logo တင်ရန်"}
+                </label>
+                <input 
+                  type="file" 
+                  ref={logoInputRef}
+                  className="hidden" 
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                />
+                <button 
+                  onClick={() => logoInputRef.current?.click()}
+                  className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
+                    logoFile ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                  }`}
+                >
+                  <CloudUpload className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    {logoFile ? "Logo Ready" : (lang === "EN" ? "Select Logo" : "Logo ရွေးချယ်ပါ")}
+                  </span>
+                </button>
+              </div>
+
+              {/* Settings Toggle Button */}
+              {logoFile && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                    {lang === "EN" ? "Overlay Adjust" : "Logo ချိန်ညှိမှုများ"}
+                  </label>
+                  <button 
+                    onClick={() => setShowLogoSettings(true)}
+                    className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all"
+                  >
+                    <Star className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {lang === "EN" ? "Logo Settings" : "Logo Setting"}
+                    </span>
+                  </button>
+                </div>
               )}
-              {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : t.generate}
-             </div>
-          </button>
-        </div>
+            </div>
+
+            {/* Video Ratio Modal */}
+            <AnimatePresence>
+              {showRatioSettings && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
+                >
+                  <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setShowRatioSettings(false)} />
+                  
+                  <motion.div 
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                  >
+                    {/* Visual Preview Side */}
+                    <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
+                       <motion.div 
+                        layout
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
+                        style={{
+                          aspectRatio: videoRatio.replace(':', '/'),
+                          maxHeight: '100%',
+                          maxWidth: '100%',
+                          height: videoRatio === '9:16' ? '100%' : 'auto',
+                          width: videoRatio === '9:16' ? 'auto' : '100%',
+                        }}
+                      >
+                        {file ? (
+                          <video 
+                            src={URL.createObjectURL(file)} 
+                            className="w-full h-full object-cover opacity-80 transition-transform duration-300"
+                            style={{ 
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                            }}
+                            autoPlay 
+                            muted 
+                            loop 
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center w-full h-full">
+                             <Play className="w-12 h-12 text-white/5" />
+                          </div>
+                        )}
+                        
+                        {/* Overlay Grid for context */}
+                        <div className="absolute inset-0 border border-emerald-500/20 pointer-events-none" />
+                        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ background: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
+                      </motion.div>
+
+                      <div className="absolute bottom-6 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Active Frame: {videoRatio}</span>
+                      </div>
+                    </div>
+
+                    {/* Controls Side */}
+                    <div className="w-full md:w-80 p-8 flex flex-col gap-8 border-l border-white/5 bg-[#0f172a]">
+                      <div className="space-y-1">
+                        <h3 className="text-xl font-black text-white tracking-tight">{lang === "EN" ? "Frame & Fit" : "ဗီဒီယို Ratio"}</h3>
+                        <p className="text-xs text-slate-500">{lang === "EN" ? "Scale and crop your content" : "ဗီဒီယို ပုံစံနှင့် အရွယ်အစားညှိပါ"}</p>
+                      </div>
+
+                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
+                            {lang === "EN" ? "Aspect Ratio" : "Ratio ရွေးချယ်ပါ"}
+                          </label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {[
+                              { id: "16:9", label: "16:9 Landscape" },
+                              { id: "9:16", label: "9:16 Portrait" },
+                              { id: "1:1", label: "1:1 Square" },
+                            ].map((ratio) => (
+                              <button
+                                key={ratio.id}
+                                onClick={() => setVideoRatio(ratio.id)}
+                                className={`px-4 py-3 rounded-xl border text-left transition-all ${
+                                  videoRatio === ratio.id 
+                                    ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20" 
+                                    : "bg-white/5 border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-300"
+                                }`}
+                              >
+                                <div className="text-[11px] font-black uppercase tracking-wider">{ratio.label}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Content Scale" : "ဗီဒီယို Zoom"}
+                            </label>
+                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{videoScale}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="100" 
+                            max="200" 
+                            value={videoScale} 
+                            onChange={(e) => setVideoScale(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setShowRatioSettings(false)}
+                        className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
+                      >
+                        {lang === "EN" ? "Apply Changes" : "သိမ်းဆည်းမည်"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Logo Settings Modal */}
+            <AnimatePresence>
+              {logoFile && showLogoSettings && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
+                >
+                  <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setShowLogoSettings(false)} />
+                  
+                  <motion.div 
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                  >
+                    {/* Visual Preview Side */}
+                    <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
+                      <motion.div 
+                        layout
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
+                        style={{
+                          aspectRatio: videoRatio.replace(':', '/'),
+                          maxHeight: '100%',
+                          maxWidth: '100%',
+                          height: videoRatio === '9:16' ? '100%' : 'auto',
+                          width: videoRatio === '9:16' ? 'auto' : '100%',
+                        }}
+                      >
+                        {file ? (
+                          <video 
+                            src={URL.createObjectURL(file)} 
+                            className="w-full h-full object-cover opacity-60"
+                            style={{ 
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                            }}
+                            autoPlay 
+                            muted 
+                            loop 
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center w-full h-full">
+                             <Play className="w-12 h-12 text-white/5" />
+                          </div>
+                        )}
+
+                        {/* The Actual Logo Preview Overlay */}
+                        <div 
+                          className="absolute transition-all duration-300 ease-out pointer-events-none"
+                          style={{
+                            width: `${logoSize}px`,
+                            padding: '10px',
+                            ...(logoPosition === 'top-left' && { top: 0, left: 0 }),
+                            ...(logoPosition === 'top-right' && { top: 0, right: 0 }),
+                            ...(logoPosition === 'bottom-left' && { bottom: 0, left: 0 }),
+                            ...(logoPosition === 'bottom-right' && { bottom: 0, right: 0 }),
+                          }}
+                        >
+                          <div className="w-full h-full border-2 border-emerald-500/50 rounded-lg shadow-2xl overflow-hidden flex items-center justify-center bg-emerald-500/10 backdrop-blur-sm">
+                            <img src={URL.createObjectURL(logoFile)} alt="Logo Preview" className="w-full h-full object-contain" />
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      <div className="absolute bottom-6 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Logo Overlay (Ratio: {videoRatio})</span>
+                      </div>
+                    </div>
+
+                    {/* Controls Side */}
+                    <div className="w-full md:w-80 p-8 flex flex-col gap-8 border-l border-white/5 bg-[#0f172a]">
+                      <div className="space-y-1">
+                        <h3 className="text-xl font-black text-white tracking-tight">{lang === "EN" ? "Logo Setup" : "Logo ပြင်ဆင်ရန်"}</h3>
+                        <p className="text-xs text-slate-500">{lang === "EN" ? "Adjust size and position" : "အရွယ်အစားနှင့် တည်နေရာညှိပါ"}</p>
+                      </div>
+
+                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
+                            {lang === "EN" ? "Position" : "တည်နေရာ"}
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: "top-left", label: lang === "EN" ? "Top Left" : "အပေါ် ဘယ်" },
+                              { id: "top-right", label: lang === "EN" ? "Top Right" : "အပေါ် ညာ" },
+                              { id: "bottom-left", label: lang === "EN" ? "Bottom Left" : "အောက် ဘယ်" },
+                              { id: "bottom-right", label: lang === "EN" ? "Bottom Right" : "အောက် ညာ" },
+                            ].map((pos) => (
+                              <button
+                                key={pos.id}
+                                onClick={() => setLogoPosition(pos.id)}
+                                className={`px-4 py-3 rounded-xl border text-[10px] font-black transition-all ${
+                                  logoPosition === pos.id 
+                                    ? "bg-emerald-600 border-emerald-500 text-white shadow-xl shadow-emerald-500/20" 
+                                    : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                                }`}
+                              >
+                                {pos.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Logo Scale" : "အရွယ်အစား"}
+                            </label>
+                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">{logoSize}px</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="30" 
+                            max="300" 
+                            value={logoSize} 
+                            onChange={(e) => setLogoSize(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setShowLogoSettings(false)}
+                        className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
+                      >
+                        {lang === "EN" ? "Save & Close" : "သိမ်းဆည်းမည်"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </section>
+
+        {/* Action Button */}
+        {!showLogoSettings && !showRatioSettings && (
+          <div className="flex justify-center pt-4">
+            <button 
+              onClick={handleGenerate}
+              disabled={!file || isGenerating}
+              className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+                !file || isGenerating 
+                  ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                  : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white"
+              }`}
+            >
+               <div className="flex items-center gap-3">
+                {isGenerating ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Zap className="w-4 h-4" />
+                )}
+                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : t.generate}
+               </div>
+            </button>
+          </div>
+        )}
 
         {/* Result Section */}
         <AnimatePresence>
@@ -1248,7 +1609,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 export default function App() {
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
     if (darkMode) {
@@ -1259,7 +1620,6 @@ export default function App() {
   }, [darkMode]);
 
   const tNav = translations[lang].nav;
-  const tHero = translations[lang].hero;
   const tools = getTools(lang);
 
   return (
@@ -1364,15 +1724,6 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-8">
-                  {/* Theme Toggle */}
-                  <button 
-                    onClick={() => setDarkMode(!darkMode)}
-                    className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center text-text-primary dark:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all duration-300 shadow-sm"
-                    title={darkMode ? "Switch to Light Mode" : "Dark Mode"}
-                  >
-                    {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
-                  </button>
-
                   <div className="flex items-center gap-5 border-l border-white/[0.08] pl-8">
                     <button id="notification-btn" className="p-2.5 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5 active:scale-95">
                       <Bell className="w-4.5 h-4.5 text-slate-400 group-hover:text-white" />

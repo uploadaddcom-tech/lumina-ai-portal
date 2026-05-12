@@ -150,16 +150,24 @@ async function startServer() {
 
     const videoPath = path.join(tempDir, `video_${tempId}.mp4`);
     const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
+    const logoPath = path.join(tempDir, `logo_${tempId}.png`);
     const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
 
     try {
-      const { videoBase64, audioBase64 } = req.body;
+      const { videoBase64, audioBase64, logoBase64, logoSize, logoPosition, videoRatio, videoScale } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
       const audioBuffer = Buffer.from(audioBase64, 'base64');
 
       await writeFilePromise(videoPath, videoBuffer);
       await writeFilePromise(audioPath, audioBuffer);
+
+      let hasLogo = false;
+      if (logoBase64) {
+        const logoBuffer = Buffer.from(logoBase64, 'base64');
+        await writeFilePromise(logoPath, logoBuffer);
+        hasLogo = true;
+      }
 
       // Get Durations to handle speed adjustment
       const getDuration = async (filePath: string) => {
@@ -174,7 +182,6 @@ async function startServer() {
             return h * 3600 + m * 60 + s + ms / 100;
           }
         } catch (e) {
-          // ffmpeg -i returns non-zero exit code usually, so we catch it
           const errStr = String(e);
           const match = errStr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
           if (match) {
@@ -192,15 +199,75 @@ async function startServer() {
       const aDur = await getDuration(audioPath);
 
       let ffmpegCmd = "";
-      if (vDur > 0 && aDur > vDur) {
-        const speed = aDur / vDur;
-        let atempoFilter = `atempo=${speed}`;
+      const size = logoSize || 100; // default 100px
+      const padding = 20;
+      const zoom = (videoScale || 100) / 100;
+
+      // Ratio Filter with Zoom support
+      let ratioFilter = "";
+      if (videoRatio === "9:16") {
+        ratioFilter = `setsar=1,crop=w='min(iw,ih*9/16)/${zoom}':h='min(ih,iw/(9/16))/${zoom}',scale=w='min(iw,ih*9/16)':h='min(ih,iw/(9/16))'`;
+      } else if (videoRatio === "1:1") {
+        ratioFilter = `setsar=1,crop=w='min(iw,ih)/${zoom}':h='min(ih,iw)/${zoom}',scale=w='min(iw,ih)':h='min(ih,iw)'`;
+      } else if (videoRatio === "16:9") {
+        ratioFilter = `setsar=1,crop=w='min(iw,ih*16/9)/${zoom}':h='min(ih,iw/(16/9))/${zoom}',scale=w='min(iw,ih*16/9)':h='min(ih,iw/(16/9))'`;
+      }
+      
+      let posFilter = "";
+      switch (logoPosition) {
+        case 'top-left': posFilter = `${padding}:${padding}`; break;
+        case 'top-right': posFilter = `W-w-${padding}:${padding}`; break;
+        case 'bottom-left': posFilter = `${padding}:H-h-${padding}`; break;
+        case 'bottom-right': posFilter = `W-w-${padding}:H-h-${padding}`; break;
+        default: posFilter = `W-w-${padding}:${padding}`; // top-right default
+      }
+
+      const speed = (vDur > 0 && aDur > vDur) ? aDur / vDur : 1;
+      let audioFilter = "";
+      if (speed > 1) {
+        let atempo = `atempo=${speed}`;
         if (speed > 2.0) {
-            atempoFilter = `atempo=2.0,atempo=${speed/2.0}`;
+          atempo = `atempo=2.0,atempo=${speed/2.0}`;
         }
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]${atempoFilter}[aout]" -map 0:v:0 -map "[aout]" -c:v copy "${outputPath}"`;
+        audioFilter = ` -filter_complex "[1:a]${atempo}[aout]" -map "[aout]"`;
       } else {
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
+        audioFilter = ` -map 1:a:0 -shortest`;
+      }
+
+      if (hasLogo) {
+        // Complex filter combining ratio, logo scaling, positioning, and optional audio tempo
+        let filterComplex = "";
+        let audioComplex = "";
+        if (speed > 1) {
+          let atempo = `atempo=${speed}`;
+          if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
+          audioComplex = `;[1:a]${atempo}[aout]`;
+        } else {
+          audioComplex = ""; // handled by map
+        }
+
+        const vFilter = ratioFilter ? `[0:v]${ratioFilter}[rv];[rv]` : `[0:v]`;
+        filterComplex = ` -filter_complex "${vFilter}[lbase];[2:v]scale=${size}:-1[l];[lbase][l]overlay=${posFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
+        
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -i "${logoPath}"${filterComplex} -c:v libx264 -preset ultrafast "${outputPath}"`;
+      } else {
+        if (ratioFilter) {
+          let filterComplex = "";
+          let audioComplex = "";
+          if (speed > 1) {
+            let atempo = `atempo=${speed}`;
+            if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
+            audioComplex = `;[1:a]${atempo}[aout]`;
+          }
+          filterComplex = ` -filter_complex "[0:v]${ratioFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${filterComplex} -c:v libx264 -preset ultrafast "${outputPath}"`;
+        } else {
+          if (speed > 1) {
+            ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${audioFilter} -map 0:v:0 -c:v copy "${outputPath}"`;
+          } else {
+            ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
+          }
+        }
       }
 
       await execPromise(ffmpegCmd);
@@ -216,6 +283,7 @@ async function startServer() {
       try {
         if (fs.existsSync(videoPath)) await unlinkPromise(videoPath);
         if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
+        if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
       } catch (cleanError) {
         console.error("Cleanup Error:", cleanError);

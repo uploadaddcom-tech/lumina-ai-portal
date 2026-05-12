@@ -10,9 +10,9 @@ export const translations = {
       apiDocs: "Api Docs",
     },
     hero: {
-      title: "Ai Tool",
-      dashboard: "Dashboard",
-      description: "Architecting the future of creative automation. Orchestrate complex media pipelines with enterprise-grade neural engines and real-time vision processing.",
+      title: "",
+      dashboard: "",
+      description: "",
     },
     recapMaster: {
       headline: "Recap Master",
@@ -143,9 +143,9 @@ export const translations = {
       apiDocs: "API စာရွက်စာတမ်းများ",
     },
     hero: {
-      title: "Ai Tool",
-      dashboard: "ဒက်ရှ်ဘုတ်",
-      description: "ဖန်တီးမှုဆိုင်ရာ အလိုအလျောက်လုပ်ဆောင်ခြင်း၏ အနာဂတ်ကို တည်ဆောက်ခြင်း။ လုပ်ငန်းသုံးအဆင့် နျူရယ်အင်ဂျင်များနှင့် အချိန်နှင့်တပြေးညီ မြင်ကွင်းလုပ်ဆောင်မှုများဖြင့် ရှုပ်ထွေးသော မီဒီယာပိုက်လိုင်းများကို စီစဉ်ဆောင်ရွက်ပေးပါသည်။",
+      title: "",
+      dashboard: "",
+      description: "",
     },
     recapMaster: {
       headline: "Recap Master",
