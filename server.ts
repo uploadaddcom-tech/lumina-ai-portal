@@ -191,16 +191,38 @@ async function startServer() {
       const vDur = await getDuration(videoPath);
       const aDur = await getDuration(audioPath);
 
+      console.log(`Durations: Video=${vDur}s, Audio=${aDur}s`);
+
       let ffmpegCmd = "";
-      if (vDur > 0 && aDur > vDur) {
-        const speed = aDur / vDur;
-        let atempoFilter = `atempo=${speed}`;
-        if (speed > 2.0) {
-            atempoFilter = `atempo=2.0,atempo=${speed/2.0}`;
+      if (vDur > 0 && aDur > 0) {
+        // Calculate speed factor to make audio duration match video duration
+        // Factor = Original Audio Duration / Target Video Duration
+        const speedFactor = aDur / vDur;
+        
+        // Build atempo filter chain (each atempo must be between 0.5 and 2.0)
+        let filters = [];
+        let remainingFactor = speedFactor;
+        
+        if (remainingFactor > 2.0) {
+          while (remainingFactor > 2.0) {
+            filters.push("atempo=2.0");
+            remainingFactor /= 2.0;
+          }
+          filters.push(`atempo=${remainingFactor.toFixed(3)}`);
+        } else if (remainingFactor < 0.5) {
+          while (remainingFactor < 0.5) {
+            filters.push("atempo=0.5");
+            remainingFactor /= 0.5;
+          }
+          filters.push(`atempo=${remainingFactor.toFixed(3)}`);
+        } else {
+          filters.push(`atempo=${remainingFactor.toFixed(3)}`);
         }
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]${atempoFilter}[aout]" -map 0:v:0 -map "[aout]" -c:v copy "${outputPath}"`;
+        
+        const filterStr = filters.join(",");
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]${filterStr}[aout]" -map 0:v:0 -map "[aout]" -c:v copy -y "${outputPath}"`;
       } else {
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y "${outputPath}"`;
       }
 
       await execPromise(ffmpegCmd);
