@@ -206,11 +206,11 @@ async function startServer() {
       // Ratio Filter with Zoom support and even dimension safety
       let ratioFilter = "";
       if (videoRatio === "9:16") {
-        ratioFilter = `setsar=1,crop=w='min(iw,ih*9/16)/${zoom}':h='min(ih,iw/(9/16))/${zoom}',scale=w='trunc(min(iw,ih*9/16)/2)*2':h='trunc(min(ih,iw/(9/16))/2)*2'`;
+        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih*9/16)/${zoom}/2)*2':h='trunc(min(ih,iw/(9/16))/${zoom}/2)*2',scale=w='trunc(min(iw,ih*9/16)/2)*2':h='trunc(min(ih,iw/(9/16))/2)*2',format=yuv420p`;
       } else if (videoRatio === "1:1") {
-        ratioFilter = `setsar=1,crop=w='min(iw,ih)/${zoom}':h='min(ih,iw)/${zoom}',scale=w='trunc(min(iw,ih)/2)*2':h='trunc(min(ih,iw)/2)*2'`;
+        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih)/${zoom}/2)*2':h='trunc(min(ih,iw)/${zoom}/2)*2',scale=w='trunc(min(iw,ih)/2)*2':h='trunc(min(ih,iw)/2)*2',format=yuv420p`;
       } else if (videoRatio === "16:9") {
-        ratioFilter = `setsar=1,crop=w='min(iw,ih*16/9)/${zoom}':h='min(ih,iw/(16/9))/${zoom}',scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2'`;
+        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih*16/9)/${zoom}/2)*2':h='trunc(min(ih,iw/(16/9))/${zoom}/2)*2',scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2',format=yuv420p`;
       }
       
       let posFilter = "";
@@ -246,13 +246,13 @@ async function startServer() {
           audioComplex = ""; // handled by map
         }
 
-        const vFilter = ratioFilter ? `[0:v]${ratioFilter}[rv];[rv]` : `[0:v]`;
-        filterComplex = ` -filter_complex "${vFilter}[lbase];[2:v]scale=${size}:-2[l];[lbase][l]overlay=${posFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
+        const lbase = ratioFilter ? "[rv]" : "[0:v]";
+        const vFilterPrefix = ratioFilter ? `[0:v]${ratioFilter}[rv];` : "";
+        filterComplex = ` -filter_complex "${vFilterPrefix}[2:v]scale=${size}:-2[l];${lbase}[l]overlay=${posFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
         
         ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -i "${logoPath}"${filterComplex} -c:v libx264 -preset ultrafast "${outputPath}"`;
       } else {
         if (ratioFilter) {
-          let filterComplex = "";
           let audioComplex = "";
           if (speed > 1) {
             let atempo = `atempo=${speed}`;
@@ -276,8 +276,9 @@ async function startServer() {
       res.json({ videoBase64: outputBuffer.toString("base64") });
 
     } catch (error: any) {
-      console.error("Merge Error:", error);
-      res.status(500).json({ error: error.message });
+      console.error("FFmpeg Error Output:", error.stderr || error);
+      const errorMessage = error.stderr ? `FFmpeg Failed: ${error.stderr.split('\n').pop()}` : error.message;
+      res.status(500).json({ error: errorMessage });
     } finally {
       // Cleanup
       try {
