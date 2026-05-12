@@ -24,7 +24,9 @@ import {
   Trophy,
   BookOpen,
   Lightbulb,
-  Check
+  Check,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -77,8 +79,10 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.recapMaster.title,
     description: translations[lang].tools.recapMaster.desc,
     icon: Zap,
-    color: "bg-red-500/20",
-    iconColor: "text-red-400",
+    color: "bg-red-500",
+    iconColor: "text-white",
+    borderColor: "border-red-500/20 hover:border-red-500/50",
+    shadowColor: "shadow-red-500/20",
     badge: "PRO"
   },
   {
@@ -86,8 +90,10 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.videoRecapper.title,
     description: translations[lang].tools.videoRecapper.desc,
     icon: Play,
-    color: "bg-blue-500/20",
-    iconColor: "text-blue-400",
+    color: "bg-blue-500",
+    iconColor: "text-white",
+    borderColor: "border-blue-500/20 hover:border-blue-500/50",
+    shadowColor: "shadow-blue-500/20",
     badge: "NEW"
   },
   {
@@ -95,24 +101,30 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.videoRecap.title,
     description: translations[lang].tools.videoRecap.desc,
     icon: Camera,
-    color: "bg-purple-500/20",
-    iconColor: "text-purple-400"
+    color: "bg-purple-500",
+    iconColor: "text-white",
+    borderColor: "border-purple-500/20 hover:border-purple-500/50",
+    shadowColor: "shadow-purple-500/20"
   },
   {
     id: "subtitle-editor",
     title: translations[lang].tools.subtitleEditor.title,
     description: translations[lang].tools.subtitleEditor.desc,
     icon: Subtitles,
-    color: "bg-blue-600/20",
-    iconColor: "text-blue-500"
+    color: "bg-cyan-500",
+    iconColor: "text-white",
+    borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
+    shadowColor: "shadow-cyan-500/20"
   },
   {
     id: "auto-recap",
     title: translations[lang].tools.autoRecap.title,
     description: translations[lang].tools.autoRecap.desc,
     icon: Star,
-    color: "bg-indigo-500/20",
-    iconColor: "text-indigo-400",
+    color: "bg-indigo-500",
+    iconColor: "text-white",
+    borderColor: "border-indigo-500/20 hover:border-indigo-500/50",
+    shadowColor: "shadow-indigo-500/20",
     badge: "NEW"
   },
   {
@@ -120,8 +132,10 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.videoTranscribe.title,
     description: translations[lang].tools.videoTranscribe.desc,
     icon: Type,
-    color: "bg-teal-500/20",
-    iconColor: "text-teal-400",
+    color: "bg-teal-500",
+    iconColor: "text-white",
+    borderColor: "border-teal-500/20 hover:border-teal-500/50",
+    shadowColor: "shadow-teal-500/20",
     badge: "NEW"
   },
   {
@@ -129,8 +143,10 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.aiVoiceover.title,
     description: translations[lang].tools.aiVoiceover.desc,
     icon: Music,
-    color: "bg-orange-500/20",
-    iconColor: "text-orange-400"
+    color: "bg-amber-500",
+    iconColor: "text-white",
+    borderColor: "border-amber-500/20 hover:border-amber-500/50",
+    shadowColor: "shadow-amber-500/20"
   }
 ];
 
@@ -282,24 +298,22 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
-              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Music className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{t.headline}</h1>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
             </div>
           </div>
 
-          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
-            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
-            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          <div className="flex items-center gap-4">
           </div>
         </div>
       </header>
@@ -310,12 +324,12 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t.inputPlaceholder}
-            className="w-full h-40 bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 text-base font-medium text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/30 transition-all resize-none shadow-xl"
+            className="w-full h-40 bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 text-base font-medium text-text-primary dark:text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/30 transition-all resize-none shadow-xl"
           />
           
-          <div className="bg-[#0f172a]/40 backdrop-blur-sm rounded-2xl p-6 border border-white/5 shadow-xl flex flex-wrap gap-8">
+          <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-sm rounded-2xl p-6 border border-border dark:border-white/5 shadow-xl flex flex-wrap gap-8">
             <div className="flex-1 space-y-3 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{t.selectVoice}</label>
+              <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.3em]">{t.selectVoice}</label>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(t.voices).map(([key, label]) => (
                   <button
@@ -324,7 +338,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
                     className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
                       selectedVoice === key 
                         ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20" 
-                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                        : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-text-secondary dark:text-slate-500 hover:border-slate-300 dark:hover:border-white/10 hover:text-text-primary dark:hover:text-slate-300"
                     }`}
                   >
                     {(label as string).split(' ')[0]}
@@ -334,7 +348,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
             </div>
 
             <div className="flex-1 space-y-3 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{t.selectMood}</label>
+              <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.3em]">{t.selectMood}</label>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(t.moods).map(([key, label]) => (
                   <button
@@ -343,7 +357,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
                     className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
                       selectedMood === key 
                         ? "bg-purple-600 border-purple-500 text-white shadow-xl shadow-purple-500/20" 
-                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                        : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-text-secondary dark:text-slate-500 hover:border-slate-300 dark:hover:border-white/10 hover:text-text-primary dark:hover:text-slate-300"
                     }`}
                   >
                     {label as string}
@@ -461,23 +475,21 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
-              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Play className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{toolTitle}</h1>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{toolTitle}</h1>
             </div>
           </div>
-          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
-            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
-            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          <div className="flex items-center">
           </div>
         </div>
       </header>
@@ -530,14 +542,14 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
         <AnimatePresence>
           {result && (
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
+              <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-border dark:border-white/5 shadow-3xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8">
                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
                     <Sparkles className="w-6 h-6 text-blue-400/50" />
                   </div>
                 </div>
                 
-                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-headings:italic prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
+                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
                   <Markdown>{result}</Markdown>
                 </div>
               </div>
@@ -596,23 +608,22 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
-              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Type className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{t.headline}</h1>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
             </div>
           </div>
-          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
-            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
-            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+
+          <div className="flex items-center">
           </div>
         </div>
       </header>
@@ -665,21 +676,21 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
         <AnimatePresence>
           {result && (
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
+              <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-border dark:border-white/5 shadow-3xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8">
                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
                     <Sparkles className="w-6 h-6 text-blue-400/50" />
                   </div>
                 </div>
                 
-                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-headings:italic prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
+                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
                   <Markdown>{result}</Markdown>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-border">
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                  <h3 className="text-base font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                       <ListOrdered className="w-4 h-4" />
                     </div>
@@ -687,21 +698,21 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
                   </h3>
                   <ul className="space-y-3">
                     {t.actions.map((action, i) => (
-                      <li key={i} className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-3 bg-white/[0.02] p-4 rounded-2xl border border-white/5 transition-all hover:bg-white/[0.04]">
+                      <li key={i} className="text-[11px] text-text-secondary font-bold uppercase tracking-widest flex items-center gap-3 bg-card-bg/20 dark:bg-white/[0.02] p-4 rounded-2xl border border-border dark:border-white/5 transition-all hover:bg-card-bg/30 dark:hover:bg-white/[0.04]">
                         <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> {action}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                  <h3 className="text-base font-black text-purple-600 dark:text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
                       <BookOpen className="w-4 h-4" />
                     </div>
                     {t.usageTitle}
                   </h3>
-                  <div className="bg-white/[0.02] p-8 rounded-2xl border border-white/5 h-full">
-                    <p className="text-[11px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">{t.usage}</p>
+                  <div className="bg-card-bg/20 dark:bg-white/[0.02] p-8 rounded-2xl border border-border dark:border-white/5 h-full">
+                    <p className="text-[11px] text-text-secondary leading-relaxed font-bold uppercase tracking-widest">{t.usage}</p>
                   </div>
                 </div>
               </div>
@@ -895,24 +906,22 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-page-bg text-slate-300 pb-20 selection:bg-blue-500/20">
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/60 backdrop-blur-2xl">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
-              <ArrowLeft className="w-4 h-4 text-slate-400" />
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Zap className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-lg font-black text-white tracking-tighter uppercase italic">{t.headline}</h1>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
             </div>
           </div>
 
-          <div className="flex items-center bg-white/[0.03] p-1 rounded-full border border-white/10 ring-1 ring-white/5">
-            <button onClick={() => setLang("EN")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "EN" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>EN</button>
-            <button onClick={() => setLang("MY")} className={`px-3 py-1 rounded-full text-[10px] font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}>MY</button>
+          <div className="flex items-center gap-4">
           </div>
         </div>
       </header>
@@ -920,7 +929,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
         {/* Upload Section */}
         <section className="space-y-4">
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
             <input 
               type="file" 
               ref={fileInputRef}
@@ -940,10 +949,10 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                 {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
               </div>
               <div className="space-y-0.5">
-                <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}>
+                <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-text-primary dark:text-white" : "text-text-secondary dark:text-slate-400 group-hover:text-text-primary dark:group-hover:text-slate-300"}`}>
                   {file ? file.name : t.browseFiles}
                 </h3>
-                <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest leading-none">
+                <p className="text-[9px] text-text-secondary/60 dark:text-slate-600 font-bold uppercase tracking-widest leading-none">
                   {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : t.fileLimit}
                 </p>
               </div>
@@ -960,7 +969,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
               <Sparkles className="w-4 h-4 text-blue-400" />
             </div>
-            <h2 className="text-xl font-black tracking-tight uppercase italic">{t.selectStyle}</h2>
+            <h2 className="text-xl font-black tracking-tight">{t.selectStyle}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -971,7 +980,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                 className={`group flex items-start gap-4 p-4 rounded-2xl border text-left transition-all relative ${
                   selectedStyle === style.id 
                     ? "bg-blue-600 border-blue-500 text-white shadow-2xl shadow-blue-500/10 -translate-y-1" 
-                    : "bg-[#0f172a]/60 backdrop-blur-sm border-white/[0.05] text-slate-500 hover:border-white/10 hover:text-slate-300"
+                    : "bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-sm border-border dark:border-white/[0.05] text-text-secondary hover:border-slate-300 dark:hover:border-white/10 hover:text-text-primary dark:hover:text-slate-300"
                 }`}
               >
                 <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
@@ -982,7 +991,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   }`} />
                 </div>
                 <div className="space-y-1 pr-6">
-                  <h4 className="text-[13px] font-black tracking-tight uppercase italic">
+                  <h4 className="text-[13px] font-black tracking-tight">
                     {style.title}
                   </h4>
                   <p className={`text-[10px] leading-relaxed font-bold uppercase tracking-widest line-clamp-2 ${
@@ -1007,12 +1016,12 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
               <Music className="w-4 h-4 text-purple-400" />
             </div>
-            <h2 className="text-xl font-black tracking-tight uppercase italic">{vt.headline}</h2>
+            <h2 className="text-xl font-black tracking-tight">{vt.headline}</h2>
           </div>
 
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl flex flex-wrap gap-8">
             <div className="flex-1 space-y-3 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{vt.selectVoice}</label>
+              <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.2em]">{vt.selectVoice}</label>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(vt.voices).map(([key, label]) => (
                   <button
@@ -1031,7 +1040,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
             </div>
 
             <div className="flex-1 space-y-3 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{vt.selectMood}</label>
+              <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.2em]">{vt.selectMood}</label>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(vt.moods).map(([key, label]) => (
                   <button
@@ -1085,7 +1094,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                   <Zap className="w-5 h-5 text-blue-400" />
                 </div>
-                <h2 className="text-2xl font-black tracking-tight uppercase italic">{lang === "EN" ? "Generated Recap" : "ထုတ်လုပ်ထားသော Recap"}</h2>
+                <h2 className="text-2xl font-black tracking-tight">{lang === "EN" ? "Generated Recap" : "ထုတ်လုပ်ထားသော Recap"}</h2>
               </div>
               
               <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
@@ -1095,7 +1104,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   </div>
                 </div>
                 
-                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-headings:italic prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
+                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
                   <Markdown>{result}</Markdown>
                 </div>
               </div>
@@ -1188,7 +1197,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
               {/* Detailed Breakdown Panels */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                  <h3 className="text-base font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                       <ListOrdered className="w-4 h-4" />
                     </div>
@@ -1203,7 +1212,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   </ul>
                 </div>
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                  <h3 className="text-base font-black text-purple-600 dark:text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
                       <BookOpen className="w-4 h-4" />
                     </div>
@@ -1238,7 +1247,16 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
 export default function App() {
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
-  const [lang, setLang] = useState<Language>("EN");
+  const [lang, setLang] = useState<Language>("MY");
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const tNav = translations[lang].nav;
   const tHero = translations[lang].hero;
@@ -1311,7 +1329,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             id="lumina-portal"
-            className="text-slate-300 relative overflow-hidden"
+            className="text-text-secondary relative overflow-hidden"
           >
             <div className="hero-glow animate-pulse" />
             <div className="absolute inset-0 noise-overlay" />
@@ -1325,42 +1343,35 @@ export default function App() {
                       <Cpu className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex flex-col -gap-1">
-                      <span className="text-2xl font-black tracking-tighter text-white uppercase italic leading-none">LUMINA</span>
+                      <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">LUMINA</span>
                       <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
                     </div>
                   </div>
                   
                   <nav className="hidden lg:flex items-center gap-10">
-                    <a href="#" className="relative px-1 py-1 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-white">
+                    <a href="#" className="relative px-1 py-1 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-primary dark:text-white">
                       {tNav.dashboard}
                       <motion.div layoutId="nav-underline" className="absolute -bottom-2 left-0 right-0 h-1 bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] rounded-full" />
                     </a>
-                    <div className="flex items-center gap-3 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-all cursor-pointer group">
+                    <div className="flex items-center gap-3 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-all cursor-pointer group">
                       <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                       <span>{tNav.aiRecap}</span>
-                      <span className="text-[8px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-sm border border-blue-500/20 font-sans">ARC-1</span>
+                      <span className="text-[8px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-sm border border-blue-500/20 font-sans">ARC-1</span>
                     </div>
-                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-colors">{tNav.library}</a>
-                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-colors">{tNav.apiDocs}</a>
+                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-colors">{tNav.library}</a>
+                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-colors">{tNav.apiDocs}</a>
                   </nav>
                 </div>
 
                 <div className="flex items-center gap-8">
-                  {/* Language Switcher */}
-                  <div className="flex items-center bg-white/[0.02] p-1 rounded-xl border border-white/5 ring-1 ring-white/5">
-                    <button 
-                      onClick={() => setLang("EN")}
-                      className={`px-4 py-1.5 rounded-lg text-[10px] font-tech font-black transition-all ${lang === "EN" ? "bg-white/10 text-white shadow-2xl border border-white/10" : "text-slate-600 hover:text-slate-400"}`}
-                    >
-                      EN
-                    </button>
-                    <button 
-                      onClick={() => setLang("MY")}
-                      className={`px-4 py-1.5 rounded-lg text-[10px] font-tech font-black transition-all ${lang === "MY" ? "bg-white/20 text-white shadow-xl" : "text-slate-500 hover:text-slate-400"}`}
-                    >
-                      MY
-                    </button>
-                  </div>
+                  {/* Theme Toggle */}
+                  <button 
+                    onClick={() => setDarkMode(!darkMode)}
+                    className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center text-text-primary dark:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all duration-300 shadow-sm"
+                    title={darkMode ? "Switch to Light Mode" : "Dark Mode"}
+                  >
+                    {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
+                  </button>
 
                   <div className="flex items-center gap-5 border-l border-white/[0.08] pl-8">
                     <button id="notification-btn" className="p-2.5 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5 active:scale-95">
@@ -1386,26 +1397,8 @@ export default function App() {
                 transition={{ duration: 0.8, ease: "circOut" }}
                 className="mb-16 text-center md:text-left relative"
               >
-                <div className="flex items-center justify-center md:justify-start gap-4 mb-6">
-                  <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md text-[9px] font-tech font-bold tracking-[0.3em] text-blue-400 uppercase">Beta Access Ready</span>
-                  <div className="w-1.5 h-1.5 bg-slate-800 rounded-full" />
-                  <span className="text-[9px] font-tech font-bold text-slate-500 uppercase tracking-[0.2em]">{lang === "EN" ? "Systems Nominal" : "စနစ်များ အဆင်သင့်ရှိသည်"}</span>
-                </div>
-                
                 <div className="relative inline-block">
-                  <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter text-white mb-6 uppercase leading-[0.85] selection:bg-blue-500/50">
-                    {tHero.title}<br />
-                    <span className="brand-gradient drop-shadow-2xl">{tHero.dashboard}</span>
-                  </h1>
-                  <div className="absolute -right-8 top-0 hidden md:block">
-                     <Sparkles className="w-8 h-8 text-blue-400/20 animate-pulse" />
-                  </div>
                 </div>
-
-                <p className="text-base text-slate-400 max-w-xl leading-relaxed font-medium mx-auto md:mx-0 opacity-80 mb-2">
-                  {tHero.description}
-                </p>
-                <div className="w-20 h-1 bg-blue-600/30 rounded-full mt-4 mx-auto md:mx-0" />
               </motion.div>
 
               {/* Dashboard Grid */}
@@ -1426,7 +1419,7 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.5, delay: index * 0.05 }}
-                      className="group relative bg-[#0f172a]/40 backdrop-blur-md border border-white/[0.04] rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-white/[0.02] hover:-translate-y-3 hover:border-white/10 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden"
+                      className={`group relative bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-card-bg/60 dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
                       onClick={() => setActiveToolId(tool.id)}
                     >
                       {/* Background Glow */}
@@ -1435,7 +1428,7 @@ export default function App() {
                       
                       {tool.badge && (
                         <div className="absolute top-0 right-0 p-4">
-                          <div className={`text-[9px] ${tool.badge === 'PRO' ? 'bg-orange-500' : 'bg-blue-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                          <div className={`text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-orange-400 to-rose-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
                             {tool.badge}
                           </div>
                         </div>
@@ -1445,15 +1438,15 @@ export default function App() {
                         <ArrowRight className="w-5 h-5 text-white" />
                       </div>
                       
-                      <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-inner relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                        <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_currentColor]`} />
+                      <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
+                        <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
                       </div>
 
                       <div className="relative z-10">
-                        <h3 className="text-xl font-black text-white mb-3 tracking-tighter group-hover:brand-gradient transition-all uppercase italic leading-none">
+                        <h3 className="text-xl font-black text-text-primary dark:text-white mb-3 tracking-tighter group-hover:brand-gradient transition-all leading-none">
                           {tool.title}
                         </h3>
-                        <p className="text-[10px] text-slate-500 line-clamp-3 mb-10 leading-relaxed font-tech font-bold uppercase tracking-widest group-hover:text-slate-400 transition-colors">
+                        <p className="text-[10px] text-text-secondary dark:text-slate-500 line-clamp-3 mb-10 leading-relaxed font-tech font-bold uppercase tracking-widest group-hover:text-text-primary dark:group-hover:text-slate-400 transition-colors">
                           {tool.description}
                         </p>
                       </div>
@@ -1485,16 +1478,10 @@ export default function App() {
             {/* Footer / Meta Data */}
             <footer className="fixed bottom-0 left-0 right-0 h-16 border-t border-white/[0.03] bg-page-bg/40 backdrop-blur-xl z-50 flex items-center justify-between px-8 pointer-events-none md:pointer-events-auto">
                <div className="flex items-center gap-6">
-                 <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                    <span className="text-[9px] font-tech font-black text-slate-500 tracking-[0.2em] uppercase">Core Sync: Active</span>
-                 </div>
-                 <div className="w-px h-4 bg-white/5" />
-                 <span className="text-[9px] font-tech font-black text-slate-600 tracking-[0.2em] uppercase hidden sm:block">AI-Studio Cluster: West-Europe-1</span>
                </div>
                
                <div className="flex items-center gap-6">
-                 <span className="text-[10px] font-tech font-black text-slate-600 tracking-[0.3em] uppercase italic">© 2026 Lumina Neural Systems</span>
+                 <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Lumina Neural Systems</span>
                </div>
             </footer>
           </motion.div>

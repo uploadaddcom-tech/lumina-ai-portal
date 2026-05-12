@@ -4,14 +4,14 @@ export type Language = "EN" | "MY";
 export const translations = {
   EN: {
     nav: {
-      dashboard: "DASHBOARD",
-      aiRecap: "AI RECAP",
-      library: "LIBRARY",
-      apiDocs: "API DOCS",
+      dashboard: "Dashboard",
+      aiRecap: "Ai Recap",
+      library: "Library",
+      apiDocs: "Api Docs",
     },
     hero: {
-      title: "AI TOOL",
-      dashboard: "DASHBOARD",
+      title: "Ai Tool",
+      dashboard: "Dashboard",
       description: "Architecting the future of creative automation. Orchestrate complex media pipelines with enterprise-grade neural engines and real-time vision processing.",
     },
     recapMaster: {
@@ -106,31 +106,31 @@ export const translations = {
     },
     tools: {
       videoRecapper: {
-        title: "AI VIDEO RECApper",
+        title: "Ai Video Recapper",
         desc: "စကားပြောပါတဲ့ Video တွေကို ကြည့်ပြီး မြန်မာလို Recap ပြောပေးမယ့် Tool",
       },
       videoRecap: {
-        title: "VIDEO RECAP",
+        title: "Video Recap",
         desc: "ဗီဒီယိုနဲ့ အောက်ဒီယိုဖိုင်တွေကို ပေါင်းပေးမယ့် tool ပါ။ အကယ်၍ အောက်ဒီယိုက ပိုရှည်နေရင် ဗီဒီယိုနဲ့ ကွက်တိဖြစ်အောင်...",
       },
       subtitleEditor: {
-        title: "SUBTITLE EDITOR",
+        title: "Subtitle Editor",
         desc: "ဗီဒီယိုဖိုင်များတွင် မြန်မာစာတန်းထိုးများကို စက္ကန့်ပိုင်းအတွင်း အလိုအလျောက်ထည့်သွင်းပေးပြီး စိတ်ကြိုက်ပြင်ဆင်နိုင်မည်...",
       },
       autoRecap: {
-        title: "AUTO RECAP",
+        title: "Auto Recap",
         desc: "Neural Engine အသစ်ဖြင့် ဗီဒီယိုများကို အလိုအလျောက် Recap လုပ်ပေးမည့် tool ပါ။ Highlight များကို...",
       },
       videoTranscribe: {
-        title: "VIDEO TRANSCRIBE",
+        title: "Video Transcribe",
         desc: "Neural abstraction engine that surgically extracts text and translates it into Myanmar script with...",
       },
       aiVoiceover: {
-        title: "AI VOICEOVER",
+        title: "Ai Voiceover",
         desc: "စာရိုက်ထည့်လိုက်ရုံနဲ့ AI အသံအဖြစ် ပြောင်းလဲပေးမယ့် tool ဖြစ်ပါတယ်။",
       },
       recapMaster: {
-        title: "RECAP MASTER",
+        title: "Recap Master",
         desc: "Enterprise-grade media processing engine for master-level recap generation and distribution.",
       }
     }
@@ -143,7 +143,7 @@ export const translations = {
       apiDocs: "API စာရွက်စာတမ်းများ",
     },
     hero: {
-      title: "AI TOOL",
+      title: "Ai Tool",
       dashboard: "ဒက်ရှ်ဘုတ်",
       description: "ဖန်တီးမှုဆိုင်ရာ အလိုအလျောက်လုပ်ဆောင်ခြင်း၏ အနာဂတ်ကို တည်ဆောက်ခြင်း။ လုပ်ငန်းသုံးအဆင့် နျူရယ်အင်ဂျင်များနှင့် အချိန်နှင့်တပြေးညီ မြင်ကွင်းလုပ်ဆောင်မှုများဖြင့် ရှုပ်ထွေးသော မီဒီယာပိုက်လိုင်းများကို စီစဉ်ဆောင်ရွက်ပေးပါသည်။",
     },
@@ -239,31 +239,31 @@ export const translations = {
     },
     tools: {
       videoRecapper: {
-        title: "AI VIDEO RECApper",
+        title: "Ai Video Recapper",
         desc: "စကားပြောပါတဲ့ Video တွေကို ကြည့်ပြီး မြန်မာလို Recap ပြောပေးမယ့် Tool",
       },
       videoRecap: {
-        title: "VIDEO RECAP",
+        title: "Video Recap",
         desc: "ဗီဒီယိုနဲ့ အောက်ဒီယိုဖိုင်တွေကို ပေါင်းပေးမယ့် tool ပါ။ အကယ်၍ အောက်ဒီယိုက ပိုရှည်နေရင် ဗီဒီယိုနဲ့ ကွက်တိဖြစ်အောင်...",
       },
       subtitleEditor: {
-        title: "SUBTITLE EDITOR",
+        title: "Subtitle Editor",
         desc: "ဗီဒီယိုဖိုင်များတွင် မြန်မာစာတန်းထိုးများကို စက္ကန့်ပိုင်းအတွင်း အလိုအလျောက်ထည့်သွင်းပေးပြီး စိတ်ကြိုက်ပြင်ဆင်နိုင်မည်...",
       },
       autoRecap: {
-        title: "AUTO RECAP",
+        title: "Auto Recap",
         desc: "Neural Engine အသစ်ဖြင့် ဗီဒီယိုများကို အလိုအလျောက် Recap လုပ်ပေးမည့် tool ပါ။ Highlight များကို...",
       },
       videoTranscribe: {
-        title: "VIDEO TRANSCRIBE",
+        title: "Video Transcribe",
         desc: "Neural abstraction engine that surgically extracts text and translates it into Myanmar script with...",
       },
       aiVoiceover: {
-        title: "AI VOICEOVER",
+        title: "Ai Voiceover",
         desc: "စာရိုက်ထည့်လိုက်ရုံနဲ့ AI အသံအဖြစ် ပြောင်းလဲပေးမယ့် tool ဖြစ်ပါတယ်။",
       },
       recapMaster: {
-        title: "RECAP MASTER",
+        title: "Recap Master",
         desc: "လုပ်ငန်းသုံးအဆင့် မီဒီယာလုပ်ဆောင်ချက် အင်ဂျင်ဖြစ်ပြီး Recap များ ထုတ်လုပ်ရန်အတွက် ဖြစ်သည်။",
       }
     }

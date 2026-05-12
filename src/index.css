@@ -10,21 +10,42 @@
   --color-brand-cyan: #22d3ee;
   --color-brand-blue: #3b82f6;
   --color-brand-indigo: #6366f1;
-  --color-card-bg: #0f172a;
-  --color-page-bg: #020617;
   
+  --color-page-bg: var(--page-bg);
+  --color-card-bg: var(--card-bg);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border-color);
+
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
   --radius-3xl: 2rem;
 }
 
 @layer base {
+  :root {
+    --page-bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text-primary: #000000;
+    --text-secondary: #334155;
+    --border-color: #e2e8f0;
+  }
+
+  .dark {
+    --page-bg: #020617;
+    --card-bg: #0f172a;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.05);
+  }
+
   body {
-    @apply bg-page-bg text-slate-300 antialiased selection:bg-blue-500/30 selection:text-white;
+    @apply bg-page-bg text-text-secondary antialiased selection:bg-blue-500/30 selection:text-white transition-colors duration-300;
     font-family: var(--font-sans);
   }
 
   h1, h2, h3, h4, .font-display {
+    @apply text-text-primary;
     font-family: var(--font-display);
   }
 }
@@ -34,7 +55,7 @@
 }
 
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-linear-to-br from-white via-slate-200 to-slate-500;
+  @apply bg-clip-text text-transparent bg-linear-to-br from-text-primary via-text-secondary to-text-secondary dark:from-white dark:via-slate-200 dark:to-slate-500;
 }
 
 .brand-gradient {
