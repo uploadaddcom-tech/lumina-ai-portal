@@ -38,7 +38,7 @@ async function startServer() {
     try {
       const { videoBase64, mimeType, style, lang } = req.body;
       const model = "gemini-3-flash-preview";
-      // ... prompts as defined before ...
+      
       const stylePrompts: Record<string, string> = {
         "step-by-step": lang === "EN" 
           ? "Create a very detailed, comprehensive, step-by-step guide based on this video. Break it down into logical phases and include every minor detail and technique shown."
@@ -154,7 +154,19 @@ async function startServer() {
     const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
 
     try {
-      const { videoBase64, audioBase64, logoBase64, logoSize, logoPosition, videoRatio, videoScale } = req.body;
+      const { 
+        videoBase64, 
+        audioBase64, 
+        logoBase64, 
+        logoSize, 
+        logoPosition, 
+        videoRatio, 
+        videoScale,
+        blurEnabled,
+        blurWidth,
+        blurHeight,
+        blurY
+      } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
       const audioBuffer = Buffer.from(audioBase64, 'base64');
@@ -198,7 +210,6 @@ async function startServer() {
       const vDur = await getDuration(videoPath);
       const aDur = await getDuration(audioPath);
 
-      let ffmpegCmd = "";
       const size = logoSize || 100; // default 100px
       const padding = 20;
       const zoom = (videoScale || 100) / 100;
@@ -223,50 +234,68 @@ async function startServer() {
       }
 
       const speed = (vDur > 0 && aDur > vDur) ? aDur / vDur : 1;
-      let audioFilter = "";
-      if (speed > 1) {
-        let atempo = `atempo=${speed}`;
-        if (speed > 2.0) {
-          atempo = `atempo=2.0,atempo=${speed/2.0}`;
-        }
-        audioFilter = ` -filter_complex "[1:a]${atempo}[aout]" -map "[aout]"`;
-      } else {
-        audioFilter = ` -map 1:a:0 -shortest`;
+      
+      // Build filter complex
+      let filterComplex = "";
+      let lastV = "[0:v]";
+      
+      if (ratioFilter) {
+        filterComplex += `[0:v]${ratioFilter}[rv];`;
+        lastV = "[rv]";
+      }
+
+      if (blurEnabled) {
+        const bw = blurWidth || 300;
+        const bh = blurHeight || 80;
+        const by = blurY !== undefined ? blurY : `(H-${bh}-50)`;
+        const bx = `(W-${bw})/2`;
+        
+        filterComplex += `${lastV}split[v1][v2];`;
+        filterComplex += `[v2]boxblur=20:10,crop=${bw}:${bh}:${bx}:${by}[blurred];`;
+        filterComplex += `[v1][blurred]overlay=${bx}:${by}[bv];`;
+        lastV = "[bv]";
       }
 
       if (hasLogo) {
-        // Complex filter combining ratio, logo scaling, positioning, and optional audio tempo
-        let filterComplex = "";
-        let audioComplex = "";
-        if (speed > 1) {
-          let atempo = `atempo=${speed}`;
-          if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
-          audioComplex = `;[1:a]${atempo}[aout]`;
-        } else {
-          audioComplex = ""; // handled by map
-        }
-
-        const lbase = ratioFilter ? "[rv]" : "[0:v]";
-        const vFilterPrefix = ratioFilter ? `[0:v]${ratioFilter}[rv];` : "";
-        filterComplex = ` -filter_complex "${vFilterPrefix}[2:v]scale=${size}:-2[l];${lbase}[l]overlay=${posFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
-        
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -i "${logoPath}"${filterComplex} -c:v libx264 -preset ultrafast "${outputPath}"`;
+        filterComplex += `[2:v]scale=${size}:-2[l];${lastV}[l]overlay=${posFilter}[vout]`;
+        lastV = "[vout]";
       } else {
-        if (ratioFilter) {
-          let audioComplex = "";
-          if (speed > 1) {
-            let atempo = `atempo=${speed}`;
-            if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
-            audioComplex = `;[1:a]${atempo}[aout]`;
+        // If we have filters, rename the last one to vout
+        if (filterComplex.endsWith(";")) {
+          filterComplex = filterComplex.slice(0, -1);
+          // Rename last label to [vout]
+          const lastLabelMatch = filterComplex.match(/\[([^\]]+)\]$/);
+          if (lastLabelMatch) {
+            const lastLabel = lastLabelMatch[1];
+            filterComplex = filterComplex.replace(new RegExp(`\\[${lastLabel}\\]$`), '[vout]');
+            lastV = "[vout]";
           }
-          filterComplex = ` -filter_complex "[0:v]${ratioFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
-          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${filterComplex} -c:v libx264 -preset ultrafast "${outputPath}"`;
+        } else if (filterComplex !== "") {
+           // We have a complex filter but it's not vout-ready
+           // This shouldn't happen with the current logic but let's be safe
+           filterComplex += `${lastV}null[vout]`; // null filter just passes video through
+           lastV = "[vout]";
+        }
+      }
+
+      let audioComplex = "";
+      if (speed > 1) {
+        let atempo = `atempo=${speed}`;
+        if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
+        audioComplex = `;[1:a]${atempo}[aout]`;
+      }
+
+      let ffmpegCmd = "";
+      if (filterComplex) {
+        const mapV = ` -map "${lastV}"`;
+        const mapA = speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest';
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex "${filterComplex}${audioComplex}"${mapV} ${mapA} -c:v libx264 -preset ultrafast "${outputPath}"`;
+      } else {
+        // No filters at all
+        if (speed > 1) {
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast "${outputPath}"`;
         } else {
-          if (speed > 1) {
-            ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${audioFilter} -map 0:v:0 -c:v copy "${outputPath}"`;
-          } else {
-            ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
-          }
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
         }
       }
 
@@ -291,8 +320,6 @@ async function startServer() {
       }
     }
   });
-
-  // API Route for Gemini Proxy (Legacy/General)
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

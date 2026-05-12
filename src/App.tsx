@@ -63,11 +63,23 @@ const api = {
     if (!res.ok) throw new Error("Voiceover failed");
     return (await res.json()).audioData;
   },
-  async merge(videoBase64: string, audioBase64: string, logoBase64?: string, logoSize?: number, logoPosition?: string, videoRatio?: string, videoScale?: number) {
+  async merge(videoBase64: string, audioBase64: string, logoBase64?: string, logoSize?: number, logoPosition?: string, videoRatio?: string, videoScale?: number, blurEnabled?: boolean, blurWidth?: number, blurHeight?: number, blurY?: number) {
     const res = await fetch("/api/merge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, audioBase64, logoBase64, logoSize, logoPosition, videoRatio, videoScale }),
+      body: JSON.stringify({ 
+        videoBase64, 
+        audioBase64, 
+        logoBase64, 
+        logoSize, 
+        logoPosition, 
+        videoRatio, 
+        videoScale,
+        blurEnabled,
+        blurWidth,
+        blurHeight,
+        blurY
+      }),
     });
     if (!res.ok) throw new Error("Merge failed");
     return (await res.json()).videoBase64;
@@ -752,6 +764,13 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [videoScale, setVideoScale] = useState(100);
   const [showRatioSettings, setShowRatioSettings] = useState(false);
   
+  // Blur Settings
+  const [blurEnabled, setBlurEnabled] = useState(false);
+  const [blurWidth, setBlurWidth] = useState(400);
+  const [blurHeight, setBlurHeight] = useState(100);
+  const [blurY, setBlurY] = useState(400);
+  const [showBlurSettings, setShowBlurSettings] = useState(false);
+  
   const logoInputRef = useRef<HTMLInputElement>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -901,7 +920,19 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         reader.readAsDataURL(audioBlob);
       });
 
-      const mergedBase64 = await api.merge(videoBase64, audioBase64, logoBase64, logoSize, logoPosition, videoRatio, videoScale);
+      const mergedBase64 = await api.merge(
+        videoBase64, 
+        audioBase64, 
+        logoBase64, 
+        logoSize, 
+        logoPosition, 
+        videoRatio, 
+        videoScale,
+        blurEnabled,
+        blurWidth,
+        blurHeight,
+        blurY
+      );
       
       if (mergedBase64) {
         const binaryString = atob(mergedBase64);
@@ -1081,13 +1112,6 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
         {/* Ratio Selection Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-              <Maximize className="w-4 h-4 text-blue-400" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Frame & Fit" : "ဗီဒီယို Ratio နှင့် Frame"}</h2>
-          </div>
-
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
@@ -1108,13 +1132,6 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
         {/* Logo Customization Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-              <Camera className="w-4 h-4 text-emerald-400" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Logo Customization" : "Logo စိတ်ကြိုက်ပြင်ဆင်ခြင်း"}</h2>
-          </div>
-
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               {/* Upload Button */}
@@ -1150,16 +1167,59 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   </label>
                   <button 
                     onClick={() => setShowLogoSettings(true)}
-                    className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all"
+                    className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                   >
                     <Star className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">
-                      {lang === "EN" ? "Logo Settings" : "Logo Setting"}
-                    </span>
+                    {lang === "EN" ? "Logo Settings" : "Logo Setting"}
                   </button>
                 </div>
               )}
             </div>
+          </div>
+        </section>
+
+        {/* Blur Subtitle Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center border border-red-500/20">
+              <Sparkles className="w-4 h-4 text-red-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Subtitle Blur" : "စာတန်းထိုး Blur အုပ်ရန်"}</h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Blur Overlay" : "Blur အုပ်မည်"}
+                </label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setBlurEnabled(!blurEnabled)}
+                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
+                      blurEnabled ? "bg-red-600/20 border-red-500/30 text-red-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {blurEnabled ? (lang === "EN" ? "Blur Enabled" : "Blur ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Blur" : "Blur ဖွင့်ရန်")}
+                    </span>
+                  </button>
+
+                  {blurEnabled && (
+                    <button 
+                      onClick={() => setShowBlurSettings(true)}
+                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                    >
+                      <Star className="w-4 h-4" />
+                      {lang === "EN" ? "Blur Settings" : "နေရာညှိရန်"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
             {/* Video Ratio Modal */}
             <AnimatePresence>
@@ -1175,11 +1235,11 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
-                       <motion.div 
+                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                      <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
@@ -1220,12 +1280,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-8 flex flex-col gap-8 border-l border-white/5 bg-[#0f172a]">
-                      <div className="space-y-1">
-                        <h3 className="text-xl font-black text-white tracking-tight">{lang === "EN" ? "Frame & Fit" : "ဗီဒီယို Ratio"}</h3>
-                        <p className="text-xs text-slate-500">{lang === "EN" ? "Scale and crop your content" : "ဗီဒီယို ပုံစံနှင့် အရွယ်အစားညှိပါ"}</p>
-                      </div>
-
+                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
+                      
                       <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
@@ -1296,10 +1352,10 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
+                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
                       <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -1354,12 +1410,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-8 flex flex-col gap-8 border-l border-white/5 bg-[#0f172a]">
-                      <div className="space-y-1">
-                        <h3 className="text-xl font-black text-white tracking-tight">{lang === "EN" ? "Logo Setup" : "Logo ပြင်ဆင်ရန်"}</h3>
-                        <p className="text-xs text-slate-500">{lang === "EN" ? "Adjust size and position" : "အရွယ်အစားနှင့် တည်နေရာညှိပါ"}</p>
-                      </div>
-
+                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
+                      
                       <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
@@ -1416,11 +1468,144 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </section>
+
+            {/* Blur Settings Modal */}
+            <AnimatePresence>
+              {showBlurSettings && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
+                >
+                  <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setShowBlurSettings(false)} />
+                  
+                  <motion.div 
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                  >
+                    {/* Visual Preview Side */}
+                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                      <motion.div 
+                        layout
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
+                        style={{
+                          aspectRatio: videoRatio.replace(':', '/'),
+                          maxHeight: '100%',
+                          maxWidth: '100%',
+                          height: videoRatio === '9:16' ? '100%' : 'auto',
+                          width: videoRatio === '9:16' ? 'auto' : '100%',
+                        }}
+                      >
+                        {file ? (
+                          <video 
+                            src={URL.createObjectURL(file)} 
+                            className="w-full h-full object-cover opacity-60"
+                            style={{ 
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                            }}
+                            autoPlay 
+                            muted 
+                            loop 
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center w-full h-full">
+                             <Play className="w-12 h-12 text-white/5" />
+                          </div>
+                        )}
+
+                        {/* Blur Overlay Preview */}
+                        <div 
+                          className="absolute bg-slate-900/40 backdrop-blur-3xl border-2 border-red-500/50 rounded-lg shadow-2xl overflow-hidden transition-all duration-150"
+                          style={{
+                            width: `${(blurWidth / 1000) * 100}%`,
+                            height: `${(blurHeight / 1000) * 100}%`,
+                            top: `${(blurY / 1000) * 100}%`,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                          }}
+                        >
+                          <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-red-400 opacity-50" />
+                          </div>
+                        </div>
+                      </motion.div>
+
+
+                    </div>
+
+                    {/* Controls Side */}
+                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
+                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Blur Width" : "အကျယ်"}
+                            </label>
+                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurWidth}</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="100" 
+                            max="1000" 
+                            value={blurWidth} 
+                            onChange={(e) => setBlurWidth(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Blur Height" : "အမြင့်"}
+                            </label>
+                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurHeight}</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="20" 
+                            max="500" 
+                            value={blurHeight} 
+                            onChange={(e) => setBlurHeight(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Vertical Position" : "အပေါ်အောက် ရွှေ့ရန်"}
+                            </label>
+                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurY}</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1000" 
+                            value={blurY} 
+                            onChange={(e) => setBlurY(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setShowBlurSettings(false)}
+                        className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
+                      >
+                        {lang === "EN" ? "Apply Blur" : "သိမ်းဆည်းမည်"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
 
         {/* Action Button */}
-        {!showLogoSettings && !showRatioSettings && (
+        {!showLogoSettings && !showRatioSettings && !showBlurSettings && (
           <div className="flex justify-center pt-4">
             <button 
               onClick={handleGenerate}
