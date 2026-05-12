@@ -203,14 +203,14 @@ async function startServer() {
       const padding = 20;
       const zoom = (videoScale || 100) / 100;
 
-      // Ratio Filter with Zoom support
+      // Ratio Filter with Zoom support and even dimension safety
       let ratioFilter = "";
       if (videoRatio === "9:16") {
-        ratioFilter = `setsar=1,crop=w='min(iw,ih*9/16)/${zoom}':h='min(ih,iw/(9/16))/${zoom}',scale=w='min(iw,ih*9/16)':h='min(ih,iw/(9/16))'`;
+        ratioFilter = `setsar=1,crop=w='min(iw,ih*9/16)/${zoom}':h='min(ih,iw/(9/16))/${zoom}',scale=w='trunc(min(iw,ih*9/16)/2)*2':h='trunc(min(ih,iw/(9/16))/2)*2'`;
       } else if (videoRatio === "1:1") {
-        ratioFilter = `setsar=1,crop=w='min(iw,ih)/${zoom}':h='min(ih,iw)/${zoom}',scale=w='min(iw,ih)':h='min(ih,iw)'`;
+        ratioFilter = `setsar=1,crop=w='min(iw,ih)/${zoom}':h='min(ih,iw)/${zoom}',scale=w='trunc(min(iw,ih)/2)*2':h='trunc(min(ih,iw)/2)*2'`;
       } else if (videoRatio === "16:9") {
-        ratioFilter = `setsar=1,crop=w='min(iw,ih*16/9)/${zoom}':h='min(ih,iw/(16/9))/${zoom}',scale=w='min(iw,ih*16/9)':h='min(ih,iw/(16/9))'`;
+        ratioFilter = `setsar=1,crop=w='min(iw,ih*16/9)/${zoom}':h='min(ih,iw/(16/9))/${zoom}',scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2'`;
       }
       
       let posFilter = "";
@@ -247,7 +247,7 @@ async function startServer() {
         }
 
         const vFilter = ratioFilter ? `[0:v]${ratioFilter}[rv];[rv]` : `[0:v]`;
-        filterComplex = ` -filter_complex "${vFilter}[lbase];[2:v]scale=${size}:-1[l];[lbase][l]overlay=${posFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
+        filterComplex = ` -filter_complex "${vFilter}[lbase];[2:v]scale=${size}:-2[l];[lbase][l]overlay=${posFilter}[vout]${audioComplex}" -map "[vout]" ${speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest'}`;
         
         ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -i "${logoPath}"${filterComplex} -c:v libx264 -preset ultrafast "${outputPath}"`;
       } else {
