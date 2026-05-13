@@ -266,24 +266,23 @@ async function startServer() {
       // Get Durations to handle speed adjustment
       const getDuration = async (filePath: string) => {
         try {
-          const { stderr } = await execPromise(`ffmpeg -i "${filePath}" 2>&1`);
-          const match = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
-          if (match) {
-            const h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            const s = parseInt(match[3]);
-            const ms = parseInt(match[4]);
-            return h * 3600 + m * 60 + s + ms / 100;
-          }
+          const { stdout } = await execPromise(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
+          const duration = parseFloat(stdout.trim());
+          if (!isNaN(duration)) return duration;
         } catch (e) {
-          const errStr = String(e);
-          const match = errStr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
-          if (match) {
-            const h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            const s = parseInt(match[3]);
-            const ms = parseInt(match[4]);
-            return h * 3600 + m * 60 + s + ms / 100;
+          // Fallback to ffmpeg if ffprobe fails for some reason
+          try {
+            const { stderr } = await execPromise(`ffmpeg -i "${filePath}" 2>&1`);
+            const match = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d+)/);
+            if (match) {
+              const h = parseInt(match[1]);
+              const m = parseInt(match[2]);
+              const s = parseInt(match[3]);
+              const ms = parseFloat("0." + match[4]);
+              return h * 3600 + m * 60 + s + ms;
+            }
+          } catch (innerE) {
+            console.error("Duration Parsing Error:", innerE);
           }
         }
         return 0;
@@ -332,7 +331,8 @@ async function startServer() {
         default: posFilter = `W-w-${padding}:${padding}`; // top-right default
       }
 
-      const speed = (vDur > 0 && aDur > vDur) ? aDur / vDur : 1;
+      // If audio is longer than video, speed it up to match video duration exactly
+      const speed = (vDur > 0 && aDur > (vDur + 0.1)) ? (aDur / vDur) : 1;
       
       // Build filter complex
       let vFilters: string[] = [];
