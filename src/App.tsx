@@ -1730,7 +1730,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                             className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-center max-w-[90%]"
                             style={{
                               color: subtitleColor,
-                              fontSize: `${subtitleFontSize}px`,
+                              fontSize: `${Math.max(4, subtitleFontSize * 0.3)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.4'
                             }}

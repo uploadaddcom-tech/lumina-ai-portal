@@ -288,7 +288,8 @@ async function startServer() {
           .replace(/\\/g, '\\\\\\\\')
           .replace(/'/g, "'\\\\\\''")
           .replace(/:/g, '\\\\:')
-          .replace(/%/g, '\\\\%');
+          .replace(/%/g, '\\\\%')
+          .replace(/\n/g, '\\\n');
           
         const color = subtitleColor || "white";
         const fontSize = subtitleFontSize || 24;
