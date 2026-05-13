@@ -81,8 +81,7 @@ const api = {
     subtitleText?: string,
     subtitleColor?: string,
     subtitleFontSize?: number,
-    subtitleFont?: string,
-    lang?: Language
+    subtitleFont?: string
   ) {
     const res = await fetch("/api/merge", {
       method: "POST",
@@ -104,8 +103,7 @@ const api = {
         subtitleText,
         subtitleColor,
         subtitleFontSize,
-        subtitleFont,
-        lang
+        subtitleFont
       }),
     });
     if (!res.ok) {
@@ -956,8 +954,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         result?.replace(/[#*`_~]/g, ''),
         subtitleColor,
         subtitleFontSize,
-        subtitleFont,
-        lang
+        subtitleFont
       );
       
       if (mergedBase64) {

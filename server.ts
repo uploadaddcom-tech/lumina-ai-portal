@@ -247,8 +247,7 @@ async function startServer() {
         subtitleText,
         subtitleColor,
         subtitleFontSize,
-        subtitleFont,
-        lang
+        subtitleFont
       } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
@@ -345,7 +344,7 @@ async function startServer() {
         lastV = "[rv]";
       }
 
-      // Re-calculate effective scale (UI preview container is approx 400px wide)
+      // Re-calculate effective resolution after ratio/scale
       const effectiveRes = { w: vRes.w, h: vRes.h };
       if (videoRatio) {
         const [rw, rh] = videoRatio.split(':').map(Number);
@@ -355,77 +354,122 @@ async function startServer() {
            effectiveRes.h = Math.floor(effectiveRes.w * rh / rw);
         }
       }
-      const effectiveScale = effectiveRes.w / 400;
+      const effectiveLogoScale = effectiveRes.w / 400;
+      const effectiveFontScale = effectiveRes.w / 400;
 
       // Stage 2: Blur
       if (blurEnabled) {
-        const bw = Math.floor((blurWidth || 400) * effectiveScale); 
-        const bh = Math.floor((blurHeight || 100) * effectiveScale);
+        const bw = `(iw*${blurWidth || 400}/1000)`;
+        const bh = `(ih*${blurHeight || 100}/1000)`;
+        const byValue = blurY !== undefined ? blurY : 800;
         const radius = blurIntensity || 10;
         
-        // Position from top as percentage of video height
-        const byValue = blurY !== undefined ? blurY : 800;
-        const overlayY = `(H*${byValue}/1000)`;
+        // Define coordinate tokens for different filters
         const cropY = `(ih*${byValue}/1000)`;
+        const overlayY = `(H*${byValue}/1000)`;
         
         vFilters.push(`${lastV}split[v_main][v_blur]`);
-        // Use trunc/2*2 to ensure even dimensions for crop
         vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
         vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
         lastV = "[bv]";
       }
 
-      // Stage 3: Sync Subtitles using AI-generated SRT
+      // Stage 3: Sync Subtitles
       if (subtitleEnabled && subtitleText) {
-        try {
-          const totalDuration = aDur || vDur || 1;
-          
-          const srtPrompt = `Convert the following text into a valid SRT (SubRip) subtitle format for a video that is exactly ${totalDuration.toFixed(2)} seconds long.
-          Text: "${subtitleText}"
-          Language: ${lang === "MY" ? "Myanmar (Burmese)" : "English"}
-          
-          Instructions:
-          - Split into 5-8 second chunks.
-          - Output ONLY raw SRT content. Starting directly with '1'. No markdown.`;
-
-          const srtResult = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: [{ parts: [{ text: srtPrompt }] }]
-          });
-          
-          const srtContent = (srtResult.text || "").trim();
-          
-          if (srtContent && srtContent.length > 10) {
-            const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
-            const cleanSrt = srtContent.replace(/^```(srt)?\n?|```$/g, '').trim();
-            await writeFilePromise(srtPath, cleanSrt);
-
-            const colorHex = (subtitleColor || "#ffffff").replace('#', '');
-            const b = colorHex.substring(4,6) || "ff";
-            const g = colorHex.substring(2,4) || "ff";
-            const r = colorHex.substring(0,2) || "ff";
-            const assColor = `&H00${b}${g}${r}&`;
-            
-            const fontPt = Math.floor((subtitleFontSize || 24) * effectiveScale * 0.7); 
-            const marginV = Math.floor(effectiveRes.h * 0.08); 
-            
-            let fontName = lang === "MY" ? "Padauk" : "Arial";
-            // More robust escaping for subtitles filter path
-            const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
-            
-            const forceStyle = `Fontname=${fontName},Alignment=2,FontSize=${fontPt},PrimaryColour=${assColor},OutlineColour=&H00000000&,BorderStyle=3,Outline=1,Shadow=0,MarginV=${marginV}`;
-            
-            vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':force_style='${forceStyle}'[sv]`);
-            lastV = "[sv]";
+        const wrapText = (text: string, maxLen: number) => {
+          if (!text.includes(' ') && text.length > maxLen) {
+            let res = [];
+            for (let i = 0; i < text.length; i += maxLen) {
+              res.push(text.substring(i, i + maxLen));
+            }
+            return res;
           }
-        } catch (srtErr) {
-          console.error("AI SRT Generation Failed:", srtErr);
+          const words = text.split(/\s+/);
+          let lines = [];
+          let currentLine = "";
+          words.forEach(word => {
+            if ((currentLine + word).length > maxLen) {
+              lines.push(currentLine.trim());
+              currentLine = word + " ";
+            } else {
+              currentLine += word + " ";
+            }
+          });
+          if (currentLine) lines.push(currentLine.trim());
+          return lines;
+        };
+
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        
+        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
+        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
+        
+        const fontPaths = [
+          path.join(__dirname, "Padauk-Bold.ttf"),
+          path.join(process.cwd(), "Padauk-Bold.ttf"),
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
+        ];
+
+        let fontArg = "";
+        for (const fp of fontPaths) {
+          if (fs.existsSync(fp)) {
+            fontArg = `:fontfile='${fp}'`;
+            break;
+          }
+        }
+
+        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
+        const getChunks = (text: string, maxChars = 45) => {
+          const parts = text.split(/(?<=[။၊.!?])\s*/);
+          let res = [];
+          let current = "";
+          for (const p of parts) {
+            if ((current + p).length > maxChars) {
+              if (current) res.push(current);
+              current = p;
+            } else {
+              current = current ? current + " " + p : p;
+            }
+          }
+          if (current) res.push(current);
+          return res;
+        };
+
+        const chunks = getChunks(subtitleText, 45);
+        const totalTime = aDur || vDur || 1;
+        const totalChars = subtitleText.length || 1;
+        
+        let currentTime = 0;
+        let svIndex = 0;
+
+        for (const chunk of chunks) {
+          if (!chunk.trim()) continue;
+          
+          // Use smaller wrapLen (25) to ensure padding on edges
+          const wrappedLines = wrapText(chunk.trim(), 25);
+          const wrapped = wrappedLines.join('\n');
+          const chunkDuration = (chunk.length / totalChars) * totalTime;
+          const chunkStartTime = currentTime;
+          const chunkEndTime = currentTime + chunkDuration;
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
+          await writeFilePromise(chunkPath, wrapped);
+          
+          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
+          // Position: center horizontally, 90% from top (Bottom Center)
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
+          lastV = `[sv${svIndex}]`;
+          currentTime = chunkEndTime;
+          svIndex++;
         }
       }
 
       // Stage 4: Logo
       if (hasLogo) {
-        const logoSizeVal = Math.floor((logoSize || 100) * effectiveScale);
+        const logoSizeVal = Math.floor((logoSize || 100) * effectiveLogoScale);
         vFilters.push(`[2:v]scale=${logoSizeVal}:-2[l]`);
         vFilters.push(`${lastV}[l]overlay=${posFilter}[vout]`);
         lastV = "[vout]";
@@ -481,8 +525,6 @@ async function startServer() {
         if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
         const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
         if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
-        const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
-        if (fs.existsSync(srtPath)) await unlinkPromise(srtPath);
         
         // Cleanup chunks
         const files = fs.readdirSync(tempDir);
