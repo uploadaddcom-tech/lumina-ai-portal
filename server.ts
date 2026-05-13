@@ -264,6 +264,25 @@ async function startServer() {
       const padding = 20 * logoScale;
       const zoom = (videoScale || 100) / 100;
 
+      // Ratio Filter with Zoom support and even dimension safety
+      let ratioFilter = "";
+      if (videoRatio === "9:16") {
+        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih*9/16)/${zoom}/2)*2':h='trunc(min(ih,iw/(9/16))/${zoom}/2)*2',scale=w='trunc(min(iw,ih*9/16)/2)*2':h='trunc(min(ih,iw/(9/16))/2)*2',format=yuv420p`;
+      } else if (videoRatio === "1:1") {
+        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih)/${zoom}/2)*2':h='trunc(min(ih,iw)/${zoom}/2)*2',scale=w='trunc(min(iw,ih)/2)*2':h='trunc(min(ih,iw)/2)*2',format=yuv420p`;
+      } else if (videoRatio === "16:9") {
+        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih*16/9)/${zoom}/2)*2':h='trunc(min(ih,iw/(16/9))/${zoom}/2)*2',scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2',format=yuv420p`;
+      }
+      
+      let posFilter = "";
+      switch (logoPosition) {
+        case 'top-left': posFilter = `${padding}:${padding}`; break;
+        case 'top-right': posFilter = `W-w-${padding}:${padding}`; break;
+        case 'bottom-left': posFilter = `${padding}:H-h-${padding}`; break;
+        case 'bottom-right': posFilter = `W-w-${padding}:H-h-${padding}`; break;
+        default: posFilter = `W-w-${padding}:${padding}`; // top-right default
+      }
+
       const speed = (vDur > 0 && aDur > vDur) ? aDur / vDur : 1;
       
       // Build filter complex
@@ -271,23 +290,9 @@ async function startServer() {
       let lastV = "[0:v]";
       
       // Stage 1: Ratio & Zoom
-      if (videoRatio) {
-        const z = (videoScale || 100) / 100;
-        let crop = "";
-        if (videoRatio === "9:16") {
-          crop = `crop=w='trunc(min(iw,ih*9/16)/${z}/2)*2':h='trunc(min(ih,iw/(9/16))/${z}/2)*2'`;
-        } else if (videoRatio === "1:1") {
-          crop = `crop=w='trunc(min(iw,ih)/${z}/2)*2':h='trunc(min(ih,iw)/${z}/2)*2'`;
-        } else if (videoRatio === "16:9") {
-          crop = `crop=w='trunc(min(iw,ih*16/9)/${z}/2)*2':h='trunc(min(ih,iw/(16/9))/${z}/2)*2'`;
-        }
-        
-        if (crop) {
-          const rat = videoRatio.replace(':', '/');
-          const scale = `scale=w='trunc(min(iw,ih*${rat})/2)*2':h='trunc(min(ih,iw/(${rat}))/2)*2'`;
-          vFilters.push(`${lastV}setsar=1,${crop},${scale},format=yuv420p[rv]`);
-          lastV = "[rv]";
-        }
+      if (ratioFilter) {
+        vFilters.push(`${lastV}${ratioFilter}[rv]`);
+        lastV = "[rv]";
       }
 
       // Re-calculate effective resolution after ratio/scale
@@ -320,6 +325,13 @@ async function startServer() {
       // Stage 3: Sync Subtitles
       if (subtitleEnabled && subtitleText) {
         const wrapText = (text: string, maxLen: number) => {
+          if (!text.includes(' ') && text.length > maxLen) {
+            let res = [];
+            for (let i = 0; i < text.length; i += maxLen) {
+              res.push(text.substring(i, i + maxLen));
+            }
+            return res;
+          }
           const words = text.split(/\s+/);
           let lines = [];
           let currentLine = "";
@@ -336,9 +348,12 @@ async function startServer() {
         };
 
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
-        // The UI preview uses subtitleFontSize * 0.1. 
-        // We need to scale this 0.1 ratio to the actual video resolution.
-        const fSize = Math.floor((subtitleFontSize || 24) * effectiveFontScale / 10);
+        
+        // We match exactly the preview logic. 
+        // Preview: Math.max(8, subtitleFontSize * 0.4) px
+        // Scale factor: effectiveRes.w / 400
+        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
         const fontPaths = [
           path.join(__dirname, "Padauk-Bold.ttf"),
@@ -355,13 +370,26 @@ async function startServer() {
           }
         }
 
-        // Split text into chunks for syncing
-        // We'll split by sentence enders first
-        const chunks = subtitleText.split(/(?<=[။.!?])\s+/);
-        
-        // Total time for subtitles is the audio duration
-        const totalTime = aDur || vDur;
-        const charsTotal = subtitleText.length || 1;
+        // Split text into smaller chunks for better sync
+        const getChunks = (text: string, maxChars = 50) => {
+          const parts = text.split(/(?<=[။၊.!?])\s*/);
+          let res = [];
+          let current = "";
+          for (const p of parts) {
+            if ((current + p).length > maxChars) {
+              if (current) res.push(current);
+              current = p;
+            } else {
+              current = current ? current + " " + p : p;
+            }
+          }
+          if (current) res.push(current);
+          return res;
+        };
+
+        const chunks = getChunks(subtitleText, 50);
+        const totalTime = aDur || vDur || 1;
+        const totalChars = subtitleText.length || 1;
         
         let currentTime = 0;
         let svIndex = 0;
@@ -369,17 +397,18 @@ async function startServer() {
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
           
-          const wrapped = wrapText(chunk, 40).join('\n');
-          const chunkDuration = (chunk.length / charsTotal) * totalTime;
+          const wrappedLines = wrapText(chunk, 35);
+          const wrapped = wrappedLines.join('\n');
+          const chunkDuration = (chunk.length / totalChars) * totalTime;
           const chunkStartTime = currentTime;
           const chunkEndTime = currentTime + chunkDuration;
           
-          // Write chunk to a temp file for FFmpeg drawtext
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
-          const enableArg = `:enable='between(t,${chunkStartTime},${chunkEndTime})'`;
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
+          // Match the preview visually (0.85 from top)
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=h*0.85-text_h/2:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           currentTime = chunkEndTime;
@@ -391,18 +420,7 @@ async function startServer() {
       if (hasLogo) {
         const logoSizeVal = Math.floor((logoSize || 100) * effectiveLogoScale);
         vFilters.push(`[2:v]scale=${logoSizeVal}:-2[l]`);
-        
-        const pad = 20 * effectiveLogoScale;
-        let pFilter = "";
-        switch (logoPosition) {
-          case 'top-left': pFilter = `${pad}:${pad}`; break;
-          case 'top-right': pFilter = `W-w-${pad}:${pad}`; break;
-          case 'bottom-left': pFilter = `${pad}:H-h-${pad}`; break;
-          case 'bottom-right': pFilter = `W-w-${pad}:H-h-${pad}`; break;
-          default: pFilter = `W-w-${pad}:${pad}`;
-        }
-
-        vFilters.push(`${lastV}[l]overlay=${pFilter}[vout]`);
+        vFilters.push(`${lastV}[l]overlay=${posFilter}[vout]`);
         lastV = "[vout]";
       }
 
