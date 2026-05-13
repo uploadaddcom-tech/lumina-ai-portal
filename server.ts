@@ -141,6 +141,32 @@ async function startServer() {
     }
   });
 
+  app.post("/api/voiceover", async (req, res) => {
+    try {
+      const { text, voiceName } = req.body;
+      const model = "gemini-3.1-flash-tts-preview";
+
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: [{ parts: [{ text }] }],
+        config: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+            }
+          }
+        } as any
+      });
+      
+      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      res.json({ audioData });
+    } catch (error: any) {
+      console.error("Voiceover Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Server-side Merging Endpoint
   app.post("/api/merge", async (req, res) => {
     const tempId = crypto.randomBytes(8).toString("hex");
@@ -171,7 +197,8 @@ async function startServer() {
         subtitleEnabled,
         subtitleText,
         subtitleColor,
-        subtitleFontSize
+        subtitleFontSize,
+        subtitleFont
       } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
@@ -295,72 +322,97 @@ async function startServer() {
         lastV = "[bv]";
       }
 
-      // Stage 3: SRT Subtitles
+      // Stage 3: Sync Subtitles
       if (subtitleEnabled && subtitleText) {
-        const srtPath = path.join(tempDir, `sub_${tempId}.srt`);
-        
-        // Generate SRT content
-        // For Myanmar text, spaces are rare, so we split by punctuation and then by length if needed
-        const rawChunks = subtitleText.split(/(?<=[။၊.!?])\s*/);
-        const chunks: string[] = [];
-        
-        rawChunks.forEach(chunk => {
-          const trimmed = chunk.trim();
-          if (!trimmed) return;
-          
-          // If chunk is too long (more than 40 chars), split it roughly
-          if (trimmed.length > 40) {
-            for (let i = 0; i < trimmed.length; i += 35) {
-              chunks.push(trimmed.substring(i, i + 35));
+        const wrapText = (text: string, maxLen: number) => {
+          if (!text.includes(' ') && text.length > maxLen) {
+            let res = [];
+            for (let i = 0; i < text.length; i += maxLen) {
+              res.push(text.substring(i, i + maxLen));
             }
-          } else {
-            chunks.push(trimmed);
+            return res;
           }
-        });
-
-        const totalTime = aDur || vDur || 1;
-        const totalChars = subtitleText.replace(/\s/g, '').length || 1;
-        
-        let currentTime = 0;
-        let srtContent = "";
-        
-        const formatSrtTime = (seconds: number) => {
-          const date = new Date(0);
-          date.setMilliseconds(Math.max(0, seconds * 1000));
-          const timePart = date.toISOString().substring(11, 23); // HH:mm:ss.sss
-          return timePart.replace('.', ','); // HH:mm:ss,sss
+          const words = text.split(/\s+/);
+          let lines = [];
+          let currentLine = "";
+          words.forEach(word => {
+            if ((currentLine + word).length > maxLen) {
+              lines.push(currentLine.trim());
+              currentLine = word + " ";
+            } else {
+              currentLine += word + " ";
+            }
+          });
+          if (currentLine) lines.push(currentLine.trim());
+          return lines;
         };
 
-        chunks.forEach((chunk, index) => {
-          const chunkChars = chunk.replace(/\s/g, '').length || 1;
-          const duration = (chunkChars / totalChars) * totalTime;
-          const start = currentTime;
-          const end = Math.min(currentTime + duration, totalTime);
-          
-          srtContent += `${index + 1}\n`;
-          srtContent += `${formatSrtTime(start)} --> ${formatSrtTime(end)}\n`;
-          srtContent += `${chunk}\n\n`;
-          
-          currentTime = end;
-        });
-
-        await writeFilePromise(srtPath, srtContent);
-
-        // Convert HEX to ASS color format (&HAABBGGRR)
-        const hex = (subtitleColor || "#ffffff").replace('#', '');
-        const r = hex.substring(0, 2);
-        const g = hex.substring(2, 4);
-        const b = hex.substring(4, 6);
-        const assColor = `&H00${b}${g}${r}`;
-
-        const fSize = Math.floor((subtitleFontSize || 24) * (effectiveFontScale * 0.8));
-        const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
-
-        // Font selection: Try Padauk, fallback to sans-serif
-        const forceStyle = `force_style='FontSize=${fSize},PrimaryColour=${assColor},Alignment=2,WrapStyle=2,Fontname=Padauk,Shadow=1,Outline=1'`;
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
         
-        vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':${forceStyle}[sv]`);
-        lastV = "[sv]";
+        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
+        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
+        
+        const fontPaths = [
+          path.join(__dirname, "Padauk-Bold.ttf"),
+          path.join(process.cwd(), "Padauk-Bold.ttf"),
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
+        ];
+
+        let fontArg = "";
+        for (const fp of fontPaths) {
+          if (fs.existsSync(fp)) {
+            fontArg = `:fontfile='${fp}'`;
+            break;
+          }
+        }
+
+        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
+        const getChunks = (text: string, maxChars = 45) => {
+          const parts = text.split(/(?<=[။၊.!?])\s*/);
+          let res = [];
+          let current = "";
+          for (const p of parts) {
+            if ((current + p).length > maxChars) {
+              if (current) res.push(current);
+              current = p;
+            } else {
+              current = current ? current + " " + p : p;
+            }
+          }
+          if (current) res.push(current);
+          return res;
+        };
+
+        const chunks = getChunks(subtitleText, 45);
+        const totalTime = aDur || vDur || 1;
+        const totalChars = subtitleText.length || 1;
+        
+        let currentTime = 0;
+        let svIndex = 0;
+
+        for (const chunk of chunks) {
+          if (!chunk.trim()) continue;
+          
+          // Use smaller wrapLen (25) to ensure padding on edges
+          const wrappedLines = wrapText(chunk.trim(), 25);
+          const wrapped = wrappedLines.join('\n');
+          const chunkDuration = (chunk.length / totalChars) * totalTime;
+          const chunkStartTime = currentTime;
+          const chunkEndTime = currentTime + chunkDuration;
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
+          await writeFilePromise(chunkPath, wrapped);
+          
+          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
+          // Position: center horizontally, 90% from top (Bottom Center)
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
+          lastV = `[sv${svIndex}]`;
+          currentTime = chunkEndTime;
+          svIndex++;
+        }
       }
 
       // Stage 4: Logo
@@ -418,6 +470,16 @@ async function startServer() {
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
         const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
+        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
+        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
+        
+        // Cleanup chunks
+        const files = fs.readdirSync(tempDir);
+        for (const file of files) {
+          if (file.startsWith(`chunk_${tempId}_`)) {
+            await unlinkPromise(path.join(tempDir, file));
+          }
+        }
       } catch (cleanError) {
         console.error("Cleanup Error:", cleanError);
       }

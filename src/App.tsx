@@ -14,7 +14,7 @@ import {
   Play, 
   Star, 
   Maximize,
-  Subtitles,
+  Subtitles, 
   Type,
   Zap,
   CloudUpload,
@@ -34,9 +34,6 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
-import { GoogleGenAI, Modality } from "@google/genai";
-
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -59,23 +56,13 @@ const api = {
     return (await res.json()).text;
   },
   async voiceover(text: string, voiceName: string) {
-    // Calling Gemini directly from frontend for TTS
-    const response = await genAI.models.generateContent({
-      model: "gemini-3.1-flash-tts-preview",
-      contents: [{ parts: [{ text }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
-          }
-        }
-      } as any
+    const res = await fetch("/api/voiceover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voiceName }),
     });
-    
-    const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!audioData) throw new Error("Voiceover generation returned no audio data");
-    return audioData;
+    if (!res.ok) throw new Error("Voiceover failed");
+    return (await res.json()).audioData;
   },
   async merge(
     videoBase64: string, 
@@ -92,7 +79,8 @@ const api = {
     subtitleEnabled?: boolean,
     subtitleText?: string,
     subtitleColor?: string,
-    subtitleFontSize?: number
+    subtitleFontSize?: number,
+    subtitleFont?: string
   ) {
     const res = await fetch("/api/merge", {
       method: "POST",
@@ -112,7 +100,8 @@ const api = {
         subtitleEnabled,
         subtitleText,
         subtitleColor,
-        subtitleFontSize
+        subtitleFontSize,
+        subtitleFont
       }),
     });
     if (!res.ok) {
@@ -155,6 +144,16 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-purple-500/20 hover:border-purple-500/50",
     shadowColor: "shadow-purple-500/20"
+  },
+  {
+    id: "subtitle-editor",
+    title: translations[lang].tools.subtitleEditor.title,
+    description: translations[lang].tools.subtitleEditor.desc,
+    icon: Subtitles,
+    color: "bg-cyan-500",
+    iconColor: "text-white",
+    borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
+    shadowColor: "shadow-cyan-500/20"
   },
   {
     id: "auto-recap",
@@ -799,11 +798,12 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [blurY, setBlurY] = useState(400);
   const [showBlurSettings, setShowBlurSettings] = useState(false);
   
-  // Subtitle Settings
-  const [subtitleEnabled, setSubtitleEnabled] = useState(true);
-  const [subtitleColor, setSubtitleColor] = useState("#ffffff");
-  const [subtitleFontSize, setSubtitleFontSize] = useState(24);
-  const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+    // Subtitle Settings
+    const [subtitleEnabled, setSubtitleEnabled] = useState(false);
+    const [subtitleColor, setSubtitleColor] = useState("#ffffff");
+    const [subtitleFontSize, setSubtitleFontSize] = useState(24);
+    const [subtitleFont, setSubtitleFont] = useState("Padauk");
+    const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   
@@ -979,7 +979,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         subtitleEnabled,
         result?.replace(/[#*`_~]/g, ''),
         subtitleColor,
-        subtitleFontSize
+        subtitleFontSize,
+        subtitleFont
       );
       
       if (mergedBase64) {
@@ -1226,50 +1227,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           </div>
         </section>
 
-        {/* Subtitle Master Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-              <Subtitles className="w-4 h-4 text-cyan-400" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Subtitle Master" : "စာတန်းထိုး Master"}</h2>
-          </div>
-
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Subtitle Status" : "စာတန်းထိုး"}
-                </label>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setSubtitleEnabled(!subtitleEnabled)}
-                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                      subtitleEnabled ? "bg-cyan-600/20 border-cyan-500/30 text-cyan-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
-                    }`}
-                  >
-                    <Subtitles className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">
-                      {subtitleEnabled ? (lang === "EN" ? "Enabled" : "ဖွင့်ထားသည်") : (lang === "EN" ? "Disabled" : "ပိတ်ထားသည်")}
-                    </span>
-                  </button>
-
-                  {subtitleEnabled && (
-                    <button 
-                      onClick={() => setShowSubtitleSettings(true)}
-                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
-                    >
-                      <Star className="w-4 h-4" />
-                      {lang === "EN" ? "Style Settings" : "ဒီဇိုင်း Setting"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Blur Section */}
+        {/* Blur Subtitle Section */}
         <section className="space-y-4">
           <div className="flex items-center gap-3 text-white">
             <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center border border-red-500/20">
@@ -1312,7 +1270,48 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           </div>
         </section>
 
+        {/* Subtitle Customization Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+              <Subtitles className="w-4 h-4 text-cyan-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Subtitle Customization" : "စာတန်းထိုး စိတ်ကြိုက်ပြင်ဆင်ခြင်း"}</h2>
+          </div>
 
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Subtitle" : "စာတန်းထိုး"}
+                </label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setSubtitleEnabled(!subtitleEnabled)}
+                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
+                      subtitleEnabled ? "bg-cyan-600/20 border-cyan-500/30 text-cyan-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    <Subtitles className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {subtitleEnabled ? (lang === "EN" ? "Subtitle Enabled" : "စာတန်းထိုး ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Subtitle" : "စာတန်းထိုး ဖွင့်ရန်")}
+                    </span>
+                  </button>
+
+                  {subtitleEnabled && (
+                    <button 
+                      onClick={() => setShowSubtitleSettings(true)}
+                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                    >
+                      <Star className="w-4 h-4" />
+                      {lang === "EN" ? "Settings" : "Setting ချိန်ရန်"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
             {/* Video Ratio Modal */}
             <AnimatePresence>
@@ -1424,139 +1423,6 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
                       >
                         {lang === "EN" ? "Apply Changes" : "သိမ်းဆည်းမည်"}
-                      </button>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Subtitle Settings Modal */}
-            <AnimatePresence>
-              {showSubtitleSettings && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
-                >
-                  <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setShowSubtitleSettings(false)} />
-                  
-                  <motion.div 
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
-                  >
-                    {/* Visual Preview Side */}
-                    <div className="relative flex-none h-[220px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
-                      <motion.div 
-                        layout
-                        className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
-                        style={{
-                          aspectRatio: videoRatio.replace(':', '/'),
-                          maxHeight: '100%',
-                          maxWidth: '100%',
-                          height: videoRatio === '9:16' ? '100%' : 'auto',
-                          width: videoRatio === '9:16' ? 'auto' : '100%',
-                        }}
-                      >
-                        {file ? (
-                          <video 
-                            src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-50"
-                            style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
-                            }}
-                            autoPlay 
-                            muted 
-                            loop 
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center w-full h-full">
-                             <Play className="w-12 h-12 text-white/5" />
-                          </div>
-                        )}
-                        
-                        {/* Subtitle Preview */}
-                        <div className="absolute bottom-8 left-0 right-0 px-4 flex flex-col items-center gap-2 pointer-events-none">
-                          <div 
-                            className="text-center font-bold px-4 py-2 drop-shadow-lg"
-                            style={{
-                              color: subtitleColor,
-                              fontSize: `${Math.max(12, subtitleFontSize * 0.5)}px`,
-                              fontFamily: 'Padauk',
-                              lineHeight: '1.4',
-                              textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
-                            }}
-                          >
-                             This is a sample Myanmar subtitle.<br/>
-                             စာတန်းထိုး ချိန်ညှိမှု နမူနာ ဖြစ်ပါသည်။
-                          </div>
-                        </div>
-                      </motion.div>
-
-                      <div className="absolute bottom-6 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Subtitle Style Preview</span>
-                      </div>
-                    </div>
-
-                    {/* Controls Side */}
-                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
-                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="space-y-4">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Text Color (Hex)" : "စာသားအရောင်"}
-                          </label>
-                          <div className="flex items-center gap-3">
-                            <input 
-                              type="color" 
-                              value={subtitleColor}
-                              onChange={(e) => setSubtitleColor(e.target.value)}
-                              className="w-12 h-12 rounded-lg bg-transparent border-none cursor-pointer p-0"
-                            />
-                            <input 
-                              type="text" 
-                              value={subtitleColor}
-                              onChange={(e) => setSubtitleColor(e.target.value)}
-                              className="flex-1 px-4 py-3 rounded-xl border bg-white/5 border-white/10 text-white font-mono text-xs focus:ring-2 focus:ring-cyan-500/50 outline-none"
-                            />
-                          </div>
-                          <div className="flex flex-wrap gap-2 pt-2">
-                             {["#ffffff", "#FFEB3B", "#4CAF50", "#2196F3", "#F44336", "#FF9800"].map(c => (
-                               <button 
-                                 key={c}
-                                 onClick={() => setSubtitleColor(c)}
-                                 className="w-6 h-6 rounded-full border border-white/10 hover:scale-110 transition-all"
-                                 style={{ backgroundColor: c }}
-                               />
-                             ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Font Size (px)" : "စာလုံးအရွယ်အစား"}
-                            </label>
-                            <span className="text-[10px] font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">{subtitleFontSize}px</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="10" 
-                            max="80" 
-                            value={subtitleFontSize} 
-                            onChange={(e) => setSubtitleFontSize(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                          />
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={() => setShowSubtitleSettings(false)}
-                        className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
-                      >
-                        {lang === "EN" ? "Apply Style" : "သိမ်းဆည်းမည်"}
                       </button>
                     </div>
                   </motion.div>
@@ -1822,6 +1688,154 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
                       >
                         {lang === "EN" ? "Apply Blur" : "သိမ်းဆည်းမည်"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Subtitle Settings Modal */}
+            <AnimatePresence>
+              {showSubtitleSettings && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
+                >
+                  <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={() => setShowSubtitleSettings(false)} />
+                  
+                  <motion.div 
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                  >
+                    {/* Visual Preview Side */}
+                    <div className="relative flex-none h-[300px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                      <motion.div 
+                        layout
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
+                        style={{
+                          aspectRatio: videoRatio.replace(':', '/'),
+                          maxHeight: '100%',
+                          maxWidth: '100%',
+                          height: videoRatio === '9:16' ? '100%' : 'auto',
+                          width: videoRatio === '9:16' ? 'auto' : '100%',
+                        }}
+                      >
+                        {file ? (
+                          <video 
+                            src={URL.createObjectURL(file)} 
+                            className="w-full h-full object-cover opacity-60"
+                            style={{ 
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                            }}
+                            autoPlay 
+                            muted 
+                            loop 
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center w-full h-full">
+                             <Play className="w-12 h-12 text-white/5" />
+                          </div>
+                        )}
+                        
+                        {/* Subtitle Preview Overlay */}
+                        <div className="absolute bottom-6 md:bottom-12 left-0 right-0 px-2 md:px-8 flex flex-col items-center gap-2 pointer-events-none">
+                          <div 
+                            className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 text-center max-w-[95%]"
+                            style={{
+                              color: subtitleColor,
+                              fontSize: `${Math.max(8, subtitleFontSize * 0.4)}px`,
+                              fontFamily: subtitleFont,
+                              lineHeight: '1.4'
+                            }}
+                          >
+                             This is a sample subtitle line for preview.<br/>
+                             ချိန်ညှိမှုများကို သိမ်းဆည်းရန် "သိမ်းဆည်းမည်" ကိုနှိပ်ပါ။
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      <div className="absolute bottom-6 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Subtitle Preview (Ratio: {videoRatio})</span>
+                      </div>
+                    </div>
+
+                    {/* Controls Side */}
+                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
+                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-4">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
+                            {lang === "EN" ? "Subtitle Color" : "အရောင်"}
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {["#ffffff", "#FFEB3B", "#4CAF50", "#2196F3", "#F44336", "#E91E63"].map((color) => (
+                              <button 
+                                key={color}
+                                onClick={() => setSubtitleColor(color)}
+                                className={`w-8 h-8 rounded-full border-2 transition-all ${subtitleColor === color ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                            <input 
+                              type="color" 
+                              value={subtitleColor}
+                              onChange={(e) => setSubtitleColor(e.target.value)}
+                              className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer p-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Font Size" : "အရွယ်အစား"}
+                            </label>
+                            <span className="text-[10px] font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">{subtitleFontSize}px</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="100" 
+                            value={subtitleFontSize} 
+                            onChange={(e) => setSubtitleFontSize(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
+                            {lang === "EN" ? "Font Family" : "Font အမျိုးအစား"}
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={subtitleFont}
+                              onChange={(e) => setSubtitleFont(e.target.value)}
+                              className="w-full px-4 py-4 rounded-xl border bg-white/5 border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 appearance-none cursor-pointer transition-all font-medium text-sm"
+                              style={{ fontFamily: subtitleFont }}
+                            >
+                              {["Padauk", "Inter", "Arial", "Roboto", "Georgia", "Courier New"].map((f) => (
+                                <option key={f} value={f} style={{ fontFamily: f }} className="bg-slate-900 text-white">
+                                  {f}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              <ChevronDown size={18} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setShowSubtitleSettings(false)}
+                        className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
+                      >
+                        {lang === "EN" ? "Apply Subtitles" : "သိမ်းဆည်းမည်"}
                       </button>
                     </div>
                   </motion.div>
