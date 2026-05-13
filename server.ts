@@ -194,6 +194,7 @@ async function startServer() {
         blurWidth,
         blurHeight,
         blurY,
+        blurIntensity,
         subtitleEnabled,
         subtitleText,
         subtitleColor,
@@ -314,11 +315,12 @@ async function startServer() {
         const bh = `(ih*${blurHeight || 100}/1000)`;
         const byValue = blurY !== undefined ? blurY : 800;
         const by = `(ih*${byValue}/1000)`;
-        const bx = `(iw-out_w)/2`;
+        const bXExpr = `(iw-out_w)/2`;
+        const radius = blurIntensity || 10;
         
-        vFilters.push(`${lastV}split[v1][v2]`);
-        vFilters.push(`[v2]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='clip(${bx},0,iw-out_w)':y='clip(${by},0,ih-out_h)',boxblur=15:5[blurred]`);
-        vFilters.push(`[v1][blurred]overlay=x='clip(${bx},0,W-w)':y='clip(${by},0,H-h)'[bv]`);
+        vFilters.push(`${lastV}split[v_main][v_blur]`);
+        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='clip(${bXExpr},0,iw-out_w)':y='clip(${by},0,ih-out_h)',boxblur=${radius}:5[blurred]`);
+        vFilters.push(`[v_main][blurred]overlay=x='clip(${bXExpr},0,W-w)':y='clip(${by},0,H-h)'[bv]`);
         lastV = "[bv]";
       }
 

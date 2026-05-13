@@ -76,6 +76,7 @@ const api = {
     blurWidth?: number, 
     blurHeight?: number, 
     blurY?: number,
+    blurIntensity?: number,
     subtitleEnabled?: boolean,
     subtitleText?: string,
     subtitleColor?: string,
@@ -97,6 +98,7 @@ const api = {
         blurWidth,
         blurHeight,
         blurY,
+        blurIntensity,
         subtitleEnabled,
         subtitleText,
         subtitleColor,
@@ -796,6 +798,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [blurWidth, setBlurWidth] = useState(400);
   const [blurHeight, setBlurHeight] = useState(100);
   const [blurY, setBlurY] = useState(400);
+  const [blurIntensity, setBlurIntensity] = useState(10);
   const [showBlurSettings, setShowBlurSettings] = useState(false);
   
     // Subtitle Settings
@@ -976,6 +979,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         blurWidth,
         blurHeight,
         blurY,
+        blurIntensity,
         subtitleEnabled,
         result?.replace(/[#*`_~]/g, ''),
         subtitleColor,
@@ -1678,6 +1682,23 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                             max="1000" 
                             value={blurY} 
                             onChange={(e) => setBlurY(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Blur Intensity" : "ဝါးနှုန်း (Blur Strength)"}
+                            </label>
+                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurIntensity}</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="50" 
+                            value={blurIntensity} 
+                            onChange={(e) => setBlurIntensity(parseInt(e.target.value))}
                             className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
                           />
                         </div>
