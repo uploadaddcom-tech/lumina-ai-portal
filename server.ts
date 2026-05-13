@@ -336,11 +336,11 @@ async function startServer() {
           let lines = [];
           let currentLine = "";
           words.forEach(word => {
-            if ((currentLine + " " + word).length > maxLen) {
+            if ((currentLine + word).length > maxLen) {
               lines.push(currentLine.trim());
-              currentLine = word;
+              currentLine = word + " ";
             } else {
-              currentLine = currentLine ? currentLine + " " + word : word;
+              currentLine += word + " ";
             }
           });
           if (currentLine) lines.push(currentLine.trim());
@@ -349,9 +349,7 @@ async function startServer() {
 
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         
-        // We match exactly the preview logic. 
-        // Preview: Math.max(8, subtitleFontSize * 0.4) px
-        // Scale factor: effectiveRes.w / 400
+        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
         const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
@@ -370,8 +368,8 @@ async function startServer() {
           }
         }
 
-        // Split text into smaller chunks for better sync
-        const getChunks = (text: string, maxChars = 50) => {
+        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
+        const getChunks = (text: string, maxChars = 45) => {
           const parts = text.split(/(?<=[။၊.!?])\s*/);
           let res = [];
           let current = "";
@@ -387,7 +385,7 @@ async function startServer() {
           return res;
         };
 
-        const chunks = getChunks(subtitleText, 50);
+        const chunks = getChunks(subtitleText, 45);
         const totalTime = aDur || vDur || 1;
         const totalChars = subtitleText.length || 1;
         
@@ -397,7 +395,8 @@ async function startServer() {
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
           
-          const wrappedLines = wrapText(chunk, 35);
+          // Use smaller wrapLen (25) to ensure padding on edges
+          const wrappedLines = wrapText(chunk.trim(), 25);
           const wrapped = wrappedLines.join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
           const chunkStartTime = currentTime;
@@ -407,8 +406,8 @@ async function startServer() {
           await writeFilePromise(chunkPath, wrapped);
           
           const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
-          // Match the preview visually (0.85 from top)
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=h*0.85-text_h/2:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          // Position: center horizontally, 90% from top (Bottom Center)
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           currentTime = chunkEndTime;
