@@ -326,13 +326,14 @@ async function startServer() {
         const srtPath = path.join(tempDir, `sub_${tempId}.srt`);
         
         // Generate SRT content
-        // Split by punctuation first, then by spaces for long chunks to simulate word-by-word/phrase feel
+        // Split by punctuation first, then by spaces for long chunks
         const rawChunks = subtitleText.split(/(?<=[။၊.!?])\s*/);
         const chunks: string[] = [];
         rawChunks.forEach(chunk => {
+          if (!chunk.trim()) return;
           const words = chunk.split(/\s+/);
-          // Group words into phrases of 3-5 words
-          const phraseSize = 4;
+          // Group words into phrases of 4-6 words for readability
+          const phraseSize = 5;
           for (let i = 0; i < words.length; i += phraseSize) {
              chunks.push(words.slice(i, i + phraseSize).join(" "));
           }
@@ -346,41 +347,48 @@ async function startServer() {
         
         const formatSrtTime = (seconds: number) => {
           const date = new Date(0);
-          date.setMilliseconds(seconds * 1000);
+          date.setMilliseconds(Math.max(0, seconds * 1000));
           const timePart = date.toISOString().substring(11, 23); // HH:mm:ss.sss
           return timePart.replace('.', ','); // HH:mm:ss,sss
         };
 
         chunks.forEach((chunk, index) => {
-          if (!chunk.trim()) return;
-          const chunkChars = chunk.replace(/\s/g, '').length || 1;
+          const chunkTrimmed = chunk.trim();
+          if (!chunkTrimmed) return;
+          
+          const chunkChars = chunkTrimmed.replace(/\s/g, '').length || 1;
           const duration = (chunkChars / totalChars) * totalTime;
           const start = currentTime;
           const end = Math.min(currentTime + duration, totalTime);
           
           srtContent += `${index + 1}\n`;
           srtContent += `${formatSrtTime(start)} --> ${formatSrtTime(end)}\n`;
-          srtContent += `${chunk.trim()}\n\n`;
+          srtContent += `${chunkTrimmed}\n\n`;
           
           currentTime = end;
         });
 
-        await fs.promises.writeFile(srtPath, srtContent);
+        await writeFilePromise(srtPath, srtContent);
 
-        // Convert HEX to ASS color format (AABBGGRR)
+        // Convert HEX to ASS color format (&HAABBGGRR)
+        // User color is HEX #RRGGBB
         const hex = (subtitleColor || "#ffffff").replace('#', '');
         const r = hex.substring(0, 2);
         const g = hex.substring(2, 4);
         const b = hex.substring(4, 6);
-        const assColor = `&H00${b}${g}${r}`; // &HAABBGGRR (Alpha is 00 for opaque)
+        // PrimaryColour is &HAABBGGRR (Alpha is 00 for opaque)
+        const assColor = `&H00${b}${g}${r}`;
 
-        const fSize = Math.floor(Math.max(8, (subtitleFontSize || 24) * 0.4) * effectiveFontScale);
+        // Font scaling
+        const fSize = Math.floor((subtitleFontSize || 24) * (effectiveFontScale * 0.8));
         
-        // Padauk font is usually at this location in common Linux setups, fallback to Arial
-        const fontArg = ":force_style='Fontname=Padauk,Alignment=2,Outline=1,Shadow=0,MarginV=30,WrapStyle=2'";
-        const styleArg = `,FontSize=${fSize},PrimaryColour=${assColor}`;
+        // Escape srtPath for FFmpeg filter (colon must be escaped in filenames on Linux absolute paths)
+        // Note: For filenames in subtitles filter, colons act as separators unless escaped or filename is quoted properly
+        const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+
+        const forceStyle = `force_style='FontSize=${fSize},PrimaryColour=${assColor},Alignment=2,WrapStyle=2,Fontname=Padauk,Shadow=1,Outline=1'`;
         
-        vFilters.push(`${lastV}subtitles='${srtPath}'${fontArg}${styleArg}[sv]`);
+        vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':${forceStyle}[sv]`);
         lastV = "[sv]";
       }
 
