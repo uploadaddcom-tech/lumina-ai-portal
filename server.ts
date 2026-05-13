@@ -271,9 +271,9 @@ async function startServer() {
         const bx = `(iw-bw)/2`;
         
         vFilters.push(`${lastV}split[v1][v2]`);
-        // We use two separate filters in the chain to clarify
-        vFilters.push(`[v2]boxblur=20:10,crop=w=min(iw\\,${bw}):h=min(ih\\,${bh}):x=max(0\\,${bx}):y=max(0\\,${by})[blurred]`);
-        vFilters.push(`[v1][blurred]overlay=x=max(0\\,${bx}):y=max(0\\,${by})[bv]`);
+        // Use colons and remove extra backslashes as we use filter_complex_script
+        vFilters.push(`[v2]boxblur=20:10,crop=w=min(iw,${bw}):h=min(ih,${bh}):x=max(0,${bx}):y=max(0,${by})[blurred]`);
+        vFilters.push(`[v1][blurred]overlay=x=max(0,${bx}):y=max(0,${by})[bv]`);
         lastV = "[bv]";
       }
 
@@ -296,7 +296,7 @@ async function startServer() {
         };
 
         const wrappedText = wrapText(subtitleText, 45);
-        // Escape for FFmpeg drawtext: backslash, then single quote, then colon, then percent
+        // Escape for FFmpeg drawtext when using a file script
         const escaped = wrappedText
           .replace(/\\/g, '\\\\')
           .replace(/'/g, "'\\''")
@@ -306,7 +306,21 @@ async function startServer() {
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const fSize = subtitleFontSize || 24;
         
-        vFilters.push(`${lastV}drawtext=text='${escaped}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv]`);
+        // Try common font paths if they exist
+        const fontPaths = [
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf",
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        ];
+        let fontArg = "";
+        for (const fp of fontPaths) {
+          if (fs.existsSync(fp)) {
+            fontArg = `:fontfile='${fp}'`;
+            break;
+          }
+        }
+
+        vFilters.push(`${lastV}drawtext=text='${escaped}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}[sv]`);
         lastV = "[sv]";
       }
 
@@ -316,9 +330,6 @@ async function startServer() {
         vFilters.push(`[2:v]scale=${logoSizeVal}:-2[l]`);
         vFilters.push(`${lastV}[l]overlay=${posFilter}[vout]`);
         lastV = "[vout]";
-      } else {
-        // If we have filters but no logo, the last filter's label is our output
-        // We can just use lastV as is in mapping
       }
 
       let audioComplexFilters: string[] = [];
@@ -330,12 +341,14 @@ async function startServer() {
 
       // Combine all filters
       const allFilters = [...vFilters, ...audioComplexFilters].join(';');
+      const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
       
       let ffmpegCmd = "";
       if (allFilters) {
+        await writeFilePromise(filterPath, allFilters);
         const mapV = ` -map "${lastV}"`;
         const mapA = speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest';
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex "${allFilters}"${mapV} ${mapA} -c:v libx264 -preset ultrafast -y "${outputPath}"`;
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV} ${mapA} -c:v libx264 -preset ultrafast -y "${outputPath}"`;
       } else {
         // No filters at all
         if (speed > 1) {
@@ -363,6 +376,8 @@ async function startServer() {
         if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
         if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
+        const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
+        if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
       } catch (cleanError) {
         console.error("Cleanup Error:", cleanError);
       }
