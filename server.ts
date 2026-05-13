@@ -165,7 +165,11 @@ async function startServer() {
         blurEnabled,
         blurWidth,
         blurHeight,
-        blurY
+        blurY,
+        subtitleEnabled,
+        subtitleText,
+        subtitleColor,
+        subtitleFontSize
       } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
@@ -254,6 +258,45 @@ async function startServer() {
         filterComplex += `[v2]boxblur=20:10,crop=${bw}:${bh}:${bx}:${by}[blurred];`;
         filterComplex += `[v1][blurred]overlay=${bx}:${by}[bv];`;
         lastV = "[bv]";
+      }
+
+      if (subtitleEnabled && subtitleText) {
+        // Simple wrapping logic for long text
+        const wrapText = (text: string, maxLen: number) => {
+          const words = text.split(/\s+/);
+          let lines = [];
+          let currentLine = "";
+          words.forEach(word => {
+            if ((currentLine + " " + word).length > maxLen) {
+              lines.push(currentLine.trim());
+              currentLine = word;
+            } else {
+              currentLine = currentLine ? currentLine + " " + word : word;
+            }
+          });
+          if (currentLine) lines.push(currentLine.trim());
+          return lines.join('\n');
+        };
+
+        // Wrap text to ~50 characters
+        const wrappedText = wrapText(subtitleText, 50);
+
+        // ESCAPE TEXT for drawtext filter
+        // FFmpeg drawtext escaping is tricky. 
+        // We need to escape single quotes, colons, and backslashes.
+        let escapedText = wrappedText
+          .replace(/\\/g, '\\\\\\\\')
+          .replace(/'/g, "'\\\\\\''")
+          .replace(/:/g, '\\\\:')
+          .replace(/%/g, '\\\\%');
+          
+        const color = subtitleColor || "white";
+        const fontSize = subtitleFontSize || 24;
+        
+        // drawtext with wrapping logic and background box
+        // Use a standard font if possible, or omit to use default
+        filterComplex += `${lastV}drawtext=text='${escapedText}':x=(w-text_w)/2:y=h-text_h-padding:fontsize=${fontSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv];`.replace('padding', '50');
+        lastV = "[sv]";
       }
 
       if (hasLogo) {
