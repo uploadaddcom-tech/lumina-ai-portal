@@ -146,21 +146,69 @@ async function startServer() {
       const { text, voiceName } = req.body;
       const model = "gemini-3.1-flash-tts-preview";
 
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [{ parts: [{ text }] }],
-        config: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
-            }
+      const getChunks = (input: string, maxLen = 600) => {
+        const sentences = input.split(/(?<=[။၊.!?])\s+/);
+        const chunks = [];
+        let current = "";
+        for (const s of sentences) {
+          if ((current + s).length > maxLen && current) {
+            chunks.push(current.trim());
+            current = s;
+          } else {
+            current = current ? current + " " + s : s;
           }
-        } as any
-      });
+        }
+        if (current) chunks.push(current.trim());
+        return chunks;
+      };
+
+      const textChunks = getChunks(text);
+      const audioBuffers: Buffer[] = [];
+
+      for (const chunk of textChunks) {
+        if (!chunk.trim()) continue;
+        const response = await ai.models.generateContent({
+          model: model,
+          contents: [{ parts: [{ text: chunk }] }],
+          config: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+              }
+            }
+          } as any
+        });
+        
+        const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (audioBase64) {
+          audioBuffers.push(Buffer.from(audioBase64, 'base64'));
+        }
+      }
+
+      const pcmData = Buffer.concat(audioBuffers);
+      const sampleRate = 24000;
+      const numChannels = 1;
+      const byteRate = sampleRate * numChannels * 2; // 16-bit
+      const blockAlign = numChannels * 2;
       
-      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      res.json({ audioData });
+      const header = Buffer.alloc(44);
+      header.write('RIFF', 0);
+      header.writeUInt32LE(36 + pcmData.length, 4);
+      header.write('WAVE', 8);
+      header.write('fmt ', 12);
+      header.writeUInt32LE(16, 16);
+      header.writeUInt16LE(1, 20); // PCM
+      header.writeUInt16LE(numChannels, 22);
+      header.writeUInt32LE(sampleRate, 24);
+      header.writeUInt32LE(byteRate, 28);
+      header.writeUInt16LE(blockAlign, 32);
+      header.writeUInt16LE(16, 34); // 16-bit
+      header.write('data', 36);
+      header.writeUInt32LE(pcmData.length, 40);
+
+      const finalAudio = Buffer.concat([header, pcmData]);
+      res.json({ audioData: finalAudio.toString("base64") });
     } catch (error: any) {
       console.error("Voiceover Error:", error);
       res.status(500).json({ error: error.message });
@@ -444,7 +492,7 @@ async function startServer() {
         // If lastV is still [0:v], it means no video filters were applied to it as labels
         const mapV = (lastV === "[0:v]") ? " -map 0:v:0" : ` -map "${lastV}"`;
         const mapA = (speed > 1) ? ' -map "[aout]"' : ' -map 1:a:0 -shortest';
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -y "${outputPath}"`;
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -c:a aac -b:a 192k -movflags +faststart -y "${outputPath}"`;
       } else {
         // No filters at all
         if (speed > 1) {

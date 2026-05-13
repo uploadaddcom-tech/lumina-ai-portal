@@ -264,36 +264,6 @@ interface ViewProps {
   setLang: (l: Language) => void;
 }
 
-const createWavBlob = (pcmData: Uint8Array, sampleRate: number) => {
-  const buffer = new ArrayBuffer(44 + pcmData.length);
-  const view = new DataView(buffer);
-
-  const writeString = (offset: number, string: string) => {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  };
-
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + pcmData.length, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // Mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, pcmData.length, true);
-
-  const pcmView = new Uint8Array(buffer, 44);
-  pcmView.set(pcmData);
-
-  return new Blob([buffer], { type: 'audio/wav' });
-};
-
 function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Kore");
@@ -319,8 +289,8 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        const wavBlob = createWavBlob(bytes, 24000);
-        const url = URL.createObjectURL(wavBlob);
+        const blob = new Blob([bytes], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
         setAudioUrl(url);
       }
     } catch (err) {
@@ -877,8 +847,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i);
             }
-            const wavBlob = createWavBlob(bytes, 24000);
-            const url = URL.createObjectURL(wavBlob);
+            const blob = new Blob([bytes], { type: "audio/wav" });
+            const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
 
             // Auto play audio
@@ -918,8 +888,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        const wavBlob = createWavBlob(bytes, 24000);
-        const url = URL.createObjectURL(wavBlob);
+        const blob = new Blob([bytes], { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
         setVoiceoverAudioUrl(url);
 
         // Auto trigger merge on manual regeneration too
