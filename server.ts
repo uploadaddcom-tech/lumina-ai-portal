@@ -197,8 +197,7 @@ async function startServer() {
         subtitleEnabled,
         subtitleText,
         subtitleColor,
-        subtitleFontSize,
-        subtitleFont
+        subtitleFontSize
       } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
@@ -322,97 +321,67 @@ async function startServer() {
         lastV = "[bv]";
       }
 
-      // Stage 3: Sync Subtitles
+      // Stage 3: SRT Subtitles
       if (subtitleEnabled && subtitleText) {
-        const wrapText = (text: string, maxLen: number) => {
-          if (!text.includes(' ') && text.length > maxLen) {
-            let res = [];
-            for (let i = 0; i < text.length; i += maxLen) {
-              res.push(text.substring(i, i + maxLen));
-            }
-            return res;
-          }
-          const words = text.split(/\s+/);
-          let lines = [];
-          let currentLine = "";
-          words.forEach(word => {
-            if ((currentLine + word).length > maxLen) {
-              lines.push(currentLine.trim());
-              currentLine = word + " ";
-            } else {
-              currentLine += word + " ";
-            }
-          });
-          if (currentLine) lines.push(currentLine.trim());
-          return lines;
-        };
-
-        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        const srtPath = path.join(tempDir, `sub_${tempId}.srt`);
         
-        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
-        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
-        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
-        
-        const fontPaths = [
-          path.join(__dirname, "Padauk-Bold.ttf"),
-          path.join(process.cwd(), "Padauk-Bold.ttf"),
-          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
-          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
-        ];
-
-        let fontArg = "";
-        for (const fp of fontPaths) {
-          if (fs.existsSync(fp)) {
-            fontArg = `:fontfile='${fp}'`;
-            break;
+        // Generate SRT content
+        // Split by punctuation first, then by spaces for long chunks to simulate word-by-word/phrase feel
+        const rawChunks = subtitleText.split(/(?<=[။၊.!?])\s*/);
+        const chunks: string[] = [];
+        rawChunks.forEach(chunk => {
+          const words = chunk.split(/\s+/);
+          // Group words into phrases of 3-5 words
+          const phraseSize = 4;
+          for (let i = 0; i < words.length; i += phraseSize) {
+             chunks.push(words.slice(i, i + phraseSize).join(" "));
           }
-        }
+        });
 
-        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
-        const getChunks = (text: string, maxChars = 45) => {
-          const parts = text.split(/(?<=[။၊.!?])\s*/);
-          let res = [];
-          let current = "";
-          for (const p of parts) {
-            if ((current + p).length > maxChars) {
-              if (current) res.push(current);
-              current = p;
-            } else {
-              current = current ? current + " " + p : p;
-            }
-          }
-          if (current) res.push(current);
-          return res;
-        };
-
-        const chunks = getChunks(subtitleText, 45);
         const totalTime = aDur || vDur || 1;
-        const totalChars = subtitleText.length || 1;
+        const totalChars = subtitleText.replace(/\s/g, '').length || 1;
         
         let currentTime = 0;
-        let svIndex = 0;
+        let srtContent = "";
+        
+        const formatSrtTime = (seconds: number) => {
+          const date = new Date(0);
+          date.setMilliseconds(seconds * 1000);
+          const timePart = date.toISOString().substring(11, 23); // HH:mm:ss.sss
+          return timePart.replace('.', ','); // HH:mm:ss,sss
+        };
 
-        for (const chunk of chunks) {
-          if (!chunk.trim()) continue;
+        chunks.forEach((chunk, index) => {
+          if (!chunk.trim()) return;
+          const chunkChars = chunk.replace(/\s/g, '').length || 1;
+          const duration = (chunkChars / totalChars) * totalTime;
+          const start = currentTime;
+          const end = Math.min(currentTime + duration, totalTime);
           
-          // Use smaller wrapLen (25) to ensure padding on edges
-          const wrappedLines = wrapText(chunk.trim(), 25);
-          const wrapped = wrappedLines.join('\n');
-          const chunkDuration = (chunk.length / totalChars) * totalTime;
-          const chunkStartTime = currentTime;
-          const chunkEndTime = currentTime + chunkDuration;
+          srtContent += `${index + 1}\n`;
+          srtContent += `${formatSrtTime(start)} --> ${formatSrtTime(end)}\n`;
+          srtContent += `${chunk.trim()}\n\n`;
           
-          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
-          await writeFilePromise(chunkPath, wrapped);
-          
-          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
-          // Position: center horizontally, 90% from top (Bottom Center)
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
-          
-          lastV = `[sv${svIndex}]`;
-          currentTime = chunkEndTime;
-          svIndex++;
-        }
+          currentTime = end;
+        });
+
+        await fs.promises.writeFile(srtPath, srtContent);
+
+        // Convert HEX to ASS color format (AABBGGRR)
+        const hex = (subtitleColor || "#ffffff").replace('#', '');
+        const r = hex.substring(0, 2);
+        const g = hex.substring(2, 4);
+        const b = hex.substring(4, 6);
+        const assColor = `&H00${b}${g}${r}`; // &HAABBGGRR (Alpha is 00 for opaque)
+
+        const fSize = Math.floor(Math.max(8, (subtitleFontSize || 24) * 0.4) * effectiveFontScale);
+        
+        // Padauk font is usually at this location in common Linux setups, fallback to Arial
+        const fontArg = ":force_style='Fontname=Padauk,Alignment=2,Outline=1,Shadow=0,MarginV=30,WrapStyle=2'";
+        const styleArg = `,FontSize=${fSize},PrimaryColour=${assColor}`;
+        
+        vFilters.push(`${lastV}subtitles='${srtPath}'${fontArg}${styleArg}[sv]`);
+        lastV = "[sv]";
       }
 
       // Stage 4: Logo
@@ -470,16 +439,6 @@ async function startServer() {
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
         const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
-        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
-        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
-        
-        // Cleanup chunks
-        const files = fs.readdirSync(tempDir);
-        for (const file of files) {
-          if (file.startsWith(`chunk_${tempId}_`)) {
-            await unlinkPromise(path.join(tempDir, file));
-          }
-        }
       } catch (cleanError) {
         console.error("Cleanup Error:", cleanError);
       }
