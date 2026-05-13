@@ -141,32 +141,6 @@ async function startServer() {
     }
   });
 
-  app.post("/api/voiceover", async (req, res) => {
-    try {
-      const { text, voiceName } = req.body;
-      const model = "gemini-3.1-flash-tts-preview";
-
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [{ parts: [{ text }] }],
-        config: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
-            }
-          }
-        } as any
-      });
-      
-      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      res.json({ audioData });
-    } catch (error: any) {
-      console.error("Voiceover Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // Server-side Merging Endpoint
   app.post("/api/merge", async (req, res) => {
     const tempId = crypto.randomBytes(8).toString("hex");
@@ -326,16 +300,21 @@ async function startServer() {
         const srtPath = path.join(tempDir, `sub_${tempId}.srt`);
         
         // Generate SRT content
-        // Split by punctuation first, then by spaces for long chunks
+        // For Myanmar text, spaces are rare, so we split by punctuation and then by length if needed
         const rawChunks = subtitleText.split(/(?<=[။၊.!?])\s*/);
         const chunks: string[] = [];
+        
         rawChunks.forEach(chunk => {
-          if (!chunk.trim()) return;
-          const words = chunk.split(/\s+/);
-          // Group words into phrases of 4-6 words for readability
-          const phraseSize = 5;
-          for (let i = 0; i < words.length; i += phraseSize) {
-             chunks.push(words.slice(i, i + phraseSize).join(" "));
+          const trimmed = chunk.trim();
+          if (!trimmed) return;
+          
+          // If chunk is too long (more than 40 chars), split it roughly
+          if (trimmed.length > 40) {
+            for (let i = 0; i < trimmed.length; i += 35) {
+              chunks.push(trimmed.substring(i, i + 35));
+            }
+          } else {
+            chunks.push(trimmed);
           }
         });
 
@@ -353,17 +332,14 @@ async function startServer() {
         };
 
         chunks.forEach((chunk, index) => {
-          const chunkTrimmed = chunk.trim();
-          if (!chunkTrimmed) return;
-          
-          const chunkChars = chunkTrimmed.replace(/\s/g, '').length || 1;
+          const chunkChars = chunk.replace(/\s/g, '').length || 1;
           const duration = (chunkChars / totalChars) * totalTime;
           const start = currentTime;
           const end = Math.min(currentTime + duration, totalTime);
           
           srtContent += `${index + 1}\n`;
           srtContent += `${formatSrtTime(start)} --> ${formatSrtTime(end)}\n`;
-          srtContent += `${chunkTrimmed}\n\n`;
+          srtContent += `${chunk}\n\n`;
           
           currentTime = end;
         });
@@ -371,21 +347,16 @@ async function startServer() {
         await writeFilePromise(srtPath, srtContent);
 
         // Convert HEX to ASS color format (&HAABBGGRR)
-        // User color is HEX #RRGGBB
         const hex = (subtitleColor || "#ffffff").replace('#', '');
         const r = hex.substring(0, 2);
         const g = hex.substring(2, 4);
         const b = hex.substring(4, 6);
-        // PrimaryColour is &HAABBGGRR (Alpha is 00 for opaque)
         const assColor = `&H00${b}${g}${r}`;
 
-        // Font scaling
         const fSize = Math.floor((subtitleFontSize || 24) * (effectiveFontScale * 0.8));
-        
-        // Escape srtPath for FFmpeg filter (colon must be escaped in filenames on Linux absolute paths)
-        // Note: For filenames in subtitles filter, colons act as separators unless escaped or filename is quoted properly
         const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
 
+        // Font selection: Try Padauk, fallback to sans-serif
         const forceStyle = `force_style='FontSize=${fSize},PrimaryColour=${assColor},Alignment=2,WrapStyle=2,Fontname=Padauk,Shadow=1,Outline=1'`;
         
         vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':${forceStyle}[sv]`);

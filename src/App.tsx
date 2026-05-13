@@ -34,6 +34,9 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
+import { GoogleGenAI, Modality } from "@google/genai";
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -56,13 +59,23 @@ const api = {
     return (await res.json()).text;
   },
   async voiceover(text: string, voiceName: string) {
-    const res = await fetch("/api/voiceover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voiceName }),
+    // Calling Gemini directly from frontend for TTS
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-flash-tts-preview",
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+          }
+        }
+      } as any
     });
-    if (!res.ok) throw new Error("Voiceover failed");
-    return (await res.json()).audioData;
+    
+    const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!audioData) throw new Error("Voiceover generation returned no audio data");
+    return audioData;
   },
   async merge(
     videoBase64: string, 
