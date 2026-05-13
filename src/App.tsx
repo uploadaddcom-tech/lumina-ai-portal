@@ -1697,7 +1697,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                     className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                    <div className="relative flex-none h-[300px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
                       <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -1728,12 +1728,12 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         )}
                         
                         {/* Subtitle Preview Overlay */}
-                        <div className="absolute bottom-12 left-0 right-0 px-8 flex flex-col items-center gap-2 pointer-events-none">
+                        <div className="absolute bottom-6 md:bottom-12 left-0 right-0 px-2 md:px-8 flex flex-col items-center gap-2 pointer-events-none">
                           <div 
-                            className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-center max-w-[90%]"
+                            className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 text-center max-w-[95%]"
                             style={{
                               color: subtitleColor,
-                              fontSize: `${Math.max(1, subtitleFontSize * 0.15)}px`,
+                              fontSize: `${Math.max(4, subtitleFontSize * 0.1)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.4'
                             }}

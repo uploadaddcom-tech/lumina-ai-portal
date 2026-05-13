@@ -271,9 +271,9 @@ async function startServer() {
         const bx = `(iw-bw)/2`;
         
         vFilters.push(`${lastV}split[v1][v2]`);
-        // Use colons and remove extra backslashes as we use filter_complex_script
-        vFilters.push(`[v2]boxblur=20:10,crop=w=min(iw,${bw}):h=min(ih,${bh}):x=max(0,${bx}):y=max(0,${by})[blurred]`);
-        vFilters.push(`[v1][blurred]overlay=x=max(0,${bx}):y=max(0,${by})[bv]`);
+        // Use clip to ensure crop is within valid bounds to avoid FFmpeg crash
+        vFilters.push(`[v2]boxblur=20:10,crop=w=min(iw,${bw}):h=min(ih,${bh}):x=clip(${bx},0,iw-out_w):y=clip(${by},0,ih-out_h)[blurred]`);
+        vFilters.push(`[v1][blurred]overlay=x=clip(${bx},0,W-w):y=clip(${by},0,H-h)[bv]`);
         lastV = "[bv]";
       }
 
@@ -306,16 +306,19 @@ async function startServer() {
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const fSize = subtitleFontSize || 24;
         
-        // Try common font paths if they exist
+        // Search for Myanmar-compatible fonts in common Linux paths
         const fontPaths = [
           "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
           "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf",
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-VF.ttf",
+          "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
           "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         ];
         let fontArg = "";
         for (const fp of fontPaths) {
           if (fs.existsSync(fp)) {
             fontArg = `:fontfile='${fp}'`;
+            console.log(`Using font: ${fp}`);
             break;
           }
         }
@@ -346,9 +349,10 @@ async function startServer() {
       let ffmpegCmd = "";
       if (allFilters) {
         await writeFilePromise(filterPath, allFilters);
-        const mapV = ` -map "${lastV}"`;
-        const mapA = speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest';
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV} ${mapA} -c:v libx264 -preset ultrafast -y "${outputPath}"`;
+        // If lastV is still [0:v], it means no video filters were applied to it as labels
+        const mapV = (lastV === "[0:v]") ? " -map 0:v:0" : ` -map "${lastV}"`;
+        const mapA = (speed > 1) ? ' -map "[aout]"' : ' -map 1:a:0 -shortest';
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -y "${outputPath}"`;
       } else {
         // No filters at all
         if (speed > 1) {
