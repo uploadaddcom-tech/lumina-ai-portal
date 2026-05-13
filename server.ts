@@ -345,7 +345,7 @@ async function startServer() {
         lastV = "[rv]";
       }
 
-      // Re-calculate effective resolution after ratio/scale
+      // Re-calculate effective scale (UI preview container is approx 400px wide)
       const effectiveRes = { w: vRes.w, h: vRes.h };
       if (videoRatio) {
         const [rw, rh] = videoRatio.split(':').map(Number);
@@ -355,19 +355,21 @@ async function startServer() {
            effectiveRes.h = Math.floor(effectiveRes.w * rh / rw);
         }
       }
-      const effectiveLogoScale = effectiveRes.w / 400;
+      const effectiveScale = effectiveRes.w / 400;
 
       // Stage 2: Blur
       if (blurEnabled) {
-        const bw = `(iw*${blurWidth || 400}/1000)`;
-        const bh = `(ih*${blurHeight || 100}/1000)`;
-        const byValue = blurY !== undefined ? blurY : 800;
+        const bw = Math.floor((blurWidth || 400) * effectiveScale); 
+        const bh = Math.floor((blurHeight || 100) * effectiveScale);
         const radius = blurIntensity || 10;
         
-        const cropY = `(ih*${byValue}/1000)`;
+        // Position from top as percentage of video height
+        const byValue = blurY !== undefined ? blurY : 800;
         const overlayY = `(H*${byValue}/1000)`;
+        const cropY = `(ih*${byValue}/1000)`;
         
         vFilters.push(`${lastV}split[v_main][v_blur]`);
+        // Use trunc/2*2 to ensure even dimensions for crop
         vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
         vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
         lastV = "[bv]";
@@ -383,38 +385,39 @@ async function startServer() {
           Language: ${lang === "MY" ? "Myanmar (Burmese)" : "English"}
           
           Instructions:
-          - Split the text into multiple logically sized chunks (max 10-12 words or 40-50 characters per entry).
-          - Assign timestamps for each entry such that the entire text spans the duration of ${totalDuration.toFixed(2)} seconds.
-          - The timestamps must be in STAGE-COMPLIANT format: HH:MM:SS,mmm --> HH:MM:SS,mmm.
-          - Ensure the split is at natural pauses like punctuation (။၊.!?).
-          - Output ONLY the raw SRT content text. No markdown blocks, no snippets, no explanations. Starting directly with '1'.`;
+          - Split into 5-8 second chunks.
+          - Output ONLY raw SRT content. Starting directly with '1'. No markdown.`;
 
           const srtResult = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
             contents: [{ parts: [{ text: srtPrompt }] }]
           });
           
-          const srtContent = srtResult.text || "";
+          const srtContent = (srtResult.text || "").trim();
           
-          const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
-          const cleanSrt = srtContent.replace(/^```(srt)?\n?|```$/g, '').trim();
-          await writeFilePromise(srtPath, cleanSrt);
+          if (srtContent && srtContent.length > 10) {
+            const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
+            const cleanSrt = srtContent.replace(/^```(srt)?\n?|```$/g, '').trim();
+            await writeFilePromise(srtPath, cleanSrt);
 
-          // Configure styling
-          const colorHex = (subtitleColor || "#ffffff").replace('#', '');
-          const b = colorHex.substring(4,6) || "ff";
-          const g = colorHex.substring(2,4) || "ff";
-          const r = colorHex.substring(0,2) || "ff";
-          const assColor = `&H00${b}${g}${r}&`;
-          const fontPt = Math.max(12, (subtitleFontSize || 24) * 1.5); 
-          const marginV = Math.floor(effectiveRes.h * 0.08); 
-          
-          let fontName = lang === "MY" ? "Padauk" : "Arial";
-          const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "'\\\\\\''");
-          const forceStyle = `Fontname=${fontName},Alignment=2,FontSize=${fontPt},PrimaryColour=${assColor},OutlineColour=&H00000000&,BorderStyle=3,Outline=1,Shadow=0,MarginV=${marginV}`;
-          
-          vFilters.push(`${lastV}subtitles='${escapedSrtPath}':force_style='${forceStyle}'[sv]`);
-          lastV = "[sv]";
+            const colorHex = (subtitleColor || "#ffffff").replace('#', '');
+            const b = colorHex.substring(4,6) || "ff";
+            const g = colorHex.substring(2,4) || "ff";
+            const r = colorHex.substring(0,2) || "ff";
+            const assColor = `&H00${b}${g}${r}&`;
+            
+            const fontPt = Math.floor((subtitleFontSize || 24) * effectiveScale * 0.7); 
+            const marginV = Math.floor(effectiveRes.h * 0.08); 
+            
+            let fontName = lang === "MY" ? "Padauk" : "Arial";
+            // More robust escaping for subtitles filter path
+            const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+            
+            const forceStyle = `Fontname=${fontName},Alignment=2,FontSize=${fontPt},PrimaryColour=${assColor},OutlineColour=&H00000000&,BorderStyle=3,Outline=1,Shadow=0,MarginV=${marginV}`;
+            
+            vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':force_style='${forceStyle}'[sv]`);
+            lastV = "[sv]";
+          }
         } catch (srtErr) {
           console.error("AI SRT Generation Failed:", srtErr);
         }
@@ -422,7 +425,7 @@ async function startServer() {
 
       // Stage 4: Logo
       if (hasLogo) {
-        const logoSizeVal = Math.floor((logoSize || 100) * effectiveLogoScale);
+        const logoSizeVal = Math.floor((logoSize || 100) * effectiveScale);
         vFilters.push(`[2:v]scale=${logoSizeVal}:-2[l]`);
         vFilters.push(`${lastV}[l]overlay=${posFilter}[vout]`);
         lastV = "[vout]";
