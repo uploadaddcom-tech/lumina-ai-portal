@@ -187,7 +187,8 @@ async function startServer() {
         subtitleEnabled,
         subtitleText,
         subtitleColor,
-        subtitleFontSize
+        subtitleFontSize,
+        subtitleFont
       } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
@@ -312,16 +313,12 @@ async function startServer() {
             }
           });
           if (currentLine) lines.push(currentLine.trim());
-          return lines.join(' ');
+          return lines.join('\n');
         };
 
-        const wrappedText = wrapText(subtitleText, 45);
-        // Escape for FFmpeg drawtext when using a file script
-        const escaped = wrappedText
-          .replace(/\\/g, '\\\\')
-          .replace(/'/g, "'\\''")
-          .replace(/:/g, '\\:')
-          .replace(/%/g, '\\%');
+        const wrappedText = wrapText(subtitleText, 40);
+        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
+        await writeFilePromise(subtitleFilePath, wrappedText);
           
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const fSize = subtitleFontSize || 24;
@@ -331,22 +328,19 @@ async function startServer() {
           path.join(__dirname, "Padauk-Bold.ttf"),
           path.join(process.cwd(), "Padauk-Bold.ttf"),
           "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
-          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf",
-          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-VF.ttf",
-          "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-          "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
         ];
+
         let fontArg = "";
         for (const fp of fontPaths) {
           if (fs.existsSync(fp)) {
-            // FFmpeg on Windows might need escaped backslashes, but here we are in Linux container
             fontArg = `:fontfile='${fp}'`;
             console.log(`Using font: ${fp}`);
             break;
           }
         }
 
-        vFilters.push(`${lastV}drawtext=text='${escaped}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}[sv]`);
+        vFilters.push(`${lastV}drawtext=textfile='${subtitleFilePath}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}[sv]`);
         lastV = "[sv]";
       }
 
@@ -405,6 +399,8 @@ async function startServer() {
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
         const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
+        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
+        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
       } catch (cleanError) {
         console.error("Cleanup Error:", cleanError);
       }

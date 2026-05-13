@@ -79,7 +79,8 @@ const api = {
     subtitleEnabled?: boolean,
     subtitleText?: string,
     subtitleColor?: string,
-    subtitleFontSize?: number
+    subtitleFontSize?: number,
+    subtitleFont?: string
   ) {
     const res = await fetch("/api/merge", {
       method: "POST",
@@ -99,7 +100,8 @@ const api = {
         subtitleEnabled,
         subtitleText,
         subtitleColor,
-        subtitleFontSize
+        subtitleFontSize,
+        subtitleFont
       }),
     });
     if (!res.ok) {
@@ -977,7 +979,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         subtitleEnabled,
         result?.replace(/[#*`_~]/g, ''),
         subtitleColor,
-        subtitleFontSize
+        subtitleFontSize,
+        subtitleFont
       );
       
       if (mergedBase64) {
