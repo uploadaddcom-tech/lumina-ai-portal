@@ -1733,7 +1733,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                             className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-center max-w-[90%]"
                             style={{
                               color: subtitleColor,
-                              fontSize: `${Math.max(2, subtitleFontSize * 0.2)}px`,
+                              fontSize: `${Math.max(1, subtitleFontSize * 0.15)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.4'
                             }}
@@ -1785,7 +1785,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                           <input 
                             type="range" 
                             min="1" 
-                            max="72" 
+                            max="100" 
                             value={subtitleFontSize} 
                             onChange={(e) => setSubtitleFontSize(parseInt(e.target.value))}
                             className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"

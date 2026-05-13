@@ -243,26 +243,42 @@ async function startServer() {
       let filterComplex = "";
       let lastV = "[0:v]";
       
-      if (ratioFilter) {
-        filterComplex += `[0:v]${ratioFilter}[rv];`;
-        lastV = "[rv]";
+      // Stage 1: Ratio & Zoom
+      if (videoRatio) {
+        let zoom = (videoScale || 100) / 100;
+        let w = "iw";
+        let h = "ih";
+        let crop = "";
+        
+        if (videoRatio === "9:16") {
+           crop = `crop=w='trunc(min(iw,ih*9/16)/${zoom}/2)*2':h='trunc(min(ih,iw/(9/16))/${zoom}/2)*2'`;
+        } else if (videoRatio === "1:1") {
+           crop = `crop=w='trunc(min(iw,ih)/${zoom}/2)*2':h='trunc(min(ih,iw)/${zoom}/2)*2'`;
+        } else if (videoRatio === "16:9") {
+           crop = `crop=w='trunc(min(iw,ih*16/9)/${zoom}/2)*2':h='trunc(min(ih,iw/(16/9))/${zoom}/2)*2'`;
+        }
+
+        if (crop) {
+          filterComplex += `${lastV}setsar=1,${crop},scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2',format=yuv420p[rv];`.replace(/16\/9/g, videoRatio.replace(':', '/'));
+          lastV = "[rv]";
+        }
       }
 
+      // Stage 2: Blur
       if (blurEnabled) {
         const bw = blurWidth || 300;
         const bh = blurHeight || 80;
-        const by = blurY !== undefined ? blurY : `(H-${bh}-50)`;
-        const bx = `(W-${bw})/2`;
+        const by = blurY !== undefined ? blurY : `(ih-${bh}-50)`;
+        const bx = `(iw-${bw})/2`;
         
         filterComplex += `${lastV}split[v1][v2];`;
-        // Use min/max to ensure crop is within bounds
-        filterComplex += `[v2]boxblur=20:10,crop=min(iw\\,${bw}):min(ih\\,${bh}):max(0\\,${bx}):max(0\\,${by})[blurred];`;
-        filterComplex += `[v1][blurred]overlay=max(0\\,${bx}):max(0\\,${by})[bv];`;
+        filterComplex += `[v2]boxblur=20:10,crop=w=min(iw\\,${bw}):h=min(ih\\,${bh}):x=max(0\\,${bx}):y=max(0\\,${by})[blurred];`;
+        filterComplex += `[v1][blurred]overlay=x=max(0\\,${bx}):y=max(0\\,${by})[bv];`;
         lastV = "[bv]";
       }
 
+      // Stage 3: Subtitles
       if (subtitleEnabled && subtitleText) {
-        // Simple wrapping logic for long text
         const wrapText = (text: string, maxLen: number) => {
           const words = text.split(/\s+/);
           let lines = [];
@@ -276,46 +292,47 @@ async function startServer() {
             }
           });
           if (currentLine) lines.push(currentLine.trim());
-          return lines.join(' '); // Join with spaces for now to avoid newline issues in ffmpeg drawtext
+          return lines.join(' ');
         };
 
-        const wrappedText = wrapText(subtitleText, 50);
-
-        // EXTRA SAFE ESCAPING for drawtext
-        // Escape special characters for FFmpeg drawtext filter
-        // and also ensure it doesn't break the shell command
-        let escapedText = wrappedText
+        const wrappedText = wrapText(subtitleText, 45);
+        // Escape for FFmpeg drawtext
+        const escaped = wrappedText
           .replace(/\\/g, '\\\\')
-          .replace(/'/g, "\\'")
+          .replace(/'/g, "'\\''")
           .replace(/:/g, '\\:')
-          .replace(/"/g, ''); // Remove double quotes entirely to be safe
+          .replace(/%/g, '\\%');
           
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
-        const fontSize = subtitleFontSize || 24;
+        const fSize = subtitleFontSize || 24;
         
-        filterComplex += `${lastV}drawtext=text='${escapedText}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fontSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv];`;
+        filterComplex += `${lastV}drawtext=text='${escaped}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv];`;
         lastV = "[sv]";
       }
 
+      // Stage 4: Logo
       if (hasLogo) {
-        filterComplex += `[2:v]scale=${size}:-2[l];${lastV}[l]overlay=${posFilter}[vout]`;
+        const logoSizeVal = logoSize || 100;
+        filterComplex += `[2:v]scale=${logoSizeVal}:-2[l];${lastV}[l]overlay=${posFilter}[vout]`;
         lastV = "[vout]";
       } else {
-        // If we have filters, rename the last one to vout
-        if (filterComplex.endsWith(";")) {
-          filterComplex = filterComplex.slice(0, -1);
-          // Rename last label to [vout]
-          const lastLabelMatch = filterComplex.match(/\[([^\]]+)\]$/);
-          if (lastLabelMatch) {
-            const lastLabel = lastLabelMatch[1];
-            filterComplex = filterComplex.replace(new RegExp(`\\[${lastLabel}\\]$`), '[vout]');
-            lastV = "[vout]";
-          }
-        } else if (filterComplex !== "") {
-           // We have a complex filter but it's not vout-ready
-           // This shouldn't happen with the current logic but let's be safe
-           filterComplex += `${lastV}null[vout]`; // null filter just passes video through
-           lastV = "[vout]";
+        // Just link to final vout
+        if (filterComplex !== "") {
+           // Ensure the last filter in the chain has the label we need or we append a null filter
+           if (filterComplex.endsWith(';')) {
+             filterComplex = filterComplex.slice(0, -1);
+           }
+           
+           // Replace the very last label with [vout]
+           const lastIdx = filterComplex.lastIndexOf('[');
+           if (lastIdx !== -1) {
+             const rest = filterComplex.substring(lastIdx);
+             const label = rest.match(/\[([^\]]+)\]/)?.[1];
+             if (label) {
+               filterComplex = filterComplex.substring(0, lastIdx) + `[vout]`;
+               lastV = "[vout]";
+             }
+           }
         }
       }
 
