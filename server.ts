@@ -314,13 +314,15 @@ async function startServer() {
         const bw = `(iw*${blurWidth || 400}/1000)`;
         const bh = `(ih*${blurHeight || 100}/1000)`;
         const byValue = blurY !== undefined ? blurY : 800;
-        const by = `(ih*${byValue}/1000)`;
-        const bXExpr = `(iw-out_w)/2`;
         const radius = blurIntensity || 10;
         
+        // Define coordinate tokens for different filters
+        const cropY = `(ih*${byValue}/1000)`;
+        const overlayY = `(H*${byValue}/1000)`;
+        
         vFilters.push(`${lastV}split[v_main][v_blur]`);
-        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='clip(${bXExpr},0,iw-out_w)':y='clip(${by},0,ih-out_h)',boxblur=${radius}:5[blurred]`);
-        vFilters.push(`[v_main][blurred]overlay=x='clip(${bXExpr},0,W-w)':y='clip(${by},0,H-h)'[bv]`);
+        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
+        vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
         lastV = "[bv]";
       }
 
