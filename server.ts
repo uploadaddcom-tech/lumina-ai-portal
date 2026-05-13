@@ -240,26 +240,25 @@ async function startServer() {
       const speed = (vDur > 0 && aDur > vDur) ? aDur / vDur : 1;
       
       // Build filter complex
-      let filterComplex = "";
+      let vFilters: string[] = [];
       let lastV = "[0:v]";
       
       // Stage 1: Ratio & Zoom
       if (videoRatio) {
-        let zoom = (videoScale || 100) / 100;
-        let w = "iw";
-        let h = "ih";
+        const z = (videoScale || 100) / 100;
         let crop = "";
-        
         if (videoRatio === "9:16") {
-           crop = `crop=w='trunc(min(iw,ih*9/16)/${zoom}/2)*2':h='trunc(min(ih,iw/(9/16))/${zoom}/2)*2'`;
+          crop = `crop=w='trunc(min(iw,ih*9/16)/${z}/2)*2':h='trunc(min(ih,iw/(9/16))/${z}/2)*2'`;
         } else if (videoRatio === "1:1") {
-           crop = `crop=w='trunc(min(iw,ih)/${zoom}/2)*2':h='trunc(min(ih,iw)/${zoom}/2)*2'`;
+          crop = `crop=w='trunc(min(iw,ih)/${z}/2)*2':h='trunc(min(ih,iw)/${z}/2)*2'`;
         } else if (videoRatio === "16:9") {
-           crop = `crop=w='trunc(min(iw,ih*16/9)/${zoom}/2)*2':h='trunc(min(ih,iw/(16/9))/${zoom}/2)*2'`;
+          crop = `crop=w='trunc(min(iw,ih*16/9)/${z}/2)*2':h='trunc(min(ih,iw/(16/9))/${z}/2)*2'`;
         }
-
+        
         if (crop) {
-          filterComplex += `${lastV}setsar=1,${crop},scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2',format=yuv420p[rv];`.replace(/16\/9/g, videoRatio.replace(':', '/'));
+          const rat = videoRatio.replace(':', '/');
+          const scale = `scale=w='trunc(min(iw,ih*${rat})/2)*2':h='trunc(min(ih,iw/(${rat}))/2)*2'`;
+          vFilters.push(`${lastV}setsar=1,${crop},${scale},format=yuv420p[rv]`);
           lastV = "[rv]";
         }
       }
@@ -268,12 +267,13 @@ async function startServer() {
       if (blurEnabled) {
         const bw = blurWidth || 300;
         const bh = blurHeight || 80;
-        const by = blurY !== undefined ? blurY : `(ih-${bh}-50)`;
-        const bx = `(iw-${bw})/2`;
+        const by = blurY !== undefined ? blurY : `(ih-bh-50)`;
+        const bx = `(iw-bw)/2`;
         
-        filterComplex += `${lastV}split[v1][v2];`;
-        filterComplex += `[v2]boxblur=20:10,crop=w=min(iw\\,${bw}):h=min(ih\\,${bh}):x=max(0\\,${bx}):y=max(0\\,${by})[blurred];`;
-        filterComplex += `[v1][blurred]overlay=x=max(0\\,${bx}):y=max(0\\,${by})[bv];`;
+        vFilters.push(`${lastV}split[v1][v2]`);
+        // We use two separate filters in the chain to clarify
+        vFilters.push(`[v2]boxblur=20:10,crop=w=min(iw\\,${bw}):h=min(ih\\,${bh}):x=max(0\\,${bx}):y=max(0\\,${by})[blurred]`);
+        vFilters.push(`[v1][blurred]overlay=x=max(0\\,${bx}):y=max(0\\,${by})[bv]`);
         lastV = "[bv]";
       }
 
@@ -296,7 +296,7 @@ async function startServer() {
         };
 
         const wrappedText = wrapText(subtitleText, 45);
-        // Escape for FFmpeg drawtext
+        // Escape for FFmpeg drawtext: backslash, then single quote, then colon, then percent
         const escaped = wrappedText
           .replace(/\\/g, '\\\\')
           .replace(/'/g, "'\\''")
@@ -306,58 +306,48 @@ async function startServer() {
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const fSize = subtitleFontSize || 24;
         
-        filterComplex += `${lastV}drawtext=text='${escaped}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv];`;
+        vFilters.push(`${lastV}drawtext=text='${escaped}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv]`);
         lastV = "[sv]";
       }
 
       // Stage 4: Logo
       if (hasLogo) {
         const logoSizeVal = logoSize || 100;
-        filterComplex += `[2:v]scale=${logoSizeVal}:-2[l];${lastV}[l]overlay=${posFilter}[vout]`;
+        vFilters.push(`[2:v]scale=${logoSizeVal}:-2[l]`);
+        vFilters.push(`${lastV}[l]overlay=${posFilter}[vout]`);
         lastV = "[vout]";
       } else {
-        // Just link to final vout
-        if (filterComplex !== "") {
-           // Ensure the last filter in the chain has the label we need or we append a null filter
-           if (filterComplex.endsWith(';')) {
-             filterComplex = filterComplex.slice(0, -1);
-           }
-           
-           // Replace the very last label with [vout]
-           const lastIdx = filterComplex.lastIndexOf('[');
-           if (lastIdx !== -1) {
-             const rest = filterComplex.substring(lastIdx);
-             const label = rest.match(/\[([^\]]+)\]/)?.[1];
-             if (label) {
-               filterComplex = filterComplex.substring(0, lastIdx) + `[vout]`;
-               lastV = "[vout]";
-             }
-           }
-        }
+        // If we have filters but no logo, the last filter's label is our output
+        // We can just use lastV as is in mapping
       }
 
-      let audioComplex = "";
+      let audioComplexFilters: string[] = [];
       if (speed > 1) {
         let atempo = `atempo=${speed}`;
         if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
-        audioComplex = `;[1:a]${atempo}[aout]`;
+        audioComplexFilters.push(`[1:a]${atempo}[aout]`);
       }
 
+      // Combine all filters
+      const allFilters = [...vFilters, ...audioComplexFilters].join(';');
+      
       let ffmpegCmd = "";
-      if (filterComplex) {
+      if (allFilters) {
         const mapV = ` -map "${lastV}"`;
         const mapA = speed > 1 ? '-map "[aout]"' : '-map 1:a:0 -shortest';
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex "${filterComplex}${audioComplex}"${mapV} ${mapA} -c:v libx264 -preset ultrafast "${outputPath}"`;
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex "${allFilters}"${mapV} ${mapA} -c:v libx264 -preset ultrafast -y "${outputPath}"`;
       } else {
         // No filters at all
         if (speed > 1) {
-          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast "${outputPath}"`;
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast -y "${outputPath}"`;
         } else {
-          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest "${outputPath}"`;
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y "${outputPath}"`;
         }
       }
 
+      console.log("Executing CMD:", ffmpegCmd);
       await execPromise(ffmpegCmd);
+
 
       const outputBuffer = await readFilePromise(outputPath);
       res.json({ videoBase64: outputBuffer.toString("base64") });
