@@ -255,8 +255,9 @@ async function startServer() {
         const bx = `(W-${bw})/2`;
         
         filterComplex += `${lastV}split[v1][v2];`;
-        filterComplex += `[v2]boxblur=20:10,crop=${bw}:${bh}:${bx}:${by}[blurred];`;
-        filterComplex += `[v1][blurred]overlay=${bx}:${by}[bv];`;
+        // Use min/max to ensure crop is within bounds
+        filterComplex += `[v2]boxblur=20:10,crop=min(iw\\,${bw}):min(ih\\,${bh}):max(0\\,${bx}):max(0\\,${by})[blurred];`;
+        filterComplex += `[v1][blurred]overlay=max(0\\,${bx}):max(0\\,${by})[bv];`;
         lastV = "[bv]";
       }
 
@@ -275,28 +276,24 @@ async function startServer() {
             }
           });
           if (currentLine) lines.push(currentLine.trim());
-          return lines.join('\n');
+          return lines.join(' '); // Join with spaces for now to avoid newline issues in ffmpeg drawtext
         };
 
-        // Wrap text to ~50 characters
         const wrappedText = wrapText(subtitleText, 50);
 
-        // ESCAPE TEXT for drawtext filter
-        // FFmpeg drawtext escaping is tricky. 
-        // We need to escape single quotes, colons, and backslashes.
+        // EXTRA SAFE ESCAPING for drawtext
+        // Escape special characters for FFmpeg drawtext filter
+        // and also ensure it doesn't break the shell command
         let escapedText = wrappedText
-          .replace(/\\/g, '\\\\\\\\')
-          .replace(/'/g, "'\\\\\\''")
-          .replace(/:/g, '\\\\:')
-          .replace(/%/g, '\\\\%')
-          .replace(/\n/g, '\\\n');
+          .replace(/\\/g, '\\\\')
+          .replace(/'/g, "\\'")
+          .replace(/:/g, '\\:')
+          .replace(/"/g, ''); // Remove double quotes entirely to be safe
           
-        const color = subtitleColor || "white";
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const fontSize = subtitleFontSize || 24;
         
-        // drawtext with wrapping logic and background box
-        // Use a standard font if possible, or omit to use default
-        filterComplex += `${lastV}drawtext=text='${escapedText}':x=(w-text_w)/2:y=h-text_h-padding:fontsize=${fontSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv];`.replace('padding', '50');
+        filterComplex += `${lastV}drawtext=text='${escapedText}':x=(w-text_w)/2:y=h-text_h-50:fontsize=${fontSize}:fontcolor=${color}:box=1:boxcolor=black@0.5:boxborderw=10:line_spacing=5:fix_bounds=true[sv];`;
         lastV = "[sv]";
       }
 
