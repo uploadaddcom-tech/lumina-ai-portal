@@ -27,7 +27,8 @@ import {
   Lightbulb,
   Check,
   Sun,
-  Moon
+  Moon,
+  ChevronDown
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -36,11 +37,11 @@ import Markdown from "react-markdown";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
-  async recap(videoBase64: string, mimeType: string, style: string, lang: Language) {
+  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number) {
     const res = await fetch("/api/recap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, mimeType, style, lang }),
+      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration }),
     });
     if (!res.ok) throw new Error("Recap failed");
     return (await res.json()).text;
@@ -763,6 +764,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
 function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -794,12 +796,12 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [blurY, setBlurY] = useState(400);
   const [showBlurSettings, setShowBlurSettings] = useState(false);
   
-  // Subtitle Settings
-  const [subtitleEnabled, setSubtitleEnabled] = useState(false);
-  const [subtitleColor, setSubtitleColor] = useState("#ffffff");
-  const [subtitleFontSize, setSubtitleFontSize] = useState(24);
-  const [subtitleFont, setSubtitleFont] = useState("Inter");
-  const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+    // Subtitle Settings
+    const [subtitleEnabled, setSubtitleEnabled] = useState(false);
+    const [subtitleColor, setSubtitleColor] = useState("#ffffff");
+    const [subtitleFontSize, setSubtitleFontSize] = useState(24);
+    const [subtitleFont, setSubtitleFont] = useState("Padauk");
+    const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   
@@ -817,6 +819,16 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         return;
       }
       setFile(selectedFile);
+      
+      // Extract duration
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        setDuration(video.duration);
+        window.URL.revokeObjectURL(video.src);
+      };
+      video.src = URL.createObjectURL(selectedFile);
+
       setError(null);
       setResult(null);
       setVoiceoverAudioUrl(null);
@@ -845,14 +857,14 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
     try {
       const base64 = await fileToBase64(file);
-      const recap = await api.recap(base64, file.type, selectedStyle, lang);
-      setResult(recap || "");
+      const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined);
+      setResult(recapValue || "");
 
       // Auto-trigger voiceover generation
-      if (recap) {
+      if (recapValue) {
         setIsVoiceoverGenerating(true);
         try {
-          const cleanText = recap.replace(/[#*`_~]/g, '');
+          const cleanText = recapValue.replace(/[#*`_~]/g, '');
           const voice64 = await api.voiceover(cleanText, selectedVoice);
           if (voice64) {
             const binaryString = atob(voice64);
@@ -1796,20 +1808,22 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
                             {lang === "EN" ? "Font Family" : "Font အမျိုးအစား"}
                           </label>
-                          <div className="grid grid-cols-1 gap-2">
-                             {["Inter", "Arial", "Roboto", "Georgia", "Courier New"].map((f) => (
-                               <button
-                                 key={f}
-                                 onClick={() => setSubtitleFont(f)}
-                                 className={`px-4 py-3 rounded-xl border text-left transition-all ${
-                                   subtitleFont === f 
-                                     ? "bg-cyan-600 border-cyan-500 text-white shadow-xl shadow-cyan-500/20" 
-                                     : "bg-white/5 border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-300"
-                                 }`}
-                               >
-                                 <div className="text-[11px] font-black uppercase tracking-wider" style={{ fontFamily: f }}>{f}</div>
-                               </button>
-                             ))}
+                          <div className="relative">
+                            <select
+                              value={subtitleFont}
+                              onChange={(e) => setSubtitleFont(e.target.value)}
+                              className="w-full px-4 py-4 rounded-xl border bg-white/5 border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 appearance-none cursor-pointer transition-all font-medium text-sm"
+                              style={{ fontFamily: subtitleFont }}
+                            >
+                              {["Padauk", "Inter", "Arial", "Roboto", "Georgia", "Courier New"].map((f) => (
+                                <option key={f} value={f} style={{ fontFamily: f }} className="bg-slate-900 text-white">
+                                  {f}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              <ChevronDown size={18} />
+                            </div>
                           </div>
                         </div>
                       </div>

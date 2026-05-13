@@ -36,7 +36,7 @@ async function startServer() {
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
     try {
-      const { videoBase64, mimeType, style, lang } = req.body;
+      const { videoBase64, mimeType, style, lang, duration } = req.body;
       const model = "gemini-3-flash-preview";
       
       const stylePrompts: Record<string, string> = {
@@ -66,8 +66,26 @@ async function startServer() {
           : "ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေကို အခြေခံပြီး အချိန်နဲ့တပြေးညီ နောက်ခံစကားပြော script တစ်ခု ရေးသားပေးပါ။ အချိန်မှတ်တမ်းတွေ မထည့်ပါနဲ့။",
       };
 
+      const wordCount = duration ? Math.floor((duration / 60) * 150) : 150;
+      
+      const constraintPrompt = lang === "EN"
+        ? `Constraints:
+           - Script length: Approximately ${wordCount} words (Strictly target 150 words per 60 seconds).
+           - Output: Final polished narrative script ONLY.
+           - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
+           - DO NOT use numbering, bullet points, or list formatting.
+           - DO NOT include timestamps.
+           - Provide the text exactly as it should be read for a voiceover.`
+        : `ကန့်သတ်ချက်များ -
+           - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ၁၅၀ နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
+           - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
+           - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
+           - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
+           - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
+           - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+
       const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
-      const finalPrompt = `${promptSnippet} Respond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
+      const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
       const response = await ai.models.generateContent({
         model: model,
@@ -265,15 +283,17 @@ async function startServer() {
 
       // Stage 2: Blur
       if (blurEnabled) {
-        const bw = blurWidth || 300;
-        const bh = blurHeight || 80;
-        const by = blurY !== undefined ? blurY : `(ih-bh-50)`;
-        const bx = `(iw-bw)/2`;
+        // blurWidth/blurHeight/blurY are 0-1000 from UI, representing 0-100%
+        const bw = `(iw*${blurWidth || 400}/1000)`;
+        const bh = `(ih*${blurHeight || 100}/1000)`;
+        const byValue = blurY !== undefined ? blurY : 800;
+        const by = `(ih*${byValue}/1000)`;
+        const bx = `(iw-out_w)/2`;
         
         vFilters.push(`${lastV}split[v1][v2]`);
-        // Use clip to ensure crop is within valid bounds to avoid FFmpeg crash
-        vFilters.push(`[v2]boxblur=20:10,crop=w=min(iw,${bw}):h=min(ih,${bh}):x=clip(${bx},0,iw-out_w):y=clip(${by},0,ih-out_h)[blurred]`);
-        vFilters.push(`[v1][blurred]overlay=x=clip(${bx},0,W-w):y=clip(${by},0,H-h)[bv]`);
+        // Crop then blur for performance. Use even dimensions.
+        vFilters.push(`[v2]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='clip(${bx},0,iw-out_w)':y='clip(${by},0,ih-out_h)',boxblur=15:5[blurred]`);
+        vFilters.push(`[v1][blurred]overlay=x='clip(${bx},0,W-w)':y='clip(${by},0,H-h)'[bv]`);
         lastV = "[bv]";
       }
 
@@ -306,8 +326,10 @@ async function startServer() {
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const fSize = subtitleFontSize || 24;
         
-        // Search for Myanmar-compatible fonts in common Linux paths
+        // Search for Myanmar-compatible fonts
         const fontPaths = [
+          path.join(__dirname, "Padauk-Bold.ttf"),
+          path.join(process.cwd(), "Padauk-Bold.ttf"),
           "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
           "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf",
           "/usr/share/fonts/truetype/noto/NotoSansMyanmar-VF.ttf",
@@ -317,6 +339,7 @@ async function startServer() {
         let fontArg = "";
         for (const fp of fontPaths) {
           if (fs.existsSync(fp)) {
+            // FFmpeg on Windows might need escaped backslashes, but here we are in Linux container
             fontArg = `:fontfile='${fp}'`;
             console.log(`Using font: ${fp}`);
             break;
