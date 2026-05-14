@@ -374,96 +374,60 @@ async function startServer() {
         lastV = "[bv]";
       }
 
-      // Stage 3: Sync Subtitles
+      // Stage 3: Sync Subtitles using AI-generated SRT
       if (subtitleEnabled && subtitleText) {
-        const wrapText = (text: string, maxLen: number) => {
-          if (!text.includes(' ') && text.length > maxLen) {
-            let res = [];
-            for (let i = 0; i < text.length; i += maxLen) {
-              res.push(text.substring(i, i + maxLen));
-            }
-            return res;
-          }
-          const words = text.split(/\s+/);
-          let lines = [];
-          let currentLine = "";
-          words.forEach(word => {
-            if ((currentLine + word).length > maxLen) {
-              lines.push(currentLine.trim());
-              currentLine = word + " ";
-            } else {
-              currentLine += word + " ";
-            }
+        const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
+        
+        // Use Gemini to generate a precise SRT file based on the text and total duration
+        const srtPrompt = `Generate a precise SubRip (.srt) subtitle file for the following text. 
+        The total duration of the audio is exactly ${aDur || vDur} seconds. 
+        Distribute the text naturally across the duration so it matches a voiceover.
+        Output ONLY the SRT content, no other text.
+        
+        Text:
+        ${subtitleText}`;
+
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: [{ parts: [{ text: srtPrompt }] }]
           });
-          if (currentLine) lines.push(currentLine.trim());
-          return lines;
-        };
-
-        const color = (subtitleColor || "#ffffff").replace('#', '0x');
-        
-        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
-        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
-        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
-        
-        const fontPaths = [
-          path.join(__dirname, "Padauk-Bold.ttf"),
-          path.join(process.cwd(), "Padauk-Bold.ttf"),
-          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
-          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
-        ];
-
-        let fontArg = "";
-        for (const fp of fontPaths) {
-          if (fs.existsSync(fp)) {
-            fontArg = `:fontfile='${fp}'`;
-            break;
+          let srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          srtContent = srtContent.trim();
+          
+          // Clean up if Gemini includes markdown
+          if (srtContent.startsWith("```")) {
+            srtContent = srtContent.replace(/^```srt\n?|^```\n?|```$/g, "");
           }
-        }
 
-        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
-        const getChunks = (text: string, maxChars = 45) => {
-          const parts = text.split(/(?<=[။၊.!?])\s*/);
-          let res = [];
-          let current = "";
-          for (const p of parts) {
-            if ((current + p).length > maxChars) {
-              if (current) res.push(current);
-              current = p;
-            } else {
-              current = current ? current + " " + p : p;
-            }
+          await writeFilePromise(srtPath, srtContent);
+
+          const colorHex = (subtitleColor || "#ffffff").replace("#", "&H");
+          // Convert RGB to ABGR for libass (Subtitles filter)
+          // Default is white (FFFFFF), alpha is 00 (Opaque)
+          // Format for force_style: PrimaryColour=&H00FFFFFF (AABBGGRR)
+          let abgrColor = "00FFFFFF";
+          if (subtitleColor && subtitleColor.startsWith("#")) {
+             const r = subtitleColor.substring(1, 3);
+             const g = subtitleColor.substring(3, 5);
+             const b = subtitleColor.substring(5, 7);
+             abgrColor = `00${b}${g}${r}`;
           }
-          if (current) res.push(current);
-          return res;
-        };
 
-        const chunks = getChunks(subtitleText, 45);
-        const totalTime = aDur || vDur || 1;
-        const totalChars = subtitleText.length || 1;
-        
-        let currentTime = 0;
-        let svIndex = 0;
-
-        for (const chunk of chunks) {
-          if (!chunk.trim()) continue;
+          const fSize = subtitleFontSize || 24;
+          // Apply font scaling if needed, but subtitles filter handles its own scaling usually
+          // We'll use a reasonable base size
           
-          // Use smaller wrapLen (25) to ensure padding on edges
-          const wrappedLines = wrapText(chunk.trim(), 25);
-          const wrapped = wrappedLines.join('\n');
-          const chunkDuration = (chunk.length / totalChars) * totalTime;
-          const chunkStartTime = currentTime;
-          const chunkEndTime = currentTime + chunkDuration;
-          
-          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
-          await writeFilePromise(chunkPath, wrapped);
-          
-          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
-          // Position: center horizontally, 90% from top (Bottom Center)
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
-          
-          lastV = `[sv${svIndex}]`;
-          currentTime = chunkEndTime;
-          svIndex++;
+          // Use the subtitles filter with force_style
+          // Note: Full path to SRT is needed. In FFmpeg, : used in Windows paths needs escaping, but here we are in Linux.
+          // However, the subtitles filter uses libass and sometimes needs special escaping for paths.
+          vFilters.push(`${lastV}subtitles='${srtPath}':force_style='FontSize=${fSize},PrimaryColour=&H${abgrColor},Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
+          lastV = "[sv]";
+        } catch (srtError) {
+          console.error("SRT Generation Error:", srtError);
+          // Fallback to basic text overlay if AI fails
+          vFilters.push(`${lastV}drawtext=text='${subtitleText.substring(0, 50)}...':x=(w-text_w)/2:y=h-80:fontsize=24:fontcolor=white[sv]`);
+          lastV = "[sv]";
         }
       }
 
@@ -523,8 +487,8 @@ async function startServer() {
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
         const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
-        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
-        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
+        const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
+        if (fs.existsSync(srtPath)) await unlinkPromise(srtPath);
         
         // Cleanup chunks
         const files = fs.readdirSync(tempDir);
