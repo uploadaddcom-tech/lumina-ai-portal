@@ -392,7 +392,6 @@ async function startServer() {
           audioFilter = chains.join(",");
         }
 
-        // Create synchronized audio for AI transcription to ensure perfect timing
         const syncAudioPath = path.join(tempDir, `sync_audio_${tempId}.wav`);
         try {
           await execPromise(`ffmpeg -i "${audioPath}" -af "${audioFilter}" -y "${syncAudioPath}"`);
@@ -404,17 +403,17 @@ async function startServer() {
 
       // Stage 3: Sync Subtitles using AI-generated SRT from SYNCHRONIZED Audio
       if (subtitleEnabled && subtitleText) {
+        const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
         try {
           const audioBuffer = await readFilePromise(processedAudioPath);
           const srtPrompt = `Generate a strictly valid SubRip (.srt) subtitle file. 
           Script: "${subtitleText}". 
           Total duration: ${vDur} seconds. 
-          Synchronization is CRITICAL. Match the narration flow in the audio exactly.
+          Synchronization is the TOP priority. Match the speech timing in the audio exactly.
           Rules:
           1. Strictly follow SRT format.
           2. Phrases should be short (3-6 words).
-          3. Output ONLY the raw SRT content.
-          4. Ensure all text is included.`;
+          3. Output ONLY the raw SRT content, no markdown blocks.`;
 
           const response = await ai.models.generateContent({
             model: "gemini-1.5-flash",
@@ -429,7 +428,6 @@ async function startServer() {
           });
           
           let srtContent = "";
-          // The SDK version 1.29.0 of @google/genai might have text as a property or method
           if (typeof (response as any).text === 'string') {
             srtContent = (response as any).text;
           } else if (typeof (response as any).text === 'function') {
@@ -438,67 +436,34 @@ async function startServer() {
              srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
           }
 
-          console.log("Subtitle AI Response length:", srtContent.length);
-
           srtContent = srtContent.trim().replace(/```(srt)?/g, "").replace(/```/g, "").trim();
 
           if (srtContent.length > 10) {
-            // Split by one or more blank lines
-            const srtBlocks = srtContent.split(/\r?\n\s*\r?\n/);
-            const timeToSeconds = (timeStr: string) => {
-              if (!timeStr) return 0;
-              const cleanTime = timeStr.trim().replace(',', '.');
-              const parts = cleanTime.split(':');
-              if (parts.length < 3) return 0;
-              const hours = parseFloat(parts[0]);
-              const minutes = parseFloat(parts[1]);
-              const seconds = parseFloat(parts[2]);
-              return hours * 3600 + minutes * 60 + seconds;
-            };
+            await writeFilePromise(srtPath, srtContent);
 
-            const colorHex = (subtitleColor || "#ffffff").replace('#', '0x');
-            // User complained that large font size makes it disappear. 
-            // We will limit the vertical position carefully.
-            const baseFontSize = subtitleFontSize || 28;
-            const fSize = Math.floor(baseFontSize * effectiveFontScale);
-            
-            const fontPath = path.join(process.cwd(), "Padauk-Bold.ttf");
-            const fontArg = fs.existsSync(fontPath) ? `:fontfile='${fontPath}'` : "";
-
-            let subIndex = 0;
-            for (const block of srtBlocks) {
-              const lines = block.trim().split(/\r?\n/);
-              if (lines.length >= 3) {
-                // Find line with -->
-                const timeLineIndex = lines.findIndex(l => l.includes('-->'));
-                if (timeLineIndex !== -1) {
-                  const times = lines[timeLineIndex].split('-->');
-                  if (times.length === 2) {
-                    const start = timeToSeconds(times[0]);
-                    const end = timeToSeconds(times[1]);
-                    // Combine all lines after the timestamp
-                    const textLines = lines.slice(timeLineIndex + 1);
-                    const text = textLines.join(' ').replace(/'/g, "\\'").replace(/:/g, "\\:").trim();
-                    
-                    if (!isNaN(start) && !isNaN(end) && end > start && text) {
-                      // IMPROVED POSITIONING: Center horizontally, and 10% from bottom
-                      // Use y=h-text_h- (0.1*h) but with bounds check
-                      // Also draw a background box for better visibility
-                      vFilters.push(`${lastV}drawtext=text='${text}':x=(w-text_w)/2:y=h-text_h-(h*0.1):fontsize=${fSize}:fontcolor=${colorHex}:box=1:boxcolor=black@0.6:boxborderw=10:fix_bounds=true${fontArg}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[sv${subIndex}]`);
-                      lastV = `[sv${subIndex}]`;
-                      subIndex++;
-                    }
-                  }
-                }
-              }
+            // Convert Hex Color (#RRGGBB) to ASS Color (&HAABBGGRR)
+            // Default alpha is FF (Opaque in ASS is 00, but FF is used in some contexts, however &H00BBGGRR is standard)
+            let assColor = "FFFFFF"; // White
+            if (subtitleColor && subtitleColor.startsWith("#")) {
+               const r = subtitleColor.substring(1, 3);
+               const g = subtitleColor.substring(3, 5);
+               const b = subtitleColor.substring(5, 7);
+               assColor = `${b}${g}${r}`; // BBGGRR
             }
-          } else {
-            console.warn("AI returned empty or very short SRT content.");
+
+            const fSize = subtitleFontSize || 28;
+            
+            // Step 3 Styling: WrapStyle=2 (Prevent clipping), FontName=Padauk, Alignment=2 (Bottom Center)
+            // We use the full path to the srt file, escaped for ffmpeg
+            const escapedSrtPath = srtPath.replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
+            
+            vFilters.push(`${lastV}subtitles='${escapedSrtPath}':force_style='FontName=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
+            lastV = "[sv]";
           }
         } catch (srtError) {
           console.error("Subtitle Stage Error Details:", srtError);
           const colorHex = (subtitleColor || "#ffffff").replace('#', '0x');
-          vFilters.push(`${lastV}drawtext=text='Subtitle Error':x=(w-text_w)/2:y=h-100:fontsize=24:fontcolor=${colorHex}[sv_err]`);
+          vFilters.push(`${lastV}drawtext=text='Subtitle Sync Error':x=(w-text_w)/2:y=h-100:fontsize=24:fontcolor=${colorHex}[sv_err]`);
           lastV = "[sv_err]";
         }
       }
