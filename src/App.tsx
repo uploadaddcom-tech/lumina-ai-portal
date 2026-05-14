@@ -917,14 +917,18 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     try {
       // User requested visibility of stages
       setTimeout(() => {
-        if (subtitleEnabled) {
-          setMergeStep(lang === "EN" ? "AI Generating Subtitles..." : "AI မှ စာတန်းများ ထုတ်ယူနေသည်...");
-        }
-      }, 4000);
+        setMergeStep(lang === "EN" ? "Aligning Audio Track..." : "အသံဖိုင်ကို တိုက်ဆိုင်စစ်ဆေးနေသည်...");
+      }, 2000);
 
       setTimeout(() => {
-        setMergeStep(lang === "EN" ? "Encoding & Finalizing..." : "ဗီဒီယိုကို အချောသတ်နေသည်...");
-      }, 8000);
+        if (subtitleEnabled) {
+          setMergeStep(lang === "EN" ? "AI Transcribing & Rendering SRT..." : "AI မှ စကားပြောများကို စာတန်းထိုးနေသည်...");
+        }
+      }, 5000);
+
+      setTimeout(() => {
+        setMergeStep(lang === "EN" ? "Final Encoding & Rendering..." : "ဗီဒီယိုကို နောက်ဆုံးအဆင့် ထုတ်ယူနေသည်...");
+      }, 10000);
       const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
