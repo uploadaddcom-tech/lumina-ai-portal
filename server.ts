@@ -436,28 +436,30 @@ async function startServer() {
              srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
           }
 
-          srtContent = srtContent.trim().replace(/```(srt)?/g, "").replace(/```/g, "").trim();
+          // Step 3: SRT Content Cleaning - Remove markdown code blocks thoroughly
+          srtContent = srtContent.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
 
           if (srtContent.length > 10) {
             await writeFilePromise(srtPath, srtContent);
 
-            // Convert Hex Color (#RRGGBB) to ASS Color (&HAABBGGRR)
-            // Default alpha is FF (Opaque in ASS is 00, but FF is used in some contexts, however &H00BBGGRR is standard)
-            let assColor = "FFFFFF"; // White
+            // Dynamic Color Conversion: Convert Hex (#RRGGBB) to ASS (&H00BBGGRR)
+            let assColor = "FFFFFF"; // Default White
             if (subtitleColor && subtitleColor.startsWith("#")) {
                const r = subtitleColor.substring(1, 3);
                const g = subtitleColor.substring(3, 5);
                const b = subtitleColor.substring(5, 7);
-               assColor = `${b}${g}${r}`; // BBGGRR
+               assColor = `${b}${g}${r}`; // BBGGRR format
             }
 
             const fSize = subtitleFontSize || 28;
             
-            // Step 3 Styling: WrapStyle=2 (Prevent clipping), FontName=Padauk, Alignment=2 (Bottom Center)
-            // We use the full path to the srt file, escaped for ffmpeg
+            // FFmpeg Subtitles Filter Path Fix: Escape colons and use explicit filename=
             const escapedSrtPath = srtPath.replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
+            const fontsDir = process.cwd(); // Root where Padauk-Bold.ttf is located
             
-            vFilters.push(`${lastV}subtitles='${escapedSrtPath}':force_style='FontName=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
+            // Final Styling: WrapStyle=2, Alignment=2, and FontName
+            // Note: libass uses FontName. Padauk-Bold is the font name from the file.
+            vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='FontName=Padauk-Bold,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
             lastV = "[sv]";
           }
         } catch (srtError) {
