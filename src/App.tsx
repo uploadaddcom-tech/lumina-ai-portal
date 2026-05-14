@@ -111,6 +111,24 @@ const api = {
       throw new Error(errorData.error || "Merge failed");
     }
     return (await res.json()).videoBase64;
+  },
+  async transcribeSubtitles(videoBase64: string, mimeType: string) {
+    const res = await fetch("/api/transcribe-subtitles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType }),
+    });
+    if (!res.ok) throw new Error("Transcription failed");
+    return (await res.json()).srt;
+  },
+  async renderSubtitleVideo(videoBase64: string, mimeType: string, srt: string, color: string) {
+    const res = await fetch("/api/render-subtitle-video", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType, srt, color }),
+    });
+    if (!res.ok) throw new Error("Rendering failed");
+    return (await res.json()).videoBase64;
   }
 };
 
@@ -730,6 +748,254 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function SubtitleEditorView({ onBack, lang }: ViewProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [srtContent, setSrtContent] = useState("");
+  const [subtitles, setSubtitles] = useState<any[]>([]);
+  const [currentSubtitle, setCurrentSubtitle] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
+  const [subtitleColor, setSubtitleColor] = useState("#FFFFFF");
+  const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = (translations[lang] as any).subtitleEditor;
+
+  const parseSRT = (srt: string) => {
+    const blocks = srt.trim().split(/\n\s*\n/);
+    return blocks.map(block => {
+      const lines = block.split('\n');
+      if (lines.length < 3) return null;
+      const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
+      if (!timeMatch) return null;
+
+      const toSeconds = (t: string) => {
+        const [h, m, s] = t.split(':');
+        const [sec, ms] = s.split(',');
+        return parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(sec) + parseInt(ms) / 1000;
+      };
+
+      return {
+        start: toSeconds(timeMatch[1]),
+        end: toSeconds(timeMatch[2]),
+        text: lines.slice(2).join('\n')
+      };
+    }).filter(Boolean);
+  };
+
+  useEffect(() => {
+    if (srtContent) {
+      setSubtitles(parseSRT(srtContent));
+    }
+  }, [srtContent]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      const time = video.currentTime;
+      const active = subtitles.find(s => time >= s.start && time <= s.end);
+      setCurrentSubtitle(active ? active.text : "");
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+  }, [subtitles]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setVideoUrl(URL.createObjectURL(selectedFile));
+      setSrtContent("");
+      setSubtitles([]);
+      setError(null);
+    }
+  };
+
+  const handleStart = async () => {
+    if (!file) return;
+    setIsProcessing(true);
+    setError(null);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const srt = await api.transcribeSubtitles(base64, file.type);
+        setSrtContent(srt);
+      };
+    } catch (err) {
+      setError("Failed to generate subtitles.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRender = async () => {
+    if (!file || !srtContent) return;
+    setIsRendering(true);
+    setError(null);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const renderedBase64 = await api.renderSubtitleVideo(base64, file.type, srtContent, subtitleColor);
+        
+        const binaryString = atob(renderedBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "final_subtitle_video.mp4";
+        a.click();
+      };
+    } catch (err) {
+      setError("Failed to render video.");
+    } finally {
+      setIsRendering(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#020617] text-white pb-20">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-white/10">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <Subtitles className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black tracking-tighter">{t.headline}</h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 space-y-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Preview Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
+              {videoUrl ? (
+                <>
+                  <video 
+                    ref={videoRef} 
+                    src={videoUrl} 
+                    className="w-full h-full object-contain" 
+                    controls 
+                  />
+                  {currentSubtitle && (
+                    <div className="absolute inset-x-0 bottom-12 flex justify-center px-8 pointer-events-none">
+                      <motion.p 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        key={currentSubtitle}
+                        className="text-center drop-shadow-[0_2px_4px_rgba(0,0,0,1)] font-black text-xl md:text-2xl"
+                        style={{ color: subtitleColor, fontFamily: 'Padauk, sans-serif' }}
+                      >
+                        {currentSubtitle}
+                      </motion.p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-full flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-colors"
+                >
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                    <CloudUpload className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{t.placeholder}</p>
+                </div>
+              )}
+            </div>
+
+            {file && (
+              <div className="flex flex-wrap gap-4 items-center justify-between bg-white/5 p-6 rounded-3xl border border-white/10">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.color}</label>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="color" 
+                      value={subtitleColor}
+                      onChange={(e) => setSubtitleColor(e.target.value)}
+                      className="w-12 h-12 rounded-lg bg-transparent cursor-pointer border-none"
+                    />
+                    <div className="text-xl font-mono font-bold">{subtitleColor}</div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button 
+                    onClick={handleStart}
+                    disabled={isProcessing}
+                    className="h-14 px-8 rounded-2xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-white/5 text-white font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl shadow-cyan-500/10"
+                  >
+                    {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isProcessing ? t.processing : t.start}
+                  </button>
+
+                  {srtContent && (
+                    <button 
+                      onClick={handleRender}
+                      disabled={isRendering}
+                      className="h-14 px-8 rounded-2xl bg-white hover:bg-slate-100 disabled:bg-white/5 text-slate-950 font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl"
+                    >
+                      {isRendering ? <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" /> : <Zap className="w-4 h-4" />}
+                      {isRendering ? t.rendering : t.render}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Editor/SRT Side */}
+          <div className="space-y-6">
+            <div className="bg-white/5 rounded-3xl border border-white/10 p-6 h-full flex flex-col gap-4">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <ListOrdered className="w-4 h-4" />
+                Raw Subtitles (SRT)
+              </h3>
+              <textarea 
+                value={srtContent}
+                onChange={(e) => setSrtContent(e.target.value)}
+                placeholder="SRT content will appear here..."
+                className="flex-1 bg-black/40 rounded-xl p-4 font-mono text-sm text-slate-300 border border-white/5 focus:outline-none focus:border-cyan-500/30 resize-none custom-scrollbar min-h-[300px]"
+              />
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+                Tip: You can manually edit the timing or text above and the preview will update.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <input 
+          type="file" 
+          ref={fileInputRef}
+          className="hidden" 
+          accept="video/mp4,video/quicktime"
+          onChange={handleFileChange}
+        />
       </div>
     </div>
   );
@@ -2106,6 +2372,20 @@ export default function App() {
             transition={{ duration: 0.3 }}
           >
             <VoiceoverView 
+              onBack={() => setActiveToolId(null)} 
+              lang={lang}
+              setLang={setLang}
+            />
+          </motion.div>
+        ) : activeToolId === "subtitle-editor" ? (
+          <motion.div
+            key="subtitle-editor"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SubtitleEditorView 
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}

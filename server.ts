@@ -163,6 +163,90 @@ async function startServer() {
     }
   });
 
+  app.post("/api/transcribe-subtitles", async (req, res) => {
+    try {
+      const { videoBase64, mimeType } = req.body;
+      const model = "gemini-1.5-flash"; 
+      
+      const srtPrompt = `Listen to the audio in this video carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
+      Rules:
+      1. Translate the speech naturally into Myanmar language using a conversational style.
+      2. Strictly follow SRT format (Index, Timing, Text).
+      3. Break long sentences into readable lines (max 10 words per line).
+      4. DO NOT include any preamble or code blocks. Start directly with '1'.
+      5. The timestamps must be accurate to the audio.`;
+
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: [
+          {
+            parts: [
+              { text: srtPrompt },
+              { inlineData: { data: videoBase64, mimeType } }
+            ]
+          }
+        ]
+      });
+
+      let srtContent = response.text || "";
+      
+      // Clean SRT content
+      const srtMatch = srtContent.match(/1\r?\n00:[\s\S]*$/);
+      if (srtMatch) {
+        srtContent = srtMatch[0].trim();
+      }
+
+      res.json({ srt: srtContent });
+    } catch (error: any) {
+      console.error("Transcribe Subtitles Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/render-subtitle-video", async (req, res) => {
+    const tempId = crypto.randomBytes(8).toString("hex");
+    const tempDir = path.join(process.cwd(), "temp");
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    const videoPath = path.join(tempDir, `v_${tempId}.mp4`);
+    const srtPath = path.join(tempDir, `s_${tempId}.srt`);
+    const outputPath = path.join(tempDir, `out_${tempId}.mp4`);
+
+    try {
+      const { videoBase64, srt, color } = req.body;
+      await writeFilePromise(videoPath, Buffer.from(videoBase64, 'base64'));
+      await writeFilePromise(srtPath, srt);
+
+      // Convert Hex to ASS Color (&H00BBGGRR)
+      let assColor = "FFFFFF";
+      if (color && color.startsWith("#")) {
+        const r = color.substring(1, 3);
+        const g = color.substring(3, 5);
+        const b = color.substring(5, 7);
+        assColor = `${b}${g}${r}`;
+      }
+
+      const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
+      const fontsDir = process.cwd();
+
+      const ffmpegCmd = `ffmpeg -i "${videoPath}" -vf "subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='Fontname=Padauk,FontSize=24,PrimaryColour=&H00${assColor},Alignment=2,Outline=1,Shadow=1,MarginV=30'" -c:v libx264 -preset ultrafast -c:a copy -y "${outputPath}"`;
+
+      console.log("Rendering Subtitle Video:", ffmpegCmd);
+      await execPromise(ffmpegCmd);
+
+      const outputBuffer = await readFilePromise(outputPath);
+      res.json({ videoBase64: outputBuffer.toString("base64") });
+
+    } catch (error: any) {
+      console.error("Render Subtitle Video Error:", error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      [videoPath, srtPath, outputPath].forEach(p => {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      });
+    }
+  });
+
   app.post("/api/voiceover", async (req, res) => {
     try {
       const { text, voiceName } = req.body;
