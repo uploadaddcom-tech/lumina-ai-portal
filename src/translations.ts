@@ -75,6 +75,9 @@ export const translations = {
       start: "Start Analysis",
       render: "Export Final Video",
       color: "Subtitle Color",
+      fontSize: "Font Size",
+      bgOpacity: "Background Opacity",
+      position: "Vertical Position",
       placeholder: "Upload a video to begin...",
       processing: "AI is listening & translating...",
       rendering: "Rendering final video with FFmpeg..."
@@ -217,6 +220,9 @@ export const translations = {
       start: "စတင်မည်",
       render: "ဗီဒီယိုထုတ်မည်",
       color: "စာတန်းအရောင်",
+      fontSize: "စာလုံးအရွယ်အစား",
+      bgOpacity: "နောက်ခံအကြည်",
+      position: "အမြင့်အနေအထား",
       placeholder: "စတင်ရန် ဗီဒီယိုတင်ပေးပါ...",
       processing: "AI မှ နားထောင်ပြီး ဘာသာပြန်နေသည်...",
       rendering: "FFmpeg ဖြင့် ဗီဒီယိုထုတ်နေသည်..."

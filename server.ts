@@ -172,9 +172,10 @@ async function startServer() {
       Rules:
       1. Translate the speech naturally into Myanmar language using a conversational style.
       2. Strictly follow SRT format (Index, Timing, Text).
-      3. Break long sentences into readable lines (max 10 words per line).
+      3. Break long sentences into readable lines (max 8 words per line).
       4. DO NOT include any preamble or code blocks. Start directly with '1'.
-      5. The timestamps must be accurate to the audio.`;
+      5. The timestamps must be accurate to the audio narration.
+      6. Output ONLY the raw SRT content.`;
 
       const response = await ai.models.generateContent({
         model: model,
@@ -188,14 +189,26 @@ async function startServer() {
         ]
       });
 
-      let srtContent = response.text || "";
+      let srtContent = "";
+      if (typeof (response as any).text === 'string') {
+        srtContent = (response as any).text;
+      } else if (typeof (response as any).text === 'function') {
+        srtContent = (response as any).text();
+      } else {
+        srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      }
       
-      // Clean SRT content
+      // Clean SRT content: find first occurrence of 1\n00:
       const srtMatch = srtContent.match(/1\r?\n00:[\s\S]*$/);
       if (srtMatch) {
         srtContent = srtMatch[0].trim();
+      } else {
+        // More generic match if first index isn't 1 or spacing is different
+        const genericMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
+        if (genericMatch) srtContent = genericMatch[0].trim();
       }
 
+      console.log("Generated Subtitles Length:", srtContent.length);
       res.json({ srt: srtContent });
     } catch (error: any) {
       console.error("Transcribe Subtitles Error:", error);
@@ -213,7 +226,7 @@ async function startServer() {
     const outputPath = path.join(tempDir, `out_${tempId}.mp4`);
 
     try {
-      const { videoBase64, srt, color } = req.body;
+      const { videoBase64, srt, color, fontSize, bgOpacity, marginV } = req.body;
       await writeFilePromise(videoPath, Buffer.from(videoBase64, 'base64'));
       await writeFilePromise(srtPath, srt);
 
@@ -226,10 +239,18 @@ async function startServer() {
         assColor = `${b}${g}${r}`;
       }
 
+      const fSize = fontSize || 24;
+      const opacity = Math.floor((bgOpacity || 0.6) * 255).toString(16).padStart(2, '0');
+      const mv = marginV || 30;
+
       const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
       const fontsDir = process.cwd();
 
-      const ffmpegCmd = `ffmpeg -i "${videoPath}" -vf "subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='Fontname=Padauk,FontSize=24,PrimaryColour=&H00${assColor},Alignment=2,Outline=1,Shadow=1,MarginV=30'" -c:v libx264 -preset ultrafast -c:a copy -y "${outputPath}"`;
+      // force_style parameters:
+      // Alignment=2 (Bottom Center)
+      // Outline=1, Shadow=1
+      // BackColour (for background box) - &H(Alpha)(BB)(GG)(RR)
+      const ffmpegCmd = `ffmpeg -i "${videoPath}" -vf "subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='Fontname=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},OutlineColour=&H00000000,BackColour=&H${opacity}000000,BorderStyle=4,Alignment=2,Outline=1,Shadow=0,MarginV=${mv},WrapStyle=2'" -c:v libx264 -preset ultrafast -c:a copy -y "${outputPath}"`;
 
       console.log("Rendering Subtitle Video:", ffmpegCmd);
       await execPromise(ffmpegCmd);

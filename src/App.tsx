@@ -121,11 +121,11 @@ const api = {
     if (!res.ok) throw new Error("Transcription failed");
     return (await res.json()).srt;
   },
-  async renderSubtitleVideo(videoBase64: string, mimeType: string, srt: string, color: string) {
+  async renderSubtitleVideo(videoBase64: string, mimeType: string, srt: string, color: string, fontSize: number, bgOpacity: number, marginV: number) {
     const res = await fetch("/api/render-subtitle-video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, mimeType, srt, color }),
+      body: JSON.stringify({ videoBase64, mimeType, srt, color, fontSize, bgOpacity, marginV }),
     });
     if (!res.ok) throw new Error("Rendering failed");
     return (await res.json()).videoBase64;
@@ -762,24 +762,41 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [subtitleColor, setSubtitleColor] = useState("#FFFFFF");
+  const [subtitleSize, setSubtitleSize] = useState(28);
+  const [subtitleBgOpacity, setSubtitleBgOpacity] = useState(0.6);
+  const [subtitlePosition, setSubtitlePosition] = useState(48); // MarginV
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = (translations[lang] as any).subtitleEditor;
 
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const parseSRT = (srt: string) => {
     const blocks = srt.trim().split(/\n\s*\n/);
     return blocks.map(block => {
       const lines = block.split('\n');
       if (lines.length < 3) return null;
-      const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
+      // Handle different SRT formats (comma or dot for ms)
+      const timeLine = lines[1] || "";
+      const timeMatch = timeLine.match(/(\d{2}:\d{2}:\d{2}[\.,]\d{3}) --> (\d{2}:\d{2}:\d{2}[\.,]\d{3})/);
       if (!timeMatch) return null;
 
       const toSeconds = (t: string) => {
-        const [h, m, s] = t.split(':');
-        const [sec, ms] = s.split(',');
-        return parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(sec) + parseInt(ms) / 1000;
+        const parts = t.replace(',', '.').split(':');
+        const [h, m, s] = parts;
+        return parseFloat(h) * 3600 + parseFloat(m) * 60 + parseFloat(s);
       };
 
       return {
@@ -826,15 +843,12 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
     setIsProcessing(true);
     setError(null);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const srt = await api.transcribeSubtitles(base64, file.type);
-        setSrtContent(srt);
-      };
-    } catch (err) {
-      setError("Failed to generate subtitles.");
+      const base64 = await readFileAsBase64(file);
+      const srt = await api.transcribeSubtitles(base64, file.type);
+      setSrtContent(srt);
+    } catch (err: any) {
+      console.error(err);
+      setError("Transcription failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -845,27 +859,32 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
     setIsRendering(true);
     setError(null);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const renderedBase64 = await api.renderSubtitleVideo(base64, file.type, srtContent, subtitleColor);
-        
-        const binaryString = atob(renderedBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: "video/mp4" });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "final_subtitle_video.mp4";
-        a.click();
-      };
-    } catch (err) {
-      setError("Failed to render video.");
+      const base64 = await readFileAsBase64(file);
+      const renderedBase64 = await api.renderSubtitleVideo(
+        base64, 
+        file.type, 
+        srtContent, 
+        subtitleColor,
+        subtitleSize,
+        subtitleBgOpacity,
+        subtitlePosition
+      );
+      
+      const binaryString = atob(renderedBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `subtitle_video_${Date.now()}.mp4`;
+      a.click();
+    } catch (err: any) {
+      console.error(err);
+      setError("Rendering failed. Please try again.");
     } finally {
       setIsRendering(false);
     }
@@ -903,16 +922,28 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
                     controls 
                   />
                   {currentSubtitle && (
-                    <div className="absolute inset-x-0 bottom-12 flex justify-center px-8 pointer-events-none">
-                      <motion.p 
+                    <div 
+                      className="absolute inset-x-0 flex justify-center px-8 pointer-events-none"
+                      style={{ bottom: `${subtitlePosition}px` }}
+                    >
+                      <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         key={currentSubtitle}
-                        className="text-center drop-shadow-[0_2px_4px_rgba(0,0,0,1)] font-black text-xl md:text-2xl"
-                        style={{ color: subtitleColor, fontFamily: 'Padauk, sans-serif' }}
+                        className="text-center rounded-lg px-4 py-2"
+                        style={{ backgroundColor: `rgba(0,0,0,${subtitleBgOpacity})` }}
                       >
-                        {currentSubtitle}
-                      </motion.p>
+                        <p 
+                          className="font-bold whitespace-pre-wrap drop-shadow-lg"
+                          style={{ 
+                            color: subtitleColor, 
+                            fontSize: `${subtitleSize}px`,
+                            fontFamily: 'Padauk, sans-serif'
+                          }}
+                        >
+                          {currentSubtitle}
+                        </p>
+                      </motion.div>
                     </div>
                   )}
                 </>
@@ -930,40 +961,82 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
             </div>
 
             {file && (
-              <div className="flex flex-wrap gap-4 items-center justify-between bg-white/5 p-6 rounded-3xl border border-white/10">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.color}</label>
-                  <div className="flex items-center gap-4">
+              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.color}</label>
+                    <div className="flex items-center gap-4">
+                      <input 
+                        type="color" 
+                        value={subtitleColor}
+                        onChange={(e) => setSubtitleColor(e.target.value)}
+                        className="w-10 h-10 rounded-lg bg-transparent cursor-pointer border-none"
+                      />
+                      <span className="text-sm font-mono font-bold text-slate-400">{subtitleColor}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.fontSize} ({subtitleSize}px)</label>
                     <input 
-                      type="color" 
-                      value={subtitleColor}
-                      onChange={(e) => setSubtitleColor(e.target.value)}
-                      className="w-12 h-12 rounded-lg bg-transparent cursor-pointer border-none"
+                      type="range" 
+                      min="12" 
+                      max="72" 
+                      value={subtitleSize}
+                      onChange={(e) => setSubtitleSize(parseInt(e.target.value))}
+                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                     />
-                    <div className="text-xl font-mono font-bold">{subtitleColor}</div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.bgOpacity} ({Math.round(subtitleBgOpacity * 100)}%)</label>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="1" 
+                      step="0.1"
+                      value={subtitleBgOpacity}
+                      onChange={(e) => setSubtitleBgOpacity(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t.position} ({subtitlePosition}px)</label>
+                    <input 
+                      type="range" 
+                      min="10" 
+                      max="200" 
+                      value={subtitlePosition}
+                      onChange={(e) => setSubtitlePosition(parseInt(e.target.value))}
+                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
                   </div>
                 </div>
                 
-                <div className="flex gap-3">
-                  <button 
-                    onClick={handleStart}
-                    disabled={isProcessing}
-                    className="h-14 px-8 rounded-2xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-white/5 text-white font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl shadow-cyan-500/10"
-                  >
-                    {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isProcessing ? t.processing : t.start}
-                  </button>
-
-                  {srtContent && (
+                <div className="pt-4 border-t border-white/5 flex flex-wrap gap-4 items-center justify-between">
+                  {error && <p className="text-red-400 text-xs font-bold">{error}</p>}
+                  <div className="flex gap-3 ml-auto">
                     <button 
-                      onClick={handleRender}
-                      disabled={isRendering}
-                      className="h-14 px-8 rounded-2xl bg-white hover:bg-slate-100 disabled:bg-white/5 text-slate-950 font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl"
+                      onClick={handleStart}
+                      disabled={isProcessing}
+                      className="h-14 px-8 rounded-2xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-white/5 text-white font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl shadow-cyan-500/10 active:scale-95"
                     >
-                      {isRendering ? <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" /> : <Zap className="w-4 h-4" />}
-                      {isRendering ? t.rendering : t.render}
+                      {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      {isProcessing ? t.processing : t.start}
                     </button>
-                  )}
+
+                    {srtContent && (
+                      <button 
+                        onClick={handleRender}
+                        disabled={isRendering}
+                        className="h-14 px-8 rounded-2xl bg-white hover:bg-slate-100 disabled:bg-white/5 text-slate-950 font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl active:scale-95"
+                      >
+                        {isRendering ? <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" /> : <Zap className="w-4 h-4" />}
+                        {isRendering ? t.rendering : t.render}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
