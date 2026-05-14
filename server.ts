@@ -409,11 +409,12 @@ async function startServer() {
           const srtPrompt = `Generate a strictly valid SubRip (.srt) subtitle file. 
           Script: "${subtitleText}". 
           Total duration: ${vDur} seconds. 
+          Synchronization is CRITICAL. Match the narration flow in the audio exactly.
           Rules:
-          1. Match the speech timing in the provided audio EXACTLY.
-          2. Phrases should be 3-6 words.
-          3. STRICT SRT format only.
-          4. Output ONLY the raw SRT content.`;
+          1. Strictly follow SRT format.
+          2. Phrases should be short (3-6 words).
+          3. Output ONLY the raw SRT content.
+          4. Ensure all text is included.`;
 
           const response = await ai.models.generateContent({
             model: "gemini-1.5-flash",
@@ -427,23 +428,39 @@ async function startServer() {
             ]
           });
           
-          let srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          let srtContent = "";
+          // The SDK version 1.29.0 of @google/genai might have text as a property or method
+          if (typeof (response as any).text === 'string') {
+            srtContent = (response as any).text;
+          } else if (typeof (response as any).text === 'function') {
+            srtContent = (response as any).text();
+          } else {
+             srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          }
+
+          console.log("Subtitle AI Response length:", srtContent.length);
+
           srtContent = srtContent.trim().replace(/```(srt)?/g, "").replace(/```/g, "").trim();
 
           if (srtContent.length > 10) {
+            // Split by one or more blank lines
             const srtBlocks = srtContent.split(/\r?\n\s*\r?\n/);
             const timeToSeconds = (timeStr: string) => {
               if (!timeStr) return 0;
               const cleanTime = timeStr.trim().replace(',', '.');
               const parts = cleanTime.split(':');
               if (parts.length < 3) return 0;
-              return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+              const hours = parseFloat(parts[0]);
+              const minutes = parseFloat(parts[1]);
+              const seconds = parseFloat(parts[2]);
+              return hours * 3600 + minutes * 60 + seconds;
             };
 
             const colorHex = (subtitleColor || "#ffffff").replace('#', '0x');
-            // Prevent font from being too large (Capped at 50 to avoid clipping)
-            const safeBaseSize = Math.min(subtitleFontSize || 28, 50);
-            const fSize = Math.floor(safeBaseSize * effectiveFontScale);
+            // User complained that large font size makes it disappear. 
+            // We will limit the vertical position carefully.
+            const baseFontSize = subtitleFontSize || 28;
+            const fSize = Math.floor(baseFontSize * effectiveFontScale);
             
             const fontPath = path.join(process.cwd(), "Padauk-Bold.ttf");
             const fontArg = fs.existsSync(fontPath) ? `:fontfile='${fontPath}'` : "";
@@ -452,26 +469,36 @@ async function startServer() {
             for (const block of srtBlocks) {
               const lines = block.trim().split(/\r?\n/);
               if (lines.length >= 3) {
-                const times = lines[1].split('-->');
-                if (times.length === 2) {
-                  const start = timeToSeconds(times[0]);
-                  const end = timeToSeconds(times[1]);
-                  const text = lines.slice(2).join(' ').replace(/'/g, "\\'").replace(/:/g, "\\:").trim();
-                  
-                  if (!isNaN(start) && !isNaN(end) && end > start && text) {
-                    // Position at 90% height with fix_bounds to prevent clipping
-                    vFilters.push(`${lastV}drawtext=text='${text}':x=(w-text_w)/2:y=h-text_h-30:fontsize=${fSize}:fontcolor=${colorHex}:box=1:boxcolor=black@0.6:boxborderw=8:fix_bounds=true${fontArg}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[sv${subIndex}]`);
-                    lastV = `[sv${subIndex}]`;
-                    subIndex++;
+                // Find line with -->
+                const timeLineIndex = lines.findIndex(l => l.includes('-->'));
+                if (timeLineIndex !== -1) {
+                  const times = lines[timeLineIndex].split('-->');
+                  if (times.length === 2) {
+                    const start = timeToSeconds(times[0]);
+                    const end = timeToSeconds(times[1]);
+                    // Combine all lines after the timestamp
+                    const textLines = lines.slice(timeLineIndex + 1);
+                    const text = textLines.join(' ').replace(/'/g, "\\'").replace(/:/g, "\\:").trim();
+                    
+                    if (!isNaN(start) && !isNaN(end) && end > start && text) {
+                      // IMPROVED POSITIONING: Center horizontally, and 10% from bottom
+                      // Use y=h-text_h- (0.1*h) but with bounds check
+                      // Also draw a background box for better visibility
+                      vFilters.push(`${lastV}drawtext=text='${text}':x=(w-text_w)/2:y=h-text_h-(h*0.1):fontsize=${fSize}:fontcolor=${colorHex}:box=1:boxcolor=black@0.6:boxborderw=10:fix_bounds=true${fontArg}:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[sv${subIndex}]`);
+                      lastV = `[sv${subIndex}]`;
+                      subIndex++;
+                    }
                   }
                 }
               }
             }
+          } else {
+            console.warn("AI returned empty or very short SRT content.");
           }
         } catch (srtError) {
-          console.error("Subtitle Stage Error:", srtError);
+          console.error("Subtitle Stage Error Details:", srtError);
           const colorHex = (subtitleColor || "#ffffff").replace('#', '0x');
-          vFilters.push(`${lastV}drawtext=text='Transcription Error':x=(w-text_w)/2:y=h-100:fontsize=24:fontcolor=${colorHex}[sv_err]`);
+          vFilters.push(`${lastV}drawtext=text='Subtitle Error':x=(w-text_w)/2:y=h-100:fontsize=24:fontcolor=${colorHex}[sv_err]`);
           lastV = "[sv_err]";
         }
       }
