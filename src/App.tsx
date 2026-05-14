@@ -118,7 +118,10 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ videoBase64, mimeType }),
     });
-    if (!res.ok) throw new Error("Transcription failed");
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || "Transcription failed");
+    }
     return (await res.json()).srt;
   },
   async renderSubtitleVideo(videoBase64: string, mimeType: string, srt: string, color: string, fontSize: number, bgOpacity: number, marginV: number) {
@@ -848,7 +851,7 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
       setSrtContent(srt);
     } catch (err: any) {
       console.error(err);
-      setError("Transcription failed. Please try again.");
+      setError(err.message || "Transcription failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -884,7 +887,7 @@ function SubtitleEditorView({ onBack, lang }: ViewProps) {
       a.click();
     } catch (err: any) {
       console.error(err);
-      setError("Rendering failed. Please try again.");
+      setError(err.message || "Rendering failed. Please try again.");
     } finally {
       setIsRendering(false);
     }

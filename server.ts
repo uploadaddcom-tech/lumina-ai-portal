@@ -164,84 +164,51 @@ async function startServer() {
   });
 
   app.post("/api/transcribe-subtitles", async (req, res) => {
-    const tempId = crypto.randomBytes(8).toString("hex");
-    const tempDir = path.join(process.cwd(), "temp");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-
-    const videoPath = path.join(tempDir, `trans_v_${tempId}.mp4`);
-    const audioPath = path.join(tempDir, `trans_a_${tempId}.wav`);
-
     try {
-      const { videoBase64 } = req.body;
-      if (!videoBase64) throw new Error("No videoBase64 provided");
+      const { videoBase64, mimeType } = req.body;
+      if (!videoBase64) throw new Error("No video data received by server.");
 
-      console.log(`[Transcription] Starting task ${tempId}`);
+      console.log(`[Transcription] Sending to Gemini (Direct Video)...`);
       
-      // Save video
-      await writeFilePromise(videoPath, Buffer.from(videoBase64, 'base64'));
-
-      // Extract audio
-      console.log(`[Transcription] Extracting audio for ${tempId}...`);
-      try {
-        await execPromise(`ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 -y "${audioPath}"`);
-      } catch (fe) {
-        console.error("FFmpeg Audio Extraction Failed:", fe);
-        throw new Error("Could not extract audio from video.");
-      }
-
-      if (!fs.existsSync(audioPath)) throw new Error("Audio file not created by FFmpeg");
-      const audioBuffer = await readFilePromise(audioPath);
-
-      const srtPrompt = `Listen to the audio carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
+      const srtPrompt = `Listen to the audio narration in this video carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
       Rules:
-      1. Translate the speech naturally into Myanmar language.
-      2. Strictly follow SRT format (Index, Timing, Text).
-      3. The timestamps must be accurate to the audio.
-      4. Output ONLY the raw SRT content, no markdown or preamble.`;
+      1. Translate speech naturally into Myanmar language (Burmese).
+      2. Strictly follow SRT format (Index, Timestamp, Text).
+      3. Timestamps MUST be accurate to the audio timing.
+      4. Output ONLY the raw SRT content. Do not include any notes or markdown.`;
 
-      console.log(`[Transcription] Calling AI for ${tempId}...`);
-      const result = await ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [
           {
             parts: [
               { text: srtPrompt },
-              { inlineData: { data: audioBuffer.toString("base64"), mimeType: "audio/wav" } }
+              { inlineData: { data: videoBase64, mimeType: mimeType || "video/mp4" } }
             ]
           }
         ]
       });
 
-      // Robust response extraction
-      let srtContent = "";
-      try {
-        const response = await result.response;
-        srtContent = response.text().trim();
-      } catch (re) {
-        console.warn("Standard .text() failed, trying raw parts...", re);
-        srtContent = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let srtContent = response.text || "";
+
+      if (!srtContent) {
+        throw new Error("AI returned empty transcription.");
       }
 
-      if (!srtContent) throw new Error("AI returned empty transcription result.");
-
-      // Clean SRT content
-      const srtMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
-      if (srtMatch) {
-        srtContent = srtMatch[0].trim();
+      // Extract SRT block (starts with a number followed by timestamp)
+      const srtRegex = /\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/;
+      const match = srtContent.match(srtRegex);
+      if (match) {
+        srtContent = match[0].trim();
       }
 
-      console.log(`[Transcription] Success for ${tempId}, length: ${srtContent.length}`);
+      console.log(`[Transcription] Success. length: ${srtContent.length}`);
       res.json({ srt: srtContent });
 
     } catch (error: any) {
-      console.error(`[Transcription] Error ${tempId}:`, error);
-      res.status(500).json({ error: error.message || "Transcription failed" });
-    } finally {
-      // Cleanup
-      [videoPath, audioPath].forEach(p => {
-        if (fs.existsSync(p)) {
-          try { fs.unlinkSync(p); } catch (e) {}
-        }
+      console.error(`[Transcription] FAILED:`, error);
+      res.status(500).json({ 
+        error: error.message || "An internal error occurred during transcription." 
       });
     }
   });
