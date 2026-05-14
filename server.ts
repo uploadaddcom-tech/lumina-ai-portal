@@ -436,10 +436,18 @@ async function startServer() {
              srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
           }
 
-          // Step 3: SRT Content Cleaning - Remove markdown code blocks thoroughly
+          // Strict SRT Cleaning: Remove markdown and find the first line starting with a number
           srtContent = srtContent.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+          const srtStartMatch = srtContent.match(/^\d+$/m);
+          if (srtStartMatch) {
+            const startIdx = srtContent.indexOf(srtStartMatch[0]);
+            if (startIdx !== -1) {
+              srtContent = srtContent.substring(startIdx).trim();
+            }
+          }
 
-          if (srtContent.length > 10) {
+          // Validation Check: srtContent contains -->
+          if (srtContent.includes("-->")) {
             await writeFilePromise(srtPath, srtContent);
 
             // Dynamic Color Conversion: Convert Hex (#RRGGBB) to ASS (&H00BBGGRR)
@@ -453,20 +461,20 @@ async function startServer() {
 
             const fSize = subtitleFontSize || 28;
             
-            // FFmpeg Subtitles Filter Path Fix: Escape colons and use explicit filename=
-            const escapedSrtPath = srtPath.replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
+            // FFmpeg Subtitles Filter Path Fix: Linux path escape
+            const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
             const fontsDir = process.cwd(); // Root where Padauk-Bold.ttf is located
             
             // Final Styling: WrapStyle=2, Alignment=2, and FontName
-            // Note: libass uses FontName. Padauk-Bold is the font name from the file.
-            vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='FontName=Padauk-Bold,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
+            vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='FontName=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
             lastV = "[sv]";
+          } else {
+            console.warn("SRT Validation failed: --> not found. Skipping subtitles.");
           }
         } catch (srtError) {
           console.error("Subtitle Stage Error Details:", srtError);
-          const colorHex = (subtitleColor || "#ffffff").replace('#', '0x');
-          vFilters.push(`${lastV}drawtext=text='Subtitle Sync Error':x=(w-text_w)/2:y=h-100:fontsize=24:fontcolor=${colorHex}[sv_err]`);
-          lastV = "[sv_err]";
+          // User requested: Do not add error text to video if it fails
+          // So we do nothing here and continue with the current lastV
         }
       }
 
