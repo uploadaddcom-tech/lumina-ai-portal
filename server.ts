@@ -33,6 +33,28 @@ async function startServer() {
   }
   const ai = new GoogleGenAI({ apiKey: apiKey || "" });
 
+  // Custom font serving to prevent OTS parsing errors
+  app.get("/Padauk.ttf", (req, res) => {
+    const fontPath = path.join(process.cwd(), "Padauk.ttf");
+    if (fs.existsSync(fontPath)) {
+      res.setHeader("Content-Type", "font/ttf");
+      res.sendFile(fontPath);
+    } else {
+      res.status(404).send("Font not found");
+    }
+  });
+
+  // Alias for Padauk-Bold.ttf if requested by frontend
+  app.get("/Padauk-Bold.ttf", (req, res) => {
+    const fontPath = path.join(process.cwd(), "Padauk.ttf");
+    if (fs.existsSync(fontPath)) {
+      res.setHeader("Content-Type", "font/ttf");
+      res.sendFile(fontPath);
+    } else {
+      res.status(404).send("Font not found");
+    }
+  });
+
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
     try {
@@ -439,9 +461,13 @@ async function startServer() {
             }
 
             // Step 2: SRT Extraction Logic - Extract starting from the first "1"
-            const match = srtContent.match(/1[\s\S]*$/);
-            if (match) {
-              srtContent = match[0].trim();
+            const srtMatch = srtContent.match(/1\r?\n00:[\s\S]*$/);
+            if (srtMatch) {
+              srtContent = srtMatch[0].trim();
+            } else {
+              // Fallback for different indexing or spacing
+              const genericMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
+              if (genericMatch) srtContent = genericMatch[0].trim();
             }
 
             // Validation Check: srtContent contains -->
