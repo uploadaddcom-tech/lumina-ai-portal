@@ -751,6 +751,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
   const [isMerging, setIsMerging] = useState(false);
   const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
+  const [mergeStep, setMergeStep] = useState<string | null>(null);
   
   // Logo Settings
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -910,9 +911,20 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
   const performMerge = async (videoFile: File, audioUrl: string) => {
     setIsMerging(true);
+    setMergeStep(lang === "EN" ? "Synchronizing Media..." : "ဗီဒီယိုနှင့် အသံကို ချိန်ညှိနေသည်...");
     setMergedVideoUrl(null);
 
     try {
+      // User requested visibility of stages
+      setTimeout(() => {
+        if (subtitleEnabled) {
+          setMergeStep(lang === "EN" ? "AI Generating Subtitles..." : "AI မှ စာတန်းများ ထုတ်ယူနေသည်...");
+        }
+      }, 4000);
+
+      setTimeout(() => {
+        setMergeStep(lang === "EN" ? "Encoding & Finalizing..." : "ဗီဒီယိုကို အချောသတ်နေသည်...");
+      }, 8000);
       const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -958,6 +970,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
       );
       
       if (mergedBase64) {
+        setMergeStep(lang === "EN" ? "Done!" : "ပြီးစီးပါပြီ!");
         const binaryString = atob(mergedBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -967,6 +980,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
       }
     } catch (err) {
       console.error(err);
+      setMergeStep(lang === "EN" ? "Error occurred" : "အမှားတစ်ခုရှိနေသည်");
     } finally {
       setIsMerging(false);
     }
@@ -1918,6 +1932,16 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   </div>
 
                   <div className="pt-6 border-t border-white/5 flex flex-col gap-6">
+                    {isMerging && (
+                      <div className="flex flex-col items-center gap-4 py-8 bg-blue-600/5 rounded-3xl border border-blue-500/20 animate-pulse">
+                        <div className="w-12 h-12 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-black text-white uppercase tracking-widest">{mergeStep}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{lang === "EN" ? "System Processing - Please Wait" : "စနစ်မှ လုပ်ဆောင်နေသည် - ကျေးဇူးပြု၍ စောင့်ပါ"}</p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={handleMerge}
