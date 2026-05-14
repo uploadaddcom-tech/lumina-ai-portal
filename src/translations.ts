@@ -70,18 +70,6 @@ export const translations = {
       ],
       usage: "ဗီဒီယိုဖိုင်ကို တင်လိုက်ရုံဖြင့် AI က အလိုအလျောက် နားထောင်ပြီး မြန်မာလို ဘာသာပြန်ပေးမည် ဖြစ်ပါသည်။"
     },
-    subtitleEditor: {
-      headline: "Advanced Subtitle Editor",
-      start: "Start Analysis",
-      render: "Export Final Video",
-      color: "Subtitle Color",
-      fontSize: "Font Size",
-      bgOpacity: "Background Opacity",
-      position: "Vertical Position",
-      placeholder: "Upload a video to begin...",
-      processing: "AI is listening & translating...",
-      rendering: "Rendering final video with FFmpeg..."
-    },
     styles: {
       stepByStep: {
         title: "Step-by-Step Guide",
@@ -214,18 +202,6 @@ export const translations = {
         "စာသားများကို အချိန်နှင့်တပြေးညီ ထုတ်ယူခြင်း"
       ],
       usage: "ဗီဒီယိုဖိုင်ကို တင်လိုက်ရုံဖြင့် AI က အလိုအလျောက် နားထောင်ပြီး မြန်မာလို ဘာသာပြန်ပေးမည် ဖြစ်ပါသည်။"
-    },
-    subtitleEditor: {
-      headline: "အဆင့်မြင့်စာတန်းထိုးကိရိယာ",
-      start: "စတင်မည်",
-      render: "ဗီဒီယိုထုတ်မည်",
-      color: "စာတန်းအရောင်",
-      fontSize: "စာလုံးအရွယ်အစား",
-      bgOpacity: "နောက်ခံအကြည်",
-      position: "အမြင့်အနေအထား",
-      placeholder: "စတင်ရန် ဗီဒီယိုတင်ပေးပါ...",
-      processing: "AI မှ နားထောင်ပြီး ဘာသာပြန်နေသည်...",
-      rendering: "FFmpeg ဖြင့် ဗီဒီယိုထုတ်နေသည်..."
     },
     styles: {
       stepByStep: {

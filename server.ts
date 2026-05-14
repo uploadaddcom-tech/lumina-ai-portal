@@ -33,28 +33,6 @@ async function startServer() {
   }
   const ai = new GoogleGenAI({ apiKey: apiKey || "" });
 
-  // Custom font serving to prevent OTS parsing errors
-  app.get("/Padauk.ttf", (req, res) => {
-    const fontPath = path.join(process.cwd(), "Padauk.ttf");
-    if (fs.existsSync(fontPath)) {
-      res.setHeader("Content-Type", "font/ttf");
-      res.sendFile(fontPath);
-    } else {
-      res.status(404).send("Font not found");
-    }
-  });
-
-  // Alias for Padauk-Bold.ttf if requested by frontend
-  app.get("/Padauk-Bold.ttf", (req, res) => {
-    const fontPath = path.join(process.cwd(), "Padauk.ttf");
-    if (fs.existsSync(fontPath)) {
-      res.setHeader("Content-Type", "font/ttf");
-      res.sendFile(fontPath);
-    } else {
-      res.status(404).send("Font not found");
-    }
-  });
-
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
     try {
@@ -160,108 +138,6 @@ async function startServer() {
     } catch (error: any) {
       console.error("Transcribe Error:", error);
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/transcribe-subtitles", async (req, res) => {
-    try {
-      const { videoBase64, mimeType } = req.body;
-      if (!videoBase64) throw new Error("No video data received by server.");
-
-      console.log(`[Transcription] Sending to Gemini (Direct Video)...`);
-      
-      const srtPrompt = `Listen to the audio narration in this video carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
-      Rules:
-      1. Translate speech naturally into Myanmar language (Burmese).
-      2. Strictly follow SRT format (Index, Timestamp, Text).
-      3. Timestamps MUST be accurate to the audio timing.
-      4. Output ONLY the raw SRT content. Do not include any notes or markdown.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [
-          {
-            parts: [
-              { text: srtPrompt },
-              { inlineData: { data: videoBase64, mimeType: mimeType || "video/mp4" } }
-            ]
-          }
-        ]
-      });
-
-      let srtContent = response.text || "";
-
-      if (!srtContent) {
-        throw new Error("AI returned empty transcription.");
-      }
-
-      // Extract SRT block (starts with a number followed by timestamp)
-      const srtRegex = /\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/;
-      const match = srtContent.match(srtRegex);
-      if (match) {
-        srtContent = match[0].trim();
-      }
-
-      console.log(`[Transcription] Success. length: ${srtContent.length}`);
-      res.json({ srt: srtContent });
-
-    } catch (error: any) {
-      console.error(`[Transcription] FAILED:`, error);
-      res.status(500).json({ 
-        error: error.message || "An internal error occurred during transcription." 
-      });
-    }
-  });
-
-  app.post("/api/render-subtitle-video", async (req, res) => {
-    const tempId = crypto.randomBytes(8).toString("hex");
-    const tempDir = path.join(process.cwd(), "temp");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-
-    const videoPath = path.join(tempDir, `v_${tempId}.mp4`);
-    const srtPath = path.join(tempDir, `s_${tempId}.srt`);
-    const outputPath = path.join(tempDir, `out_${tempId}.mp4`);
-
-    try {
-      const { videoBase64, srt, color, fontSize, bgOpacity, marginV } = req.body;
-      await writeFilePromise(videoPath, Buffer.from(videoBase64, 'base64'));
-      await writeFilePromise(srtPath, srt);
-
-      // Convert Hex to ASS Color (&H00BBGGRR)
-      let assColor = "FFFFFF";
-      if (color && color.startsWith("#")) {
-        const r = color.substring(1, 3);
-        const g = color.substring(3, 5);
-        const b = color.substring(5, 7);
-        assColor = `${b}${g}${r}`;
-      }
-
-      const fSize = fontSize || 24;
-      const opacity = Math.floor((bgOpacity || 0.6) * 255).toString(16).padStart(2, '0');
-      const mv = marginV || 30;
-
-      const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
-      const fontsDir = process.cwd();
-
-      // force_style parameters:
-      // Alignment=2 (Bottom Center)
-      // Outline=1, Shadow=1
-      // BackColour (for background box) - &H(Alpha)(BB)(GG)(RR)
-      const ffmpegCmd = `ffmpeg -i "${videoPath}" -vf "subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='Fontname=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},OutlineColour=&H00000000,BackColour=&H${opacity}000000,BorderStyle=4,Alignment=2,Outline=1,Shadow=0,MarginV=${mv},WrapStyle=2'" -c:v libx264 -preset ultrafast -c:a copy -y "${outputPath}"`;
-
-      console.log("Rendering Subtitle Video:", ffmpegCmd);
-      await execPromise(ffmpegCmd);
-
-      const outputBuffer = await readFilePromise(outputPath);
-      res.json({ videoBase64: outputBuffer.toString("base64") });
-
-    } catch (error: any) {
-      console.error("Render Subtitle Video Error:", error);
-      res.status(500).json({ error: error.message });
-    } finally {
-      [videoPath, srtPath, outputPath].forEach(p => {
-        if (fs.existsSync(p)) fs.unlinkSync(p);
-      });
     }
   });
 
@@ -498,110 +374,98 @@ async function startServer() {
         lastV = "[bv]";
       }
 
-      // Stage 2: Audio filters (speed matching)
-      let audioFilter = "";
-      let processedAudioPath = audioPath;
-
-      if (speed > 1.05) {
-        if (speed <= 2.0) {
-          audioFilter = `atempo=${speed.toFixed(2)}`;
-        } else {
-          let s = speed;
-          let chains = [];
-          while (s > 2.0) {
-            chains.push("atempo=2.0");
-            s /= 2.0;
+      // Stage 3: Sync Subtitles
+      if (subtitleEnabled && subtitleText) {
+        const wrapText = (text: string, maxLen: number) => {
+          if (!text.includes(' ') && text.length > maxLen) {
+            let res = [];
+            for (let i = 0; i < text.length; i += maxLen) {
+              res.push(text.substring(i, i + maxLen));
+            }
+            return res;
           }
-          chains.push(`atempo=${s.toFixed(2)}`);
-          audioFilter = chains.join(",");
+          const words = text.split(/\s+/);
+          let lines = [];
+          let currentLine = "";
+          words.forEach(word => {
+            if ((currentLine + word).length > maxLen) {
+              lines.push(currentLine.trim());
+              currentLine = word + " ";
+            } else {
+              currentLine += word + " ";
+            }
+          });
+          if (currentLine) lines.push(currentLine.trim());
+          return lines;
+        };
+
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        
+        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
+        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
+        
+        const fontPaths = [
+          path.join(__dirname, "Padauk-Bold.ttf"),
+          path.join(process.cwd(), "Padauk-Bold.ttf"),
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
+        ];
+
+        let fontArg = "";
+        for (const fp of fontPaths) {
+          if (fs.existsSync(fp)) {
+            fontArg = `:fontfile='${fp}'`;
+            break;
+          }
         }
 
-        const syncAudioPath = path.join(tempDir, `sync_audio_${tempId}.wav`);
-        try {
-          await execPromise(`ffmpeg -i "${audioPath}" -af "${audioFilter}" -y "${syncAudioPath}"`);
-          processedAudioPath = syncAudioPath;
-        } catch (syncErr) {
-          console.error("Sync Audio Pre-processing failed:", syncErr);
+        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
+        const getChunks = (text: string, maxChars = 45) => {
+          const parts = text.split(/(?<=[။၊.!?])\s*/);
+          let res = [];
+          let current = "";
+          for (const p of parts) {
+            if ((current + p).length > maxChars) {
+              if (current) res.push(current);
+              current = p;
+            } else {
+              current = current ? current + " " + p : p;
+            }
+          }
+          if (current) res.push(current);
+          return res;
+        };
+
+        const chunks = getChunks(subtitleText, 45);
+        const totalTime = aDur || vDur || 1;
+        const totalChars = subtitleText.length || 1;
+        
+        let currentTime = 0;
+        let svIndex = 0;
+
+        for (const chunk of chunks) {
+          if (!chunk.trim()) continue;
+          
+          // Use smaller wrapLen (25) to ensure padding on edges
+          const wrappedLines = wrapText(chunk.trim(), 25);
+          const wrapped = wrappedLines.join('\n');
+          const chunkDuration = (chunk.length / totalChars) * totalTime;
+          const chunkStartTime = currentTime;
+          const chunkEndTime = currentTime + chunkDuration;
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
+          await writeFilePromise(chunkPath, wrapped);
+          
+          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
+          // Position: center horizontally, 90% from top (Bottom Center)
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
+          lastV = `[sv${svIndex}]`;
+          currentTime = chunkEndTime;
+          svIndex++;
         }
       }
-
-        // Stage 3: Sync Subtitles using AI-generated SRT from SYNCHRONIZED Audio
-        if (subtitleEnabled && subtitleText) {
-          const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
-          const fontPath = path.join(process.cwd(), 'Padauk.ttf');
-          console.log("Font Path Check:", fontPath);
-
-          try {
-            const audioBuffer = await readFilePromise(processedAudioPath);
-            const srtPrompt = `Generate a strictly valid SubRip (.srt) subtitle file for the following text: "${subtitleText}".
-            The total duration of the audio is exactly ${vDur} seconds.
-            Synchronization is the TOP priority. Match the speech timing in the audio perfectly.
-            Rules:
-            1. Strictly follow SRT format.
-            2. Break into natural phrases (4-7 words per line).
-            3. Output ONLY the raw SRT content, no markdown blocks.`;
-
-            const response = await ai.models.generateContent({
-              model: "gemini-1.5-flash",
-              contents: [
-                {
-                  parts: [
-                    { text: srtPrompt },
-                    { inlineData: { data: audioBuffer.toString("base64"), mimeType: "audio/wav" } }
-                  ]
-                }
-              ]
-            });
-            
-            let srtContent = "";
-            if (typeof (response as any).text === 'string') {
-              srtContent = (response as any).text;
-            } else if (typeof (response as any).text === 'function') {
-              srtContent = (response as any).text();
-            } else {
-               srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            }
-
-            // Step 2: SRT Extraction Logic - Extract starting from the first "1"
-            const srtMatch = srtContent.match(/1\r?\n00:[\s\S]*$/);
-            if (srtMatch) {
-              srtContent = srtMatch[0].trim();
-            } else {
-              // Fallback for different indexing or spacing
-              const genericMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
-              if (genericMatch) srtContent = genericMatch[0].trim();
-            }
-
-            // Validation Check: srtContent contains -->
-            if (srtContent.includes("-->")) {
-              await writeFilePromise(srtPath, srtContent);
-              console.log("SRT File Created at:", srtPath);
-
-              // Dynamic Color Conversion: Convert Hex (#RRGGBB) to ASS (&H00BBGGRR)
-              let assColor = "FFFFFF"; // Default White
-              if (subtitleColor && subtitleColor.startsWith("#")) {
-                 const r = subtitleColor.substring(1, 3);
-                 const g = subtitleColor.substring(3, 5);
-                 const b = subtitleColor.substring(5, 7);
-                 assColor = `${b}${g}${r}`; // BBGGRR format
-              }
-
-              const fSize = subtitleFontSize || 28;
-              
-              // Step 3: FFmpeg Filter Fix - Linux path escape
-              const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
-              const fontsDir = process.cwd(); 
-              
-              // Final Styling: WrapStyle=2, Alignment=2, and FontName=Padauk
-              vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='Fontname=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
-              lastV = "[sv]";
-            } else {
-              console.warn("SRT Validation failed: --> not found. Skipping subtitles.");
-            }
-          } catch (srtError) {
-            console.error("Subtitle Stage Error Details:", srtError);
-          }
-        }
 
       // Stage 4: Logo
       if (hasLogo) {
@@ -659,10 +523,8 @@ async function startServer() {
         if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
         const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
-        const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
-        if (fs.existsSync(srtPath)) await unlinkPromise(srtPath);
-        const syncAudioPath = path.join(tempDir, `sync_audio_${tempId}.wav`);
-        if (fs.existsSync(syncAudioPath)) await unlinkPromise(syncAudioPath);
+        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
+        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
         
         // Cleanup chunks
         const files = fs.readdirSync(tempDir);
