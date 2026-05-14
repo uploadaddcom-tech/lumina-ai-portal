@@ -173,26 +173,35 @@ async function startServer() {
 
     try {
       const { videoBase64 } = req.body;
-      const model = "gemini-1.5-flash"; 
+      if (!videoBase64) throw new Error("No videoBase64 provided");
+
+      console.log(`[Transcription] Starting task ${tempId}`);
       
-      // Save video to extract audio
+      // Save video
       await writeFilePromise(videoPath, Buffer.from(videoBase64, 'base64'));
 
-      // Extract high-quality audio for better transcription
-      await execPromise(`ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 -y "${audioPath}"`);
+      // Extract audio
+      console.log(`[Transcription] Extracting audio for ${tempId}...`);
+      try {
+        await execPromise(`ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 -y "${audioPath}"`);
+      } catch (fe) {
+        console.error("FFmpeg Audio Extraction Failed:", fe);
+        throw new Error("Could not extract audio from video.");
+      }
+
+      if (!fs.existsSync(audioPath)) throw new Error("Audio file not created by FFmpeg");
       const audioBuffer = await readFilePromise(audioPath);
 
       const srtPrompt = `Listen to the audio carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
       Rules:
-      1. Translate the speech naturally into Myanmar language using a conversational style.
+      1. Translate the speech naturally into Myanmar language.
       2. Strictly follow SRT format (Index, Timing, Text).
-      3. Break long sentences into readable lines (max 8 words per line).
-      4. DO NOT include any preamble or code blocks. Start directly with '1'.
-      5. The timestamps must be accurate to the audio narration.
-      6. Output ONLY the raw SRT content.`;
+      3. The timestamps must be accurate to the audio.
+      4. Output ONLY the raw SRT content, no markdown or preamble.`;
 
-      const response = await ai.models.generateContent({
-        model: model,
+      console.log(`[Transcription] Calling AI for ${tempId}...`);
+      const result = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
         contents: [
           {
             parts: [
@@ -203,30 +212,36 @@ async function startServer() {
         ]
       });
 
+      // Robust response extraction
       let srtContent = "";
-      if (typeof (response as any).text === 'string') {
-        srtContent = (response as any).text;
-      } else if (typeof (response as any).text === 'function') {
-        srtContent = (response as any).text();
-      } else {
-        srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      try {
+        const response = await result.response;
+        srtContent = response.text().trim();
+      } catch (re) {
+        console.warn("Standard .text() failed, trying raw parts...", re);
+        srtContent = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
       }
-      
-      // Clean SRT content: find first occurrence of index 1 with timestamp
+
+      if (!srtContent) throw new Error("AI returned empty transcription result.");
+
+      // Clean SRT content
       const srtMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
       if (srtMatch) {
         srtContent = srtMatch[0].trim();
       }
 
-      console.log("Generated Subtitles Length:", srtContent.length);
+      console.log(`[Transcription] Success for ${tempId}, length: ${srtContent.length}`);
       res.json({ srt: srtContent });
+
     } catch (error: any) {
-      console.error("Transcribe Subtitles Error:", error);
-      res.status(500).json({ error: error.message });
+      console.error(`[Transcription] Error ${tempId}:`, error);
+      res.status(500).json({ error: error.message || "Transcription failed" });
     } finally {
-      // Cleanup temp files
+      // Cleanup
       [videoPath, audioPath].forEach(p => {
-        if (fs.existsSync(p)) fs.unlinkSync(p);
+        if (fs.existsSync(p)) {
+          try { fs.unlinkSync(p); } catch (e) {}
+        }
       });
     }
   });
