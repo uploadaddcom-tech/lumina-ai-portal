@@ -401,82 +401,79 @@ async function startServer() {
         }
       }
 
-      // Stage 3: Sync Subtitles using AI-generated SRT from SYNCHRONIZED Audio
-      if (subtitleEnabled && subtitleText) {
-        const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
-        try {
-          const audioBuffer = await readFilePromise(processedAudioPath);
-          const srtPrompt = `Generate a strictly valid SubRip (.srt) subtitle file. 
-          Script: "${subtitleText}". 
-          Total duration: ${vDur} seconds. 
-          Synchronization is the TOP priority. Match the speech timing in the audio exactly.
-          Rules:
-          1. Strictly follow SRT format.
-          2. Phrases should be short (3-6 words).
-          3. Output ONLY the raw SRT content, no markdown blocks.`;
+        // Stage 3: Sync Subtitles using AI-generated SRT from SYNCHRONIZED Audio
+        if (subtitleEnabled && subtitleText) {
+          const srtPath = path.join(tempDir, `subs_${tempId}.srt`);
+          const fontPath = path.join(process.cwd(), 'Padauk.ttf');
+          console.log("Font Path Check:", fontPath);
 
-          const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
-            contents: [
-              {
-                parts: [
-                  { text: srtPrompt },
-                  { inlineData: { data: audioBuffer.toString("base64"), mimeType: "audio/wav" } }
-                ]
+          try {
+            const audioBuffer = await readFilePromise(processedAudioPath);
+            const srtPrompt = `Generate a strictly valid SubRip (.srt) subtitle file for the following text: "${subtitleText}".
+            The total duration of the audio is exactly ${vDur} seconds.
+            Synchronization is the TOP priority. Match the speech timing in the audio perfectly.
+            Rules:
+            1. Strictly follow SRT format.
+            2. Break into natural phrases (4-7 words per line).
+            3. Output ONLY the raw SRT content, no markdown blocks.`;
+
+            const response = await ai.models.generateContent({
+              model: "gemini-1.5-flash",
+              contents: [
+                {
+                  parts: [
+                    { text: srtPrompt },
+                    { inlineData: { data: audioBuffer.toString("base64"), mimeType: "audio/wav" } }
+                  ]
+                }
+              ]
+            });
+            
+            let srtContent = "";
+            if (typeof (response as any).text === 'string') {
+              srtContent = (response as any).text;
+            } else if (typeof (response as any).text === 'function') {
+              srtContent = (response as any).text();
+            } else {
+               srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            }
+
+            // Step 2: SRT Extraction Logic - Extract starting from the first "1"
+            const match = srtContent.match(/1[\s\S]*$/);
+            if (match) {
+              srtContent = match[0].trim();
+            }
+
+            // Validation Check: srtContent contains -->
+            if (srtContent.includes("-->")) {
+              await writeFilePromise(srtPath, srtContent);
+              console.log("SRT File Created at:", srtPath);
+
+              // Dynamic Color Conversion: Convert Hex (#RRGGBB) to ASS (&H00BBGGRR)
+              let assColor = "FFFFFF"; // Default White
+              if (subtitleColor && subtitleColor.startsWith("#")) {
+                 const r = subtitleColor.substring(1, 3);
+                 const g = subtitleColor.substring(3, 5);
+                 const b = subtitleColor.substring(5, 7);
+                 assColor = `${b}${g}${r}`; // BBGGRR format
               }
-            ]
-          });
-          
-          let srtContent = "";
-          if (typeof (response as any).text === 'string') {
-            srtContent = (response as any).text;
-          } else if (typeof (response as any).text === 'function') {
-            srtContent = (response as any).text();
-          } else {
-             srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          }
 
-          // Strict SRT Cleaning: Remove markdown and find the first line starting with a number
-          srtContent = srtContent.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
-          const srtStartMatch = srtContent.match(/^\d+$/m);
-          if (srtStartMatch) {
-            const startIdx = srtContent.indexOf(srtStartMatch[0]);
-            if (startIdx !== -1) {
-              srtContent = srtContent.substring(startIdx).trim();
+              const fSize = subtitleFontSize || 28;
+              
+              // Step 3: FFmpeg Filter Fix - Linux path escape
+              const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
+              const fontsDir = process.cwd(); 
+              
+              // Final Styling: WrapStyle=2, Alignment=2, and FontName=Padauk
+              vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='Fontname=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
+              lastV = "[sv]";
+            } else {
+              console.warn("SRT Validation failed: --> not found. Skipping subtitles.");
             }
+          } catch (srtError) {
+            console.error("Subtitle Stage Error Details:", srtError);
           }
-
-          // Validation Check: srtContent contains -->
-          if (srtContent.includes("-->")) {
-            await writeFilePromise(srtPath, srtContent);
-
-            // Dynamic Color Conversion: Convert Hex (#RRGGBB) to ASS (&H00BBGGRR)
-            let assColor = "FFFFFF"; // Default White
-            if (subtitleColor && subtitleColor.startsWith("#")) {
-               const r = subtitleColor.substring(1, 3);
-               const g = subtitleColor.substring(3, 5);
-               const b = subtitleColor.substring(5, 7);
-               assColor = `${b}${g}${r}`; // BBGGRR format
-            }
-
-            const fSize = subtitleFontSize || 28;
-            
-            // FFmpeg Subtitles Filter Path Fix: Linux path escape
-            const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, "\\:").replace(/'/g, "'\\\\''");
-            const fontsDir = process.cwd(); // Root where Padauk-Bold.ttf is located
-            
-            // Final Styling: WrapStyle=2, Alignment=2, and FontName
-            vFilters.push(`${lastV}subtitles=filename='${escapedSrtPath}':fontsdir='${fontsDir}':force_style='FontName=Padauk,FontSize=${fSize},PrimaryColour=&H00${assColor},WrapStyle=2,Alignment=2,Outline=1,Shadow=1,MarginV=30'[sv]`);
-            lastV = "[sv]";
-          } else {
-            console.warn("SRT Validation failed: --> not found. Skipping subtitles.");
-          }
-        } catch (srtError) {
-          console.error("Subtitle Stage Error Details:", srtError);
-          // User requested: Do not add error text to video if it fails
-          // So we do nothing here and continue with the current lastV
         }
-      }
 
       // Stage 4: Logo
       if (hasLogo) {
