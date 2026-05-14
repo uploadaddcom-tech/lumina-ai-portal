@@ -164,11 +164,25 @@ async function startServer() {
   });
 
   app.post("/api/transcribe-subtitles", async (req, res) => {
+    const tempId = crypto.randomBytes(8).toString("hex");
+    const tempDir = path.join(process.cwd(), "temp");
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    const videoPath = path.join(tempDir, `trans_v_${tempId}.mp4`);
+    const audioPath = path.join(tempDir, `trans_a_${tempId}.wav`);
+
     try {
-      const { videoBase64, mimeType } = req.body;
+      const { videoBase64 } = req.body;
       const model = "gemini-1.5-flash"; 
       
-      const srtPrompt = `Listen to the audio in this video carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
+      // Save video to extract audio
+      await writeFilePromise(videoPath, Buffer.from(videoBase64, 'base64'));
+
+      // Extract high-quality audio for better transcription
+      await execPromise(`ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 -y "${audioPath}"`);
+      const audioBuffer = await readFilePromise(audioPath);
+
+      const srtPrompt = `Listen to the audio carefully. Generate a SubRip (.srt) subtitle file in Myanmar (Burmese) language. 
       Rules:
       1. Translate the speech naturally into Myanmar language using a conversational style.
       2. Strictly follow SRT format (Index, Timing, Text).
@@ -183,7 +197,7 @@ async function startServer() {
           {
             parts: [
               { text: srtPrompt },
-              { inlineData: { data: videoBase64, mimeType } }
+              { inlineData: { data: audioBuffer.toString("base64"), mimeType: "audio/wav" } }
             ]
           }
         ]
@@ -198,14 +212,10 @@ async function startServer() {
         srtContent = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
       }
       
-      // Clean SRT content: find first occurrence of 1\n00:
-      const srtMatch = srtContent.match(/1\r?\n00:[\s\S]*$/);
+      // Clean SRT content: find first occurrence of index 1 with timestamp
+      const srtMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
       if (srtMatch) {
         srtContent = srtMatch[0].trim();
-      } else {
-        // More generic match if first index isn't 1 or spacing is different
-        const genericMatch = srtContent.match(/\d+\r?\n\d{2}:\d{2}:\d{2}[\s\S]*$/);
-        if (genericMatch) srtContent = genericMatch[0].trim();
       }
 
       console.log("Generated Subtitles Length:", srtContent.length);
@@ -213,6 +223,11 @@ async function startServer() {
     } catch (error: any) {
       console.error("Transcribe Subtitles Error:", error);
       res.status(500).json({ error: error.message });
+    } finally {
+      // Cleanup temp files
+      [videoPath, audioPath].forEach(p => {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      });
     }
   });
 
