@@ -37,29 +37,29 @@ import Markdown from "react-markdown";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
-  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number) {
+  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number, apiKey?: string) {
     const res = await fetch("/api/recap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration }),
+      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration, apiKey }),
     });
     if (!res.ok) throw new Error("Recap failed");
     return (await res.json()).text;
   },
-  async transcribe(videoBase64: string, mimeType: string, lang: Language) {
+  async transcribe(videoBase64: string, mimeType: string, lang: Language, apiKey?: string) {
     const res = await fetch("/api/transcribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, mimeType, lang }),
+      body: JSON.stringify({ videoBase64, mimeType, lang, apiKey }),
     });
     if (!res.ok) throw new Error("Transcription failed");
     return (await res.json()).text;
   },
-  async voiceover(text: string, voiceName: string) {
+  async voiceover(text: string, voiceName: string, apiKey?: string) {
     const res = await fetch("/api/voiceover", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voiceName }),
+      body: JSON.stringify({ text, voiceName, apiKey }),
     });
     if (!res.ok) throw new Error("Voiceover failed");
     return (await res.json()).audioData;
@@ -81,7 +81,8 @@ const api = {
     subtitleText?: string,
     subtitleColor?: string,
     subtitleFontSize?: number,
-    subtitleFont?: string
+    subtitleFont?: string,
+    apiKey?: string
   ) {
     const res = await fetch("/api/merge", {
       method: "POST",
@@ -103,7 +104,8 @@ const api = {
         subtitleText,
         subtitleColor,
         subtitleFontSize,
-        subtitleFont
+        subtitleFont,
+        apiKey
       }),
     });
     if (!res.ok) {
@@ -264,6 +266,77 @@ interface ViewProps {
   setLang: (l: Language) => void;
 }
 
+interface ApiKeyConfig {
+  source: "app" | "own";
+  value: string;
+}
+
+function ApiKeySelector({ config, setConfig, lang }: { 
+  config: ApiKeyConfig, 
+  setConfig: (c: ApiKeyConfig) => void,
+  lang: Language 
+}) {
+  const t = translations[lang].api;
+  const [showInput, setShowInput] = useState(config.source === "own");
+
+  useEffect(() => {
+    setShowInput(config.source === "own");
+  }, [config.source]);
+
+  return (
+    <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.3em]">
+          {t.title}
+        </label>
+        <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-lg border border-border dark:border-white/5">
+          <button
+            onClick={() => setConfig({ ...config, source: "app" })}
+            className={`px-3 py-1.5 rounded-md text-[9px] font-black transition-all uppercase tracking-widest ${
+              config.source === "app" 
+                ? "bg-white dark:bg-white/10 text-blue-500 shadow-sm" 
+                : "text-slate-500 hover:text-slate-400"
+            }`}
+          >
+            {t.optionApp}
+          </button>
+          <button
+            onClick={() => setConfig({ ...config, source: "own" })}
+            className={`px-3 py-1.5 rounded-md text-[9px] font-black transition-all uppercase tracking-widest ${
+              config.source === "own" 
+                ? "bg-white dark:bg-white/10 text-emerald-500 shadow-sm" 
+                : "text-slate-500 hover:text-slate-400"
+            }`}
+          >
+            {t.optionOwn}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showInput && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-2 space-y-2">
+              <input
+                type="password"
+                value={config.value}
+                onChange={(e) => setConfig({ ...config, value: e.target.value })}
+                placeholder={t.inputPlaceholder}
+                className="w-full h-11 bg-white/5 border border-border dark:border-white/10 rounded-xl px-4 text-xs font-bold text-emerald-400 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Kore");
@@ -271,6 +344,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
 
   const t = translations[lang].voiceover;
 
@@ -280,8 +354,10 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
     setError(null);
     setAudioUrl(null);
 
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+
     try {
-      const base64 = await api.voiceover(text, selectedVoice);
+      const base64 = await api.voiceover(text, selectedVoice, apiKey);
       if (base64) {
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
@@ -330,6 +406,8 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
+        
         <section className="space-y-6">
           <textarea
             value={text}
@@ -443,6 +521,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -469,12 +548,14 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
     setError(null);
     setResult(null);
 
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
-        const transcription = await api.transcribe(base64, file.type, lang);
+        const transcription = await api.transcribe(base64, file.type, lang, apiKey);
         setResult(transcription || "");
         setIsGenerating(false);
       };
@@ -577,6 +658,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -602,12 +684,14 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
     setError(null);
     setResult(null);
 
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
-        const transcription = await api.transcribe(base64, file.type, lang);
+        const transcription = await api.transcribe(base64, file.type, lang, apiKey);
         setResult(transcription || "");
         setIsGenerating(false);
       };
@@ -640,6 +724,9 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <div className="max-w-sm mx-auto">
+          <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
+        </div>
         <section className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2 border border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
           <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
           <div 
@@ -742,6 +829,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
 
   // Voiceover Integration
   const [isVoiceoverGenerating, setIsVoiceoverGenerating] = useState(false);
@@ -830,9 +918,11 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     setResult(null);
     setVoiceoverAudioUrl(null);
 
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+
     try {
       const base64 = await fileToBase64(file);
-      const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined);
+      const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
       setResult(recapValue || "");
 
       // Auto-trigger voiceover generation
@@ -840,7 +930,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         setIsVoiceoverGenerating(true);
         try {
           const cleanText = recapValue.replace(/[#*`_~]/g, '');
-          const voice64 = await api.voiceover(cleanText, selectedVoice);
+          const voice64 = await api.voiceover(cleanText, selectedVoice, apiKey);
           if (voice64) {
             const binaryString = atob(voice64);
             const bytes = new Uint8Array(binaryString.length);
@@ -880,7 +970,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     try {
       // Clean markdown for better TTS
       const cleanText = result.replace(/[#*`_~]/g, '');
-      const base64 = await api.voiceover(cleanText, selectedVoice);
+      const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+      const base64 = await api.voiceover(cleanText, selectedVoice, apiKey);
       if (base64) {
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
@@ -913,6 +1004,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     setMergedVideoUrl(null);
 
     try {
+      const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
       const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -954,7 +1046,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
         result?.replace(/[#*`_~]/g, ''),
         subtitleColor,
         subtitleFontSize,
-        subtitleFont
+        subtitleFont,
+        apiKey
       );
       
       if (mergedBase64) {
@@ -1000,6 +1093,8 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
+        
         {/* Upload Section */}
         <section className="space-y-4">
           <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
@@ -1320,9 +1415,9 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-80 transition-transform duration-300"
+                            className="w-full h-full object-cover opacity-80 transition-transform duration-300 scale-x-[-1]"
                             style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
+                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                             }}
                             autoPlay 
                             muted 
@@ -1437,9 +1532,9 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-60"
+                            className="w-full h-full object-cover opacity-60 scale-x-[-1]"
                             style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
+                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                             }}
                             autoPlay 
                             muted 
@@ -1568,9 +1663,9 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-60"
+                            className="w-full h-full object-cover opacity-60 scale-x-[-1]"
                             style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
+                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                             }}
                             autoPlay 
                             muted 
@@ -1661,7 +1756,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Blur Intensity" : "ဝါးနှုန်း (Blur Strength)"}
                             </label>
-                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurIntensity}</span>
+                             <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurIntensity}</span>
                           </div>
                           <input 
                             type="range" 
@@ -1719,9 +1814,9 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-60"
+                            className="w-full h-full object-cover opacity-60 scale-x-[-1]"
                             style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
+                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                             }}
                             autoPlay 
                             muted 
@@ -1889,7 +1984,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
               {/* Audio result if ready */}
               {voiceoverAudioUrl && (
                 <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-3xl p-8 border border-white/5 shadow-2xl space-y-8">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
                       <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
                         <Music className="w-7 h-7 text-blue-500" />
@@ -1900,7 +1995,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-gap-4 gap-3">
+                    <div className="flex items-center gap-3">
                       <button 
                         onClick={playVoiceover}
                         className="w-14 h-14 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 flex items-center justify-center transition-all active:scale-90"
@@ -1918,11 +2013,11 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                   </div>
 
                   <div className="pt-6 border-t border-white/5 flex flex-col gap-6">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
                       <button 
                         onClick={handleMerge}
                         disabled={isMerging}
-                        className={`h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 transition-all active:scale-95 ${
+                        className={`w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 transition-all active:scale-95 ${
                           isMerging ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-purple-600 hover:bg-purple-700 text-white shadow-2xl shadow-purple-500/30"
                         }`}
                       >
@@ -1946,7 +2041,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                       <motion.div 
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="p-6 bg-white/[0.03] rounded-2xl border border-white/10 flex items-center justify-between"
+                        className="p-6 bg-white/[0.03] rounded-2xl border border-white/10 flex flex-col sm:flex-row gap-6 items-center sm:justify-between"
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
@@ -1960,7 +2055,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
                         <a 
                           href={mergedVideoUrl} 
                           download="recap_master_final.mp4"
-                          className="h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
+                          className="w-full sm:w-auto h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
                         >
                           <CloudUpload className="w-4 h-4" />
                           {t.downloadMerged}

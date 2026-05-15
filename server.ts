@@ -36,7 +36,8 @@ async function startServer() {
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
     try {
-      const { videoBase64, mimeType, style, lang, duration } = req.body;
+      const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
+      const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3-flash-preview";
       
       const stylePrompts: Record<string, string> = {
@@ -88,7 +89,7 @@ async function startServer() {
       const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
       const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
-      const response = await ai.models.generateContent({
+      const response = await aiClient.models.generateContent({
         model: model,
         contents: [
           {
@@ -118,11 +119,12 @@ async function startServer() {
 
   app.post("/api/transcribe", async (req, res) => {
     try {
-      const { videoBase64, mimeType, lang } = req.body;
+      const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
+      const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3-flash-preview";
       const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
-      const response = await ai.models.generateContent({
+      const response = await aiClient.models.generateContent({
         model: model,
         contents: [
           {
@@ -143,7 +145,8 @@ async function startServer() {
 
   app.post("/api/voiceover", async (req, res) => {
     try {
-      const { text, voiceName } = req.body;
+      const { text, voiceName, apiKey: customKey } = req.body;
+      const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3.1-flash-tts-preview";
 
       const getChunks = (input: string, maxLen = 600) => {
@@ -167,7 +170,7 @@ async function startServer() {
 
       for (const chunk of textChunks) {
         if (!chunk.trim()) continue;
-        const response = await ai.models.generateContent({
+        const response = await aiClient.models.generateContent({
           model: model,
           contents: [{ parts: [{ text: chunk }] }],
           config: {
@@ -338,9 +341,10 @@ async function startServer() {
       let vFilters: string[] = [];
       let lastV = "[0:v]";
       
-      // Stage 1: Ratio & Zoom
-      if (ratioFilter) {
-        vFilters.push(`${lastV}${ratioFilter}[rv]`);
+      // Stage 1: Ratio & Zoom & Auto Flip (User requested flip)
+      let baseFilters = [ratioFilter, "hflip"].filter(Boolean).join(",");
+      if (baseFilters) {
+        vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
       }
 

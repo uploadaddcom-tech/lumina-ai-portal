@@ -9,6 +9,14 @@ export const translations = {
       library: "Library",
       apiDocs: "Api Docs",
     },
+    api: {
+      title: "API Settings",
+      optionApp: "App API Key",
+      optionOwn: "Own API Key",
+      inputPlaceholder: "Enter your Gemini API key...",
+      saveKey: "Save API Key",
+      saved: "API Key Saved",
+    },
     hero: {
       title: "",
       dashboard: "",
@@ -141,6 +149,14 @@ export const translations = {
       aiRecap: "AI ပြန်လည်သုံးသပ်ချက်",
       library: "စာကြည့်တိုက်",
       apiDocs: "API စာရွက်စာတမ်းများ",
+    },
+    api: {
+      title: "API ဆက်တင်များ",
+      optionApp: "App API Key",
+      optionOwn: "ကိုယ်ပိုင် API Key",
+      inputPlaceholder: "Gemini API key ကို ရိုက်ထည့်ပါ...",
+      saveKey: "API Key သိမ်းဆည်းရန်",
+      saved: "API Key သိမ်းဆည်းပြီးပါပြီ",
     },
     hero: {
       title: "",
