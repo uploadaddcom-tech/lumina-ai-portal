@@ -34,6 +34,10 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
+import { useFirebase } from "./components/FirebaseProvider";
+import { loginWithGoogle, logout } from "./lib/firebase";
+import { LogOut, LogIn, Settings, Lock } from "lucide-react";
+import { AdminDashboard } from "./components/AdminDashboard";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -157,7 +161,8 @@ const getTools = (lang: Language) => [
     color: "bg-cyan-500",
     iconColor: "text-white",
     borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
-    shadowColor: "shadow-cyan-500/20"
+    shadowColor: "shadow-cyan-500/20",
+    badge: "PRO"
   },
   {
     id: "auto-recap",
@@ -264,6 +269,7 @@ interface ViewProps {
   onBack: () => void;
   lang: Language;
   setLang: (l: Language) => void;
+  onAdminClick?: () => void;
 }
 
 interface ApiKeyConfig {
@@ -337,7 +343,71 @@ function ApiKeySelector({ config, setConfig, lang }: {
   );
 }
 
-function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
+function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
+  const { user, logout, usageCount, role, diamonds } = useFirebase();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      console.error("Login failed:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <button 
+        onClick={handleLogin}
+        disabled={isLoggingIn}
+        className="flex items-center gap-2 px-4 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+      >
+        {isLoggingIn ? (
+          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        ) : (
+          <LogIn className="w-3.5 h-3.5" />
+        )}
+        Sign In
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="hidden md:flex flex-col items-end text-right">
+        <span className="text-[9px] font-black text-text-primary dark:text-white tracking-widest uppercase">{user.displayName || 'Neural User'}</span>
+        <div className="flex items-center gap-2">
+          {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
+            <button 
+              onClick={onAdminClick}
+              className="px-2 py-0.5 rounded-md bg-emerald-500 text-[8px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
+            >
+              ADMIN-PNL
+            </button>
+          )}
+          <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+            <Sparkles className="w-2 h-2 text-blue-400" />
+            <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">{diamonds} Diamonds</span>
+          </div>
+        </div>
+      </div>
+      <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
+        <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
+      </button>
+      <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-lg">
+        <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center overflow-hidden">
+          <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Kore");
   const [selectedMood, setSelectedMood] = useState("story");
@@ -359,6 +429,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
     try {
       const base64 = await api.voiceover(text, selectedVoice, apiKey);
       if (base64) {
+        await incrementUsage();
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -401,6 +472,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -516,7 +588,8 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
-function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
+function VideoRecapperView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -556,6 +629,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         const transcription = await api.transcribe(base64, file.type, lang, apiKey);
+        await incrementUsage();
         setResult(transcription || "");
         setIsGenerating(false);
       };
@@ -582,6 +656,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
             </div>
           </div>
           <div className="flex items-center">
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -653,7 +728,8 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
-function TranscribeView({ onBack, lang, setLang }: ViewProps) {
+function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -692,6 +768,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         const transcription = await api.transcribe(base64, file.type, lang, apiKey);
+        await incrementUsage();
         setResult(transcription || "");
         setIsGenerating(false);
       };
@@ -719,6 +796,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center">
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -822,7 +900,59 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
-function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
+function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClose: () => void, lang: Language }) {
+  if (!isOpen) return null;
+  return (
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+      >
+        <motion.div 
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.9, y: 20 }}
+          className="bg-[#0f172a] border border-blue-500/30 rounded-[32px] p-8 max-w-sm w-full text-center space-y-6 shadow-[0_0_50px_rgba(59,130,246,0.2)]"
+        >
+          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20">
+            <Sparkles className="w-10 h-10 text-blue-400 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+              {lang === "EN" ? "Diamonds Required" : "Diamond လိုအပ်နေပါသည်"}
+            </h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
+              {lang === "EN" 
+                ? "You need at least 10 diamonds to generate a recap. Please contact us to buy more." 
+                : "Recap ထုတ်လုပ်ရန် Diamond ၁၀ ခု လိုအပ်ပါသည်။ Diamond ထပ်ဝယ်ရန် ကျွန်ုပ်တို့ကို ဆက်သွယ်ပါ။"}
+            </p>
+          </div>
+          <div className="space-y-3">
+            <a 
+              href="https://m.me/uploadadd" 
+              target="_blank" 
+              rel="noreferrer"
+              className="flex items-center justify-center gap-3 w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-500/20"
+            >
+              Contact Admin
+            </a>
+            <button 
+              onClick={onClose}
+              className="w-full h-12 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage, deductDiamonds, diamonds } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -830,6 +960,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
 
   // Voiceover Integration
   const [isVoiceoverGenerating, setIsVoiceoverGenerating] = useState(false);
@@ -912,6 +1043,11 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
   const handleGenerate = async () => {
     if (!file) return;
+
+    if (diamonds < 10) {
+      setShowDiamondModal(true);
+      return;
+    }
     
     setIsGenerating(true);
     setError(null);
@@ -921,8 +1057,16 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
 
     try {
+      const success = await deductDiamonds(10);
+      if (!success) {
+        setShowDiamondModal(true);
+        setIsGenerating(false);
+        return;
+      }
+
       const base64 = await fileToBase64(file);
       const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
+      await incrementUsage();
       setResult(recapValue || "");
 
       // Auto-trigger voiceover generation
@@ -973,6 +1117,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
       const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
       const base64 = await api.voiceover(cleanText, selectedVoice, apiKey);
       if (base64) {
+        await incrementUsage();
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -1073,6 +1218,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 
   return (
     <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
+      <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} />
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1088,6 +1234,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -2117,8 +2264,147 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
+function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }) {
+  const t = translations[lang].nav;
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    setError(null);
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      setError(error.message || "Login failed. Please try again.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6">
+      <div className="hero-glow" />
+      <div className="absolute inset-0 noise-overlay" />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative z-10 w-full max-w-md bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] p-12 text-center shadow-3xl"
+      >
+        <div className="w-20 h-20 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 mx-auto mb-8 animate-pulse">
+          <Cpu className="w-10 h-10 text-white" />
+        </div>
+        
+        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">LUMINA</h1>
+        <p className="text-[10px] font-tech font-black tracking-[0.4em] text-blue-500 uppercase mb-8">{t.authRequired}</p>
+        
+        <div className="space-y-3">
+          <button
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="w-full h-16 bg-white dark:bg-white/10 hover:bg-slate-50 dark:hover:bg-white/15 text-slate-950 dark:text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-white/10"
+          >
+            {isLoggingIn ? (
+              <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+            ) : (
+              <LogIn className="w-5 h-5" />
+            )}
+            {isLoggingIn ? t.authenticating : t.loginWithGoogle}
+          </button>
+
+          {error && (
+            <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+              {error}
+            </p>
+          )}
+
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="w-full h-12 text-slate-500 hover:text-slate-400 font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+        
+        <p className="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+          {t.authPrompt}
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
+function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }) {
+  const isMM = lang === "MY";
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="bg-[#0a0a0a] border border-amber-500/40 rounded-[2.5rem] p-8 md:p-10 max-w-sm w-full shadow-[0_0_60px_rgba(245,158,11,0.2)] relative overflow-hidden group font-sans"
+      >
+        {/* Animated Background Glow */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/20 blur-[80px] rounded-full animate-pulse" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-600/10 blur-[80px] rounded-full animate-pulse delay-700" />
+        
+        <div className="relative z-10 text-center space-y-6">
+          <div className="inline-flex p-4 rounded-[1.5rem] bg-linear-to-br from-amber-400 to-amber-600 text-black shadow-2xl shadow-amber-500/40 mb-1 rotate-12 group-hover:rotate-0 transition-transform duration-500">
+            <Lock size={32} strokeWidth={2.5} />
+          </div>
+          
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black tracking-tighter text-white uppercase italic leading-tight">
+              {isMM ? "PREMIUM များအတွက်သာ" : "PREMIUM ONLY"}
+            </h2>
+            <p className="text-zinc-400 font-medium text-sm leading-relaxed px-2">
+              {isMM 
+                ? "ဤကိရိယာသည် Premium များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Premium အဖြစ်မြှင့်တင်ရန် " 
+                : "This tool is exclusive to Premium members. To unlock this feature, please contact "}
+              <span className="text-amber-400 font-black">Telegram @akhptn</span>
+              {isMM ? " ကိုဆက်သွယ်ပါ။" : " via Telegram."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-4">
+            <motion.a 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              href="https://t.me/akhptn" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full py-4 rounded-xl bg-linear-to-r from-amber-500 to-amber-600 text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-amber-500/30 flex items-center justify-center gap-2 transition-all"
+            >
+              Contact @akhptn
+              <ArrowRight size={16} />
+            </motion.a>
+            <button 
+              onClick={onClose}
+              className="w-full py-4 rounded-xl bg-white/5 text-zinc-500 font-black text-[10px] uppercase tracking-[0.25em] hover:bg-white/10 hover:text-white transition-all border border-transparent hover:border-white/10"
+            >
+              {isMM ? "ပြန်ထွက်မည်" : "Go Back"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function App() {
+  const { user, loading, usageCount, role, diamonds } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
   const [darkMode, setDarkMode] = useState(true);
 
@@ -2130,13 +2416,55 @@ export default function App() {
     }
   }, [darkMode]);
 
+  useEffect(() => {
+    if (user && intendedToolId && !loading) {
+      setActiveToolId(intendedToolId);
+      setIntendedToolId(null);
+      setShowLoginPrompt(false);
+    }
+  }, [user, intendedToolId, loading, role]);
+
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
 
+  const handleToolClick = (toolId: string) => {
+    if (!user) {
+      setIntendedToolId(toolId);
+      setShowLoginPrompt(true);
+      return;
+    }
+    
+    setActiveToolId(toolId);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-page-bg flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-page-bg selection:bg-cyan-500/30">
+      <AnimatePresence>
+        {showLoginPrompt && !user && (
+          <LoginView lang={lang} onCancel={() => setShowLoginPrompt(false)} />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
-        {activeToolId === "recap-master" ? (
+        {showAdmin ? (
+          <motion.div
+            key="admin-dashboard"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.4 }}
+          >
+            <AdminDashboard onBack={() => setShowAdmin(false)} />
+          </motion.div>
+        ) : activeToolId === "recap-master" ? (
           <motion.div
             key="recap-master"
             initial={{ opacity: 0, x: 20 }}
@@ -2148,6 +2476,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : activeToolId === "video-recapper" ? (
@@ -2162,6 +2491,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : activeToolId === "ai-voiceover" ? (
@@ -2176,6 +2506,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : activeToolId === "video-transcribe" ? (
@@ -2190,6 +2521,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : (
@@ -2218,34 +2550,10 @@ export default function App() {
                       <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
                     </div>
                   </div>
-                  
-                  <nav className="hidden lg:flex items-center gap-10">
-                    <a href="#" className="relative px-1 py-1 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-primary dark:text-white">
-                      {tNav.dashboard}
-                      <motion.div layoutId="nav-underline" className="absolute -bottom-2 left-0 right-0 h-1 bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] rounded-full" />
-                    </a>
-                    <div className="flex items-center gap-3 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-all cursor-pointer group">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                      <span>{tNav.aiRecap}</span>
-                      <span className="text-[8px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-sm border border-blue-500/20 font-sans">ARC-1</span>
-                    </div>
-                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-colors">{tNav.library}</a>
-                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-colors">{tNav.apiDocs}</a>
-                  </nav>
                 </div>
 
                 <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-5 border-l border-white/[0.08] pl-8">
-                    <button id="notification-btn" className="p-2.5 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5 active:scale-95">
-                      <Bell className="w-4.5 h-4.5 text-slate-400 group-hover:text-white" />
-                      <div className="absolute top-3 right-3 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-page-bg shadow-[0_0_10px_rgba(239,68,68,0.6)]" />
-                    </button>
-                    <div id="profile-btn" className="w-9 h-9 rounded-xl bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-2xl cursor-pointer hover:scale-105 hover:rotate-3 transition-all duration-300">
-                       <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center overflow-hidden">
-                          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" className="w-full h-full object-cover" />
-                       </div>
-                    </div>
-                  </div>
+                  <UserHeader onAdminClick={() => setShowAdmin(true)} />
                 </div>
               </div>
             </header>
@@ -2282,15 +2590,15 @@ export default function App() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.5, delay: index * 0.05 }}
                       className={`group relative bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-card-bg/60 dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
-                      onClick={() => setActiveToolId(tool.id)}
+                      onClick={() => handleToolClick(tool.id)}
                     >
                       {/* Background Glow */}
                       <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ${glowClass}`} />
                       <div className="scanline group-hover:block hidden" />
                       
                       {tool.badge && (
-                        <div className="absolute top-0 right-0 p-4">
-                          <div className={`text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-orange-400 to-rose-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                        <div className="absolute top-0 right-0 p-4 z-20">
+                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
                             {tool.badge}
                           </div>
                         </div>
