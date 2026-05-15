@@ -2269,10 +2269,73 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
   );
 }
 
+function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }) {
+  const isMM = lang === "MY";
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 30 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 30 }}
+        className="bg-[#0a0a0a] border border-amber-500/40 rounded-[3rem] p-10 md:p-14 max-w-lg w-full shadow-[0_0_80px_rgba(245,158,11,0.2)] relative overflow-hidden group font-sans"
+      >
+        {/* Animated Background Glow */}
+        <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-500/20 blur-[100px] rounded-full animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-amber-600/10 blur-[100px] rounded-full animate-pulse delay-700" />
+        
+        <div className="relative z-10 text-center space-y-10">
+          <div className="inline-flex p-5 rounded-[2rem] bg-linear-to-br from-amber-400 to-amber-600 text-black shadow-2xl shadow-amber-500/40 mb-2 rotate-12 group-hover:rotate-0 transition-transform duration-500">
+            <Lock size={40} strokeWidth={2.5} />
+          </div>
+          
+          <div className="space-y-6">
+            <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic leading-none">
+              {isMM ? "PREMIUM များအတွက်သာ" : "PREMIUM ONLY"}
+            </h2>
+            <p className="text-zinc-400 font-medium text-lg leading-relaxed">
+              {isMM 
+                ? "ဤကိရိယာသည် Premium များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Premium အဖြစ်မြှင့်တင်ရန် " 
+                : "This tool is exclusive to Premium members. To unlock this feature, please contact "}
+              <span className="text-amber-400 font-black">Telegram @akhptn</span>
+              {isMM ? " ကိုဆက်သွယ်ပါ။" : " via Telegram."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 pt-6">
+            <motion.a 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              href="https://t.me/akhptn" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full py-5 rounded-2xl bg-linear-to-r from-amber-500 to-amber-600 text-black font-black text-sm uppercase tracking-[0.25em] shadow-2xl shadow-amber-500/30 flex items-center justify-center gap-3 transition-all"
+            >
+              Contact @akhptn
+              <ArrowRight size={18} />
+            </motion.a>
+            <button 
+              onClick={onClose}
+              className="w-full py-5 rounded-2xl bg-white/5 text-zinc-500 font-black text-xs uppercase tracking-[0.3em] hover:bg-white/10 hover:text-white transition-all border border-transparent hover:border-white/10"
+            >
+              {isMM ? "ပြန်ထွက်မည်" : "Go Back"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function App() {
   const { user, loading, usageCount, role, isPremium } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
@@ -2306,11 +2369,8 @@ export default function App() {
     
     // Check for premium tools
     const premiumTools = ["recap-master", "subtitle-editor"];
-    if (premiumTools.includes(toolId) && !isPremium) {
-      const msg = lang === "EN" 
-        ? "This tool is exclusive to Premium members. Please contact support to upgrade." 
-        : "ဤကိရိယာသည် Premium များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Premium အဖြစ်မြှင့်တင်ရန် ဆက်သွယ်ပါ။";
-      alert(msg);
+    if (premiumTools.includes(toolId) && !isPremium && role !== 'admin') {
+      setShowPremiumModal(true);
       return;
     }
 
@@ -2330,6 +2390,12 @@ export default function App() {
       <AnimatePresence>
         {showLoginPrompt && !user && (
           <LoginView lang={lang} onCancel={() => setShowLoginPrompt(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showPremiumModal && (
+          <PremiumModal lang={lang} onClose={() => setShowPremiumModal(false)} />
         )}
       </AnimatePresence>
 
