@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.displayName is string && data.displayName.size() <= 128 &&
+             (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
+             data.usageCount is int && data.usageCount >= 0;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      
+      allow create: if isOwner(userId) && 
+                      isValidId(userId) && 
+                      isValidUser(incoming()) &&
+                      incoming().usageCount == 0 &&
+                      incoming().createdAt == request.time &&
+                      incoming().lastUsed == request.time;
+      
+      allow update: if isOwner(userId) &&
+                      isValidUser(incoming()) &&
+                      // Action: Usage Increment
+                      (
+                        incoming().diff(existing()).affectedKeys().hasOnly(['usageCount', 'lastUsed']) &&
+                        incoming().usageCount == existing().usageCount + 1 &&
+                        incoming().lastUsed == request.time &&
+                        incoming().uid == existing().uid &&
+                        incoming().email == existing().email
+                      ) ||
+                      // Action: Profile Sync (Optional if app updates name/photo)
+                      (
+                        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastUsed']) &&
+                        incoming().uid == existing().uid &&
+                        incoming().email == existing().email
+                      );
+      
+      allow delete: if false; // System doesn't allow user deletion from client
+    }
+  }
+}

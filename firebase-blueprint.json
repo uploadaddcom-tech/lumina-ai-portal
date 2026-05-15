@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "Stores user profile and usage data.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "usageCount": { "type": "integer" },
+        "lastUsed": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile and usage statistics."
+    }
+  }
+}

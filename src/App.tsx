@@ -34,6 +34,9 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
+import { useFirebase } from "./components/FirebaseProvider";
+import { loginWithGoogle, logout } from "./lib/firebase";
+import { LogOut, LogIn } from "lucide-react";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -337,7 +340,58 @@ function ApiKeySelector({ config, setConfig, lang }: {
   );
 }
 
+function UserHeader() {
+  const { user, logout, usageCount } = useFirebase();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      console.error("Login failed:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <button 
+        onClick={handleLogin}
+        disabled={isLoggingIn}
+        className="flex items-center gap-2 px-4 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+      >
+        {isLoggingIn ? (
+          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        ) : (
+          <LogIn className="w-3.5 h-3.5" />
+        )}
+        Sign In
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="hidden md:flex flex-col items-end">
+        <span className="text-[9px] font-black text-text-primary dark:text-white tracking-widest uppercase">{user.displayName || 'Neural User'}</span>
+        <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">Usage: {usageCount} units</span>
+      </div>
+      <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
+        <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
+      </button>
+      <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-lg">
+        <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center overflow-hidden">
+          <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Kore");
   const [selectedMood, setSelectedMood] = useState("story");
@@ -359,6 +413,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
     try {
       const base64 = await api.voiceover(text, selectedVoice, apiKey);
       if (base64) {
+        await incrementUsage();
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -401,6 +456,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <UserHeader />
           </div>
         </div>
       </header>
@@ -517,6 +573,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
 }
 
 function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -556,6 +613,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         const transcription = await api.transcribe(base64, file.type, lang, apiKey);
+        await incrementUsage();
         setResult(transcription || "");
         setIsGenerating(false);
       };
@@ -582,6 +640,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
             </div>
           </div>
           <div className="flex items-center">
+            <UserHeader />
           </div>
         </div>
       </header>
@@ -654,6 +713,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
 }
 
 function TranscribeView({ onBack, lang, setLang }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -692,6 +752,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         const transcription = await api.transcribe(base64, file.type, lang, apiKey);
+        await incrementUsage();
         setResult(transcription || "");
         setIsGenerating(false);
       };
@@ -719,6 +780,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center">
+            <UserHeader />
           </div>
         </div>
       </header>
@@ -823,6 +885,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
 }
 
 function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
+  const { user, incrementUsage } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -923,6 +986,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
     try {
       const base64 = await fileToBase64(file);
       const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
+      await incrementUsage();
       setResult(recapValue || "");
 
       // Auto-trigger voiceover generation
@@ -973,6 +1037,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
       const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
       const base64 = await api.voiceover(cleanText, selectedVoice, apiKey);
       if (base64) {
+        await incrementUsage();
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -1088,6 +1153,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <UserHeader />
           </div>
         </div>
       </header>
@@ -2117,8 +2183,74 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
+function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }) {
+  const t = translations[lang].nav;
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      console.error("Login failed:", error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6">
+      <div className="hero-glow" />
+      <div className="absolute inset-0 noise-overlay" />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative z-10 w-full max-w-md bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] p-12 text-center shadow-3xl"
+      >
+        <div className="w-20 h-20 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 mx-auto mb-8 animate-pulse">
+          <Cpu className="w-10 h-10 text-white" />
+        </div>
+        
+        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">LUMINA</h1>
+        <p className="text-[10px] font-tech font-black tracking-[0.4em] text-blue-500 uppercase mb-8">{t.authRequired}</p>
+        
+        <div className="space-y-3">
+          <button
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="w-full h-16 bg-white dark:bg-white/10 hover:bg-slate-50 dark:hover:bg-white/15 text-slate-950 dark:text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-white/10"
+          >
+            {isLoggingIn ? (
+              <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+            ) : (
+              <LogIn className="w-5 h-5" />
+            )}
+            {isLoggingIn ? t.authenticating : t.loginWithGoogle}
+          </button>
+
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="w-full h-12 text-slate-500 hover:text-slate-400 font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+        
+        <p className="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+          {t.authPrompt}
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function App() {
+  const { user, loading, usageCount } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [lang, setLang] = useState<Language>("MY");
   const [darkMode, setDarkMode] = useState(true);
 
@@ -2133,8 +2265,30 @@ export default function App() {
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
 
+  const handleToolClick = (toolId: string) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setActiveToolId(toolId);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-page-bg flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-page-bg selection:bg-cyan-500/30">
+      <AnimatePresence>
+        {showLoginPrompt && !user && (
+          <LoginView lang={lang} onCancel={() => setShowLoginPrompt(false)} />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {activeToolId === "recap-master" ? (
           <motion.div
@@ -2235,17 +2389,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-5 border-l border-white/[0.08] pl-8">
-                    <button id="notification-btn" className="p-2.5 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5 active:scale-95">
-                      <Bell className="w-4.5 h-4.5 text-slate-400 group-hover:text-white" />
-                      <div className="absolute top-3 right-3 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-page-bg shadow-[0_0_10px_rgba(239,68,68,0.6)]" />
-                    </button>
-                    <div id="profile-btn" className="w-9 h-9 rounded-xl bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-2xl cursor-pointer hover:scale-105 hover:rotate-3 transition-all duration-300">
-                       <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center overflow-hidden">
-                          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" className="w-full h-full object-cover" />
-                       </div>
-                    </div>
-                  </div>
+                  <UserHeader />
                 </div>
               </div>
             </header>
@@ -2282,7 +2426,7 @@ export default function App() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.5, delay: index * 0.05 }}
                       className={`group relative bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-card-bg/60 dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
-                      onClick={() => setActiveToolId(tool.id)}
+                      onClick={() => handleToolClick(tool.id)}
                     >
                       {/* Background Glow */}
                       <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ${glowClass}`} />

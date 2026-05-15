@@ -8,6 +8,10 @@ export const translations = {
       aiRecap: "Ai Recap",
       library: "Library",
       apiDocs: "Api Docs",
+      loginWithGoogle: "Login with Google",
+      authenticating: "Authenticating...",
+      authRequired: "Access Denied: Auth Required",
+      authPrompt: "Please authenticate to access the Lumina Neural tools and OS features."
     },
     api: {
       title: "API Settings",
@@ -149,6 +153,10 @@ export const translations = {
       aiRecap: "AI ပြန်လည်သုံးသပ်ချက်",
       library: "စာကြည့်တိုက်",
       apiDocs: "API စာရွက်စာတမ်းများ",
+      loginWithGoogle: "Google ဖြင့် ဝင်ရောက်ပါ",
+      authenticating: "စစ်ဆေးနေသည်...",
+      authRequired: "ဝင်ရောက်ခွင့်မရှိပါ- Login လိုအပ်ပါသည်",
+      authPrompt: "Lumina Neural tools များအား အသုံးပြုနိုင်ရန် Google Account ဖြင့် ဝင်ရောက်ပေးပါ။"
     },
     api: {
       title: "API ဆက်တင်များ",
