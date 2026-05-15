@@ -2186,13 +2186,16 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
 function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }) {
   const t = translations[lang].nav;
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
+    setError(null);
     try {
       await loginWithGoogle();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      setError(error.message || "Login failed. Please try again.");
     } finally {
       setIsLoggingIn(false);
     }
@@ -2229,6 +2232,12 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
             {isLoggingIn ? t.authenticating : t.loginWithGoogle}
           </button>
 
+          {error && (
+            <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+              {error}
+            </p>
+          )}
+
           {onCancel && (
             <button
               onClick={onCancel}
@@ -2251,6 +2260,7 @@ export default function App() {
   const { user, loading, usageCount } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
   const [darkMode, setDarkMode] = useState(true);
 
@@ -2262,11 +2272,20 @@ export default function App() {
     }
   }, [darkMode]);
 
+  useEffect(() => {
+    if (user && intendedToolId) {
+      setActiveToolId(intendedToolId);
+      setIntendedToolId(null);
+      setShowLoginPrompt(false);
+    }
+  }, [user, intendedToolId]);
+
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
 
   const handleToolClick = (toolId: string) => {
     if (!user) {
+      setIntendedToolId(toolId);
       setShowLoginPrompt(true);
       return;
     }

@@ -55,9 +55,16 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Auth state changed:", user?.uid);
       setUser(user);
       if (user) {
-        await syncUser(user);
+        try {
+          await syncUser(user);
+        } catch (error) {
+          console.error("User sync failed:", error);
+          // Don't log out here, just let it be. 
+          // The error handler already logged the JSON error details.
+        }
       } else {
         setUsageCount(0);
       }
