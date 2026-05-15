@@ -2279,25 +2279,25 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
       className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl"
     >
       <motion.div 
-        initial={{ scale: 0.9, y: 30 }}
+        initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 30 }}
-        className="bg-[#0a0a0a] border border-amber-500/40 rounded-[3rem] p-10 md:p-14 max-w-lg w-full shadow-[0_0_80px_rgba(245,158,11,0.2)] relative overflow-hidden group font-sans"
+        exit={{ scale: 0.9, y: 20 }}
+        className="bg-[#0a0a0a] border border-amber-500/40 rounded-[2.5rem] p-8 md:p-10 max-w-sm w-full shadow-[0_0_60px_rgba(245,158,11,0.2)] relative overflow-hidden group font-sans"
       >
         {/* Animated Background Glow */}
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-500/20 blur-[100px] rounded-full animate-pulse" />
-        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-amber-600/10 blur-[100px] rounded-full animate-pulse delay-700" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/20 blur-[80px] rounded-full animate-pulse" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-600/10 blur-[80px] rounded-full animate-pulse delay-700" />
         
-        <div className="relative z-10 text-center space-y-10">
-          <div className="inline-flex p-5 rounded-[2rem] bg-linear-to-br from-amber-400 to-amber-600 text-black shadow-2xl shadow-amber-500/40 mb-2 rotate-12 group-hover:rotate-0 transition-transform duration-500">
-            <Lock size={40} strokeWidth={2.5} />
+        <div className="relative z-10 text-center space-y-6">
+          <div className="inline-flex p-4 rounded-[1.5rem] bg-linear-to-br from-amber-400 to-amber-600 text-black shadow-2xl shadow-amber-500/40 mb-1 rotate-12 group-hover:rotate-0 transition-transform duration-500">
+            <Lock size={32} strokeWidth={2.5} />
           </div>
           
-          <div className="space-y-6">
-            <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic leading-none">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black tracking-tighter text-white uppercase italic leading-tight">
               {isMM ? "PREMIUM များအတွက်သာ" : "PREMIUM ONLY"}
             </h2>
-            <p className="text-zinc-400 font-medium text-lg leading-relaxed">
+            <p className="text-zinc-400 font-medium text-sm leading-relaxed px-2">
               {isMM 
                 ? "ဤကိရိယာသည် Premium များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Premium အဖြစ်မြှင့်တင်ရန် " 
                 : "This tool is exclusive to Premium members. To unlock this feature, please contact "}
@@ -2306,21 +2306,21 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
             </p>
           </div>
 
-          <div className="flex flex-col gap-4 pt-6">
+          <div className="flex flex-col gap-3 pt-4">
             <motion.a 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               href="https://t.me/akhptn" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="w-full py-5 rounded-2xl bg-linear-to-r from-amber-500 to-amber-600 text-black font-black text-sm uppercase tracking-[0.25em] shadow-2xl shadow-amber-500/30 flex items-center justify-center gap-3 transition-all"
+              className="w-full py-4 rounded-xl bg-linear-to-r from-amber-500 to-amber-600 text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-amber-500/30 flex items-center justify-center gap-2 transition-all"
             >
               Contact @akhptn
-              <ArrowRight size={18} />
+              <ArrowRight size={16} />
             </motion.a>
             <button 
               onClick={onClose}
-              className="w-full py-5 rounded-2xl bg-white/5 text-zinc-500 font-black text-xs uppercase tracking-[0.3em] hover:bg-white/10 hover:text-white transition-all border border-transparent hover:border-white/10"
+              className="w-full py-4 rounded-xl bg-white/5 text-zinc-500 font-black text-[10px] uppercase tracking-[0.25em] hover:bg-white/10 hover:text-white transition-all border border-transparent hover:border-white/10"
             >
               {isMM ? "ပြန်ထွက်မည်" : "Go Back"}
             </button>
@@ -2504,20 +2504,6 @@ export default function App() {
                       <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
                     </div>
                   </div>
-                  
-                  <nav className="hidden lg:flex items-center gap-10">
-                    <a href="#" className="relative px-1 py-1 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-primary dark:text-white">
-                      {tNav.dashboard}
-                      <motion.div layoutId="nav-underline" className="absolute -bottom-2 left-0 right-0 h-1 bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] rounded-full" />
-                    </a>
-                    <div className="flex items-center gap-3 text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-all cursor-pointer group">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                      <span>{tNav.aiRecap}</span>
-                      <span className="text-[8px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-sm border border-blue-500/20 font-sans">ARC-1</span>
-                    </div>
-                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-colors">{tNav.library}</a>
-                    <a href="#" className="text-[10px] font-tech font-black uppercase tracking-[0.3em] text-text-secondary dark:text-slate-500 hover:text-text-primary dark:hover:text-white transition-colors">{tNav.apiDocs}</a>
-                  </nav>
                 </div>
 
                 <div className="flex items-center gap-8">
