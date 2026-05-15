@@ -130,7 +130,6 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-red-500/20 hover:border-red-500/50",
     shadowColor: "shadow-red-500/20",
-    badge: "PRO"
   },
   {
     id: "video-recapper",
@@ -162,7 +161,6 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
     shadowColor: "shadow-cyan-500/20",
-    badge: "PRO"
   },
   {
     id: "auto-recap",
@@ -931,12 +929,12 @@ function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClos
           </div>
           <div className="space-y-3">
             <a 
-              href="https://m.me/uploadadd" 
+              href="https://t.me/akhptn" 
               target="_blank" 
               rel="noreferrer"
               className="flex items-center justify-center gap-3 w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-500/20"
             >
-              Contact Admin
+              Telegram @akhptn
             </a>
             <button 
               onClick={onClose}
@@ -2095,7 +2093,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 ) : (
                   <Zap className="w-4 h-4" />
                 )}
-                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : t.generate}
+                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : `${t.generate} (10 Dia)`}
                </div>
             </button>
           </div>
