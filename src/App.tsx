@@ -130,7 +130,7 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-red-500/20 hover:border-red-500/50",
     shadowColor: "shadow-red-500/20",
-    badge: "10 DIAMS"
+    badge: "PRO"
   },
   {
     id: "video-recapper",
@@ -162,7 +162,7 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
     shadowColor: "shadow-cyan-500/20",
-    badge: "10 DIAMS"
+    badge: "PRO"
   },
   {
     id: "auto-recap",
@@ -2351,7 +2351,7 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
 }
 
 export default function App() {
-  const { user, loading, usageCount, role, diamonds } = useFirebase();
+  const { user, loading, usageCount, role, isPremium, diamonds } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -2382,7 +2382,7 @@ export default function App() {
       setIntendedToolId(null);
       setShowLoginPrompt(false);
     }
-  }, [user, intendedToolId, loading, role, diamonds]);
+  }, [user, intendedToolId, loading, isPremium, role]);
 
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
@@ -2572,8 +2572,8 @@ export default function App() {
                       
                       {tool.badge && (
                         <div className="absolute top-0 right-0 p-4 z-20">
-                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge?.includes('DIAMS') ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
-                            {tool.badge?.includes('DIAMS') && diamonds < 10 && role !== 'admin' && <Lock size={10} className="text-white/80" />}
+                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                            {tool.badge === 'PRO' && diamonds < 10 && role !== 'admin' && <Lock size={10} className="text-white/80" />}
                             {tool.badge}
                           </div>
                         </div>
@@ -2584,7 +2584,7 @@ export default function App() {
                       </div>
                       
                       <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                        {tool.badge?.includes('DIAMS') && diamonds < 10 && role !== 'admin' ? (
+                        {tool.badge === 'PRO' && diamonds < 10 && role !== 'admin' ? (
                           <div className="relative">
                             <tool.icon className={`w-6 h-6 ${tool.iconColor} opacity-20`} />
                             <Lock className="absolute inset-0 m-auto w-4 h-4 text-white" />

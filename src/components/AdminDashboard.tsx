@@ -11,6 +11,7 @@ interface UserProfile {
   displayName: string;
   photoURL: string;
   role: string;
+  isPremium: boolean;
   createdAt: any;
   lastUsed: any;
   usageCount: number;
@@ -79,6 +80,20 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       handleFirestoreError(err, OperationType.LIST, 'users');
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const togglePremium = async (user: UserProfile) => {
+    const userRef = doc(db, 'users', user.uid);
+    const newStatus = !user.isPremium;
+    try {
+      await updateDoc(userRef, {
+        isPremium: newStatus,
+        lastUsed: serverTimestamp() // Admin action updates record
+      });
+      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, isPremium: newStatus } : u));
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
   };
 
@@ -242,6 +257,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           }`}>
                             {user.role}
                           </span>
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${
+                            user.isPremium ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-zinc-800/50 border-zinc-700/50 text-zinc-400'
+                          }`}>
+                            {user.isPremium ? 'Premium' : 'Free'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-sm text-zinc-400">
@@ -257,6 +277,17 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => togglePremium(user)}
+                            className={`p-3 rounded-xl border transition-all ${
+                              user.isPremium 
+                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20' 
+                                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                            }`}
+                            title={user.isPremium ? 'Revoke Premium' : 'Grant Premium'}
+                          >
+                            <UserCheck size={18} />
+                          </button>
                           <button
                             onClick={() => toggleRole(user)}
                             className={`p-3 rounded-xl border transition-all ${
@@ -286,9 +317,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Footer Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
             { label: 'Total Users', value: users.length, icon: UserMinus },
+            { label: 'Premium Accounts', value: users.filter(u => u.isPremium).length, icon: UserCheck },
             { label: 'Total Diamonds', value: users.reduce((acc, u) => acc + (u.diamonds || 0), 0), icon: Gem },
             { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: Shield },
           ].map((stat, i) => (

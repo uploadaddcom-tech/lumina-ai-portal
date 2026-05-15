@@ -10,21 +10,13 @@ interface FirebaseContextType {
   usageCount: number;
   diamonds: number;
   role: string | null;
+  isPremium: boolean;
   incrementUsage: () => Promise<void>;
   deductDiamonds: (amount: number) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
-const FirebaseContext = createContext<{
-  user: User | null;
-  loading: boolean;
-  usageCount: number;
-  diamonds: number;
-  role: string | null;
-  incrementUsage: () => Promise<void>;
-  deductDiamonds: (amount: number) => Promise<boolean>;
-  logout: () => Promise<void>;
-} | undefined>(undefined);
+const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
 
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -32,6 +24,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [usageCount, setUsageCount] = useState(0);
   const [diamonds, setDiamonds] = useState(0);
   const [role, setRole] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -49,6 +42,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         setUsageCount(0);
         setDiamonds(0);
         setRole(null);
+        setIsPremium(false);
       }
       setLoading(false);
     });
@@ -68,10 +62,12 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           usageCount: 0,
           diamonds: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 999999 : 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
+          isPremium: user.email?.toLowerCase() === 'uploadadd.com@gmail.com',
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         });
         setRole(user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user');
+        setIsPremium(user.email?.toLowerCase() === 'uploadadd.com@gmail.com');
       } else {
         const data = userSnap.data();
         setUsageCount(data.usageCount || 0);
@@ -79,6 +75,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         // Force admin role for the specific owner email even if DB hasn't synced it yet
         const effectiveRole = user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : (data.role || 'user');
         setRole(effectiveRole);
+        setIsPremium(data.isPremium || effectiveRole === 'admin');
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
@@ -123,7 +120,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, usageCount, diamonds, role, incrementUsage, deductDiamonds, logout }}>
+    <FirebaseContext.Provider value={{ user, loading, usageCount, diamonds, role, isPremium, incrementUsage, deductDiamonds, logout }}>
       {children}
     </FirebaseContext.Provider>
   );
