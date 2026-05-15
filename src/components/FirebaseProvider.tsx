@@ -66,7 +66,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       } else {
         const data = userSnap.data();
         setUsageCount(data.usageCount || 0);
-        setRole(data.role || 'user');
+        // Force admin role for the specific owner email even if DB hasn't synced it yet
+        const effectiveRole = user.email === 'uploadadd.com@gmail.com' ? 'admin' : (data.role || 'user');
+        setRole(effectiveRole);
         setIsPremium(data.isPremium || false);
       }
     } catch (error) {

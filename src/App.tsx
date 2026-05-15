@@ -382,7 +382,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
           {role === 'admin' && (
             <button 
               onClick={onAdminClick}
-              className="text-[8px] font-tech font-black text-emerald-500 uppercase tracking-tighter hover:text-emerald-400 transition-colors"
+              className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-tech font-black text-emerald-400 uppercase tracking-tighter hover:bg-emerald-500/20 hover:text-emerald-300 transition-all active:scale-95"
             >
               ADMIN-PNL
             </button>
