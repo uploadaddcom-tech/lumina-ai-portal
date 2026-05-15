@@ -36,7 +36,7 @@ import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
 import { useFirebase } from "./components/FirebaseProvider";
 import { loginWithGoogle, logout } from "./lib/firebase";
-import { LogOut, LogIn, Settings, Lock } from "lucide-react";
+import { Gem, LogOut, LogIn, Settings, Lock, ArrowRight } from "lucide-react";
 import { AdminDashboard } from "./components/AdminDashboard";
 
 // Internal API Helpers to replace GeminiService.ts
@@ -130,7 +130,7 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-red-500/20 hover:border-red-500/50",
     shadowColor: "shadow-red-500/20",
-    badge: "PRO"
+    badge: "10 DIAMS"
   },
   {
     id: "video-recapper",
@@ -162,7 +162,7 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
     shadowColor: "shadow-cyan-500/20",
-    badge: "PRO"
+    badge: "10 DIAMS"
   },
   {
     id: "auto-recap",
@@ -344,7 +344,7 @@ function ApiKeySelector({ config, setConfig, lang }: {
 }
 
 function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
-  const { user, logout, usageCount, role } = useFirebase();
+  const { user, logout, usageCount, role, diamonds } = useFirebase();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async () => {
@@ -388,6 +388,10 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
               ADMIN-PNL
             </button>
           )}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[8px] font-tech font-black uppercase tracking-tighter shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+            <Gem size={10} className="text-cyan-400" />
+            <span>{diamonds} DIAMONDS</span>
+          </div>
           <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">Usage: {usageCount} units</span>
         </div>
       </div>
@@ -897,8 +901,8 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   );
 }
 
-function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
-  const { user, incrementUsage } = useFirebase();
+function RecapMasterView({ onBack, lang, setLang, onAdminClick, setShowPremiumModal }: ViewProps & { setShowPremiumModal: (show: boolean) => void }) {
+  const { user, incrementUsage, deductDiamonds, diamonds } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -989,6 +993,13 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const handleGenerate = async () => {
     if (!file) return;
     
+    // Check for diamonds
+    const COST = 10;
+    if (diamonds < COST) {
+      setShowPremiumModal(true);
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
     setResult(null);
@@ -999,6 +1010,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     try {
       const base64 = await fileToBase64(file);
       const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
+      
+      const success = await deductDiamonds(COST);
+      if (!success) {
+        setShowPremiumModal(true);
+        setIsGenerating(false);
+        return;
+      }
+      
       await incrementUsage();
       setResult(recapValue || "");
 
@@ -2282,26 +2301,26 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className="bg-[#0a0a0a] border border-amber-500/40 rounded-[2.5rem] p-8 md:p-10 max-w-sm w-full shadow-[0_0_60px_rgba(245,158,11,0.2)] relative overflow-hidden group font-sans"
+        className="bg-[#0a0a0a] border border-cyan-500/40 rounded-[2.5rem] p-8 md:p-10 max-w-sm w-full shadow-[0_0_60px_rgba(6,182,212,0.2)] relative overflow-hidden group font-sans"
       >
         {/* Animated Background Glow */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/20 blur-[80px] rounded-full animate-pulse" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-600/10 blur-[80px] rounded-full animate-pulse delay-700" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-cyan-500/20 blur-[80px] rounded-full animate-pulse" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-600/10 blur-[80px] rounded-full animate-pulse delay-700" />
         
         <div className="relative z-10 text-center space-y-6">
-          <div className="inline-flex p-4 rounded-[1.5rem] bg-linear-to-br from-amber-400 to-amber-600 text-black shadow-2xl shadow-amber-500/40 mb-1 rotate-12 group-hover:rotate-0 transition-transform duration-500">
-            <Lock size={32} strokeWidth={2.5} />
+          <div className="inline-flex p-4 rounded-[1.5rem] bg-linear-to-br from-cyan-400 to-blue-600 text-white shadow-2xl shadow-cyan-500/40 mb-1 rotate-12 group-hover:rotate-0 transition-transform duration-500">
+            <Gem size={32} strokeWidth={2.5} />
           </div>
           
           <div className="space-y-4">
             <h2 className="text-2xl font-black tracking-tighter text-white uppercase italic leading-tight">
-              {isMM ? "PREMIUM များအတွက်သာ" : "PREMIUM ONLY"}
+              {isMM ? "DIAMOND မလုံလောက်ပါ" : "INSUFFICIENT DIAMONDS"}
             </h2>
             <p className="text-zinc-400 font-medium text-sm leading-relaxed px-2">
               {isMM 
-                ? "ဤကိရိယာသည် Premium များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Premium အဖြစ်မြှင့်တင်ရန် " 
-                : "This tool is exclusive to Premium members. To unlock this feature, please contact "}
-              <span className="text-amber-400 font-black">Telegram @akhptn</span>
+                ? "ဤကိရိယာကိုအသုံးပြုရန် Diamond လုံလောက်မှုမရှိပါ။ ကျေးဇူးပြု၍ Diamond ဝယ်ယူရန် " 
+                : "You don't have enough diamonds to use this tool. To purchase more diamonds, please contact "}
+              <span className="text-cyan-400 font-black">Telegram @akhptn</span>
               {isMM ? " ကိုဆက်သွယ်ပါ။" : " via Telegram."}
             </p>
           </div>
@@ -2313,7 +2332,7 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
               href="https://t.me/akhptn" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="w-full py-4 rounded-xl bg-linear-to-r from-amber-500 to-amber-600 text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-amber-500/30 flex items-center justify-center gap-2 transition-all"
+              className="w-full py-4 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-white font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 flex items-center justify-center gap-2 transition-all"
             >
               Contact @akhptn
               <ArrowRight size={16} />
@@ -2332,7 +2351,7 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
 }
 
 export default function App() {
-  const { user, loading, usageCount, role, isPremium } = useFirebase();
+  const { user, loading, usageCount, role, diamonds } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -2353,7 +2372,7 @@ export default function App() {
     if (user && intendedToolId && !loading) {
       // Check for premium tools
       const premiumTools = ["recap-master", "subtitle-editor"];
-      if (premiumTools.includes(intendedToolId) && !isPremium && role !== 'admin') {
+      if (premiumTools.includes(intendedToolId) && diamonds < 10 && role !== 'admin') {
         setShowPremiumModal(true);
         setIntendedToolId(null);
         setShowLoginPrompt(false);
@@ -2363,7 +2382,7 @@ export default function App() {
       setIntendedToolId(null);
       setShowLoginPrompt(false);
     }
-  }, [user, intendedToolId, loading, isPremium, role]);
+  }, [user, intendedToolId, loading, role, diamonds]);
 
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
@@ -2377,7 +2396,7 @@ export default function App() {
     
     // Check for premium tools
     const premiumTools = ["recap-master", "subtitle-editor"];
-    if (premiumTools.includes(toolId) && !isPremium && role !== 'admin') {
+    if (premiumTools.includes(toolId) && diamonds < 10 && role !== 'admin') {
       setShowPremiumModal(true);
       return;
     }
@@ -2431,6 +2450,7 @@ export default function App() {
               lang={lang}
               setLang={setLang}
               onAdminClick={() => setShowAdmin(true)}
+              setShowPremiumModal={setShowPremiumModal}
             />
           </motion.div>
         ) : activeToolId === "video-recapper" ? (
@@ -2552,8 +2572,8 @@ export default function App() {
                       
                       {tool.badge && (
                         <div className="absolute top-0 right-0 p-4 z-20">
-                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
-                            {tool.badge === 'PRO' && !isPremium && role !== 'admin' && <Lock size={10} className="text-white/80" />}
+                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge?.includes('DIAMS') ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                            {tool.badge?.includes('DIAMS') && diamonds < 10 && role !== 'admin' && <Lock size={10} className="text-white/80" />}
                             {tool.badge}
                           </div>
                         </div>
@@ -2564,7 +2584,7 @@ export default function App() {
                       </div>
                       
                       <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                        {tool.badge === 'PRO' && !isPremium && role !== 'admin' ? (
+                        {tool.badge?.includes('DIAMS') && diamonds < 10 && role !== 'admin' ? (
                           <div className="relative">
                             <tool.icon className={`w-6 h-6 ${tool.iconColor} opacity-20`} />
                             <Lock className="absolute inset-0 m-auto w-4 h-4 text-white" />

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, updateDoc, doc, limit, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
-import { Search, UserCheck, UserMinus, Shield, Mail, Calendar, Loader2, ArrowLeft } from 'lucide-react';
+import { Search, UserCheck, UserMinus, Shield, Mail, Calendar, Loader2, ArrowLeft, Gem, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserProfile {
@@ -11,10 +11,10 @@ interface UserProfile {
   displayName: string;
   photoURL: string;
   role: string;
-  isPremium: boolean;
   createdAt: any;
   lastUsed: any;
   usageCount: number;
+  diamonds: number;
 }
 
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
@@ -82,20 +82,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const togglePremium = async (user: UserProfile) => {
-    const userRef = doc(db, 'users', user.uid);
-    const newStatus = !user.isPremium;
-    try {
-      await updateDoc(userRef, {
-        isPremium: newStatus,
-        lastUsed: serverTimestamp() // Admin action updates record
-      });
-      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, isPremium: newStatus } : u));
-    } catch (err: any) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
-    }
-  };
-
   const toggleRole = async (user: UserProfile) => {
     const userRef = doc(db, 'users', user.uid);
     const newRole = user.role === 'admin' ? 'user' : 'admin';
@@ -105,6 +91,19 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         lastUsed: serverTimestamp()
       });
       setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, role: newRole } : u));
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  const updateDiamonds = async (user: UserProfile, amount: number) => {
+    const userRef = doc(db, 'users', user.uid);
+    try {
+      await updateDoc(userRef, {
+        diamonds: amount,
+        lastUsed: serverTimestamp()
+      });
+      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, diamonds: amount } : u));
     } catch (err: any) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
@@ -170,6 +169,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               <thead>
                 <tr className="border-b border-zinc-800/50">
                   <th className="px-8 py-6 text-zinc-500 text-xs font-bold uppercase tracking-widest">User</th>
+                  <th className="px-8 py-6 text-zinc-500 text-xs font-bold uppercase tracking-widest">Diamonds</th>
                   <th className="px-8 py-6 text-zinc-500 text-xs font-bold uppercase tracking-widest">Role & Tier</th>
                   <th className="px-8 py-6 text-zinc-500 text-xs font-bold uppercase tracking-widest">Activity</th>
                   <th className="px-8 py-6 text-zinc-500 text-xs font-bold uppercase tracking-widest text-right">Actions</th>
@@ -179,7 +179,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={4} className="px-8 py-10">
+                      <td colSpan={5} className="px-8 py-10">
                         <div className="h-12 bg-zinc-800/50 rounded-2xl w-full" />
                       </td>
                     </tr>
@@ -191,7 +191,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       key={user.uid} 
                       className="hover:bg-white/[0.02] transition-colors"
                     >
-                      <td className="px-8 py-6">
+                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
                           {user.photoURL ? (
                             <img src={user.photoURL} className="w-12 h-12 rounded-2xl object-cover ring-2 ring-zinc-800" referrerPolicy="no-referrer" />
@@ -210,16 +210,37 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         </div>
                       </td>
                       <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 px-3 py-2 rounded-xl">
+                            <Gem size={14} className="text-cyan-400" />
+                            <span className="font-mono font-bold text-cyan-400">{user.diamonds || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => updateDiamonds(user, (user.diamonds || 0) + 100)}
+                              className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all active:scale-95 border border-zinc-700/50"
+                              title="Add 100 Diamonds"
+                            >
+                              <PlusCircle size={14} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const val = prompt("Enter diamond count:", (user.diamonds || 0).toString());
+                                if (val !== null) updateDiamonds(user, parseInt(val) || 0);
+                              }}
+                              className="px-2 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white text-[10px] font-bold transition-all border border-zinc-700/50"
+                            >
+                              SET
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
                         <div className="flex flex-wrap gap-2">
                           <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${
                             user.role === 'admin' ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-zinc-800/50 border-zinc-700/50 text-zinc-400'
                           }`}>
                             {user.role}
-                          </span>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${
-                            user.isPremium ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-zinc-800/50 border-zinc-700/50 text-zinc-400'
-                          }`}>
-                            {user.isPremium ? 'Premium' : 'Free'}
                           </span>
                         </div>
                       </td>
@@ -236,17 +257,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center justify-end gap-3">
-                          <button
-                            onClick={() => togglePremium(user)}
-                            className={`p-3 rounded-xl border transition-all ${
-                              user.isPremium 
-                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20' 
-                                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                            }`}
-                            title={user.isPremium ? 'Revoke Premium' : 'Grant Premium'}
-                          >
-                            <UserCheck size={18} />
-                          </button>
                           <button
                             onClick={() => toggleRole(user)}
                             className={`p-3 rounded-xl border transition-all ${
@@ -279,7 +289,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             { label: 'Total Users', value: users.length, icon: UserMinus },
-            { label: 'Premium Accounts', value: users.filter(u => u.isPremium).length, icon: UserCheck },
+            { label: 'Total Diamonds', value: users.reduce((acc, u) => acc + (u.diamonds || 0), 0), icon: Gem },
             { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: Shield },
           ].map((stat, i) => (
             <div key={i} className="p-8 bg-zinc-900/30 border border-zinc-800/50 rounded-3xl">
