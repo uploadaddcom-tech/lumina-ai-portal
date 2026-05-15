@@ -379,10 +379,10 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
       <div className="hidden md:flex flex-col items-end text-right">
         <span className="text-[9px] font-black text-text-primary dark:text-white tracking-widest uppercase">{user.displayName || 'Neural User'}</span>
         <div className="flex items-center gap-2">
-          {role === 'admin' && (
+          {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
             <button 
               onClick={onAdminClick}
-              className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-tech font-black text-emerald-400 uppercase tracking-tighter hover:bg-emerald-500/20 hover:text-emerald-300 transition-all active:scale-95"
+              className="px-2 py-0.5 rounded-md bg-emerald-500 text-[8px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
             >
               ADMIN-PNL
             </button>
