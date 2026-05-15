@@ -36,7 +36,8 @@ import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
 import { useFirebase } from "./components/FirebaseProvider";
 import { loginWithGoogle, logout } from "./lib/firebase";
-import { LogOut, LogIn } from "lucide-react";
+import { LogOut, LogIn, Settings } from "lucide-react";
+import { AdminDashboard } from "./components/AdminDashboard";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -267,6 +268,7 @@ interface ViewProps {
   onBack: () => void;
   lang: Language;
   setLang: (l: Language) => void;
+  onAdminClick?: () => void;
 }
 
 interface ApiKeyConfig {
@@ -340,8 +342,8 @@ function ApiKeySelector({ config, setConfig, lang }: {
   );
 }
 
-function UserHeader() {
-  const { user, logout, usageCount } = useFirebase();
+function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
+  const { user, logout, usageCount, role } = useFirebase();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async () => {
@@ -374,9 +376,19 @@ function UserHeader() {
 
   return (
     <div className="flex items-center gap-4">
-      <div className="hidden md:flex flex-col items-end">
+      <div className="hidden md:flex flex-col items-end text-right">
         <span className="text-[9px] font-black text-text-primary dark:text-white tracking-widest uppercase">{user.displayName || 'Neural User'}</span>
-        <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">Usage: {usageCount} units</span>
+        <div className="flex items-center gap-2">
+          {role === 'admin' && (
+            <button 
+              onClick={onAdminClick}
+              className="text-[8px] font-tech font-black text-emerald-500 uppercase tracking-tighter hover:text-emerald-400 transition-colors"
+            >
+              ADMIN-PNL
+            </button>
+          )}
+          <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">Usage: {usageCount} units</span>
+        </div>
       </div>
       <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
         <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
@@ -390,7 +402,7 @@ function UserHeader() {
   );
 }
 
-function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
+function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage } = useFirebase();
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Kore");
@@ -456,7 +468,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <UserHeader />
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -572,7 +584,7 @@ function VoiceoverView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
-function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
+function VideoRecapperView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -640,7 +652,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
             </div>
           </div>
           <div className="flex items-center">
-            <UserHeader />
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -712,7 +724,7 @@ function VideoRecapperView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
-function TranscribeView({ onBack, lang, setLang }: ViewProps) {
+function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -780,7 +792,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center">
-            <UserHeader />
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -884,7 +896,7 @@ function TranscribeView({ onBack, lang, setLang }: ViewProps) {
   );
 }
 
-function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
+function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
@@ -1153,7 +1165,7 @@ function RecapMasterView({ onBack, lang, setLang }: ViewProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <UserHeader />
+            <UserHeader onAdminClick={onAdminClick} />
           </div>
         </div>
       </header>
@@ -2259,6 +2271,7 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
 export default function App() {
   const { user, loading, usageCount } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
@@ -2309,7 +2322,17 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {activeToolId === "recap-master" ? (
+        {showAdmin ? (
+          <motion.div
+            key="admin-dashboard"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.4 }}
+          >
+            <AdminDashboard onBack={() => setShowAdmin(false)} />
+          </motion.div>
+        ) : activeToolId === "recap-master" ? (
           <motion.div
             key="recap-master"
             initial={{ opacity: 0, x: 20 }}
@@ -2321,6 +2344,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : activeToolId === "video-recapper" ? (
@@ -2335,6 +2359,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : activeToolId === "ai-voiceover" ? (
@@ -2349,6 +2374,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : activeToolId === "video-transcribe" ? (
@@ -2363,6 +2389,7 @@ export default function App() {
               onBack={() => setActiveToolId(null)} 
               lang={lang}
               setLang={setLang}
+              onAdminClick={() => setShowAdmin(true)}
             />
           </motion.div>
         ) : (
@@ -2408,7 +2435,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-8">
-                  <UserHeader />
+                  <UserHeader onAdminClick={() => setShowAdmin(true)} />
                 </div>
               </div>
             </header>

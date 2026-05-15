@@ -2,46 +2,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { auth, db, logout } from '../lib/firebase';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface FirebaseContextType {
   user: User | null;
   loading: boolean;
   usageCount: number;
+  role: string | null;
+  isPremium: boolean;
   incrementUsage: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -52,6 +20,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [usageCount, setUsageCount] = useState(0);
+  const [role, setRole] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -67,6 +37,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUsageCount(0);
+        setRole(null);
+        setIsPremium(false);
       }
       setLoading(false);
     });
@@ -84,11 +56,18 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           displayName: user.displayName,
           photoURL: user.photoURL,
           usageCount: 0,
+          role: user.email === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
+          isPremium: false,
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         });
+        setRole(user.email === 'uploadadd.com@gmail.com' ? 'admin' : 'user');
+        setIsPremium(false);
       } else {
-        setUsageCount(userSnap.data().usageCount || 0);
+        const data = userSnap.data();
+        setUsageCount(data.usageCount || 0);
+        setRole(data.role || 'user');
+        setIsPremium(data.isPremium || false);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
@@ -110,7 +89,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, loading, usageCount, incrementUsage, logout }}>
+    <FirebaseContext.Provider value={{ user, loading, usageCount, role, isPremium, incrementUsage, logout }}>
       {children}
     </FirebaseContext.Provider>
   );

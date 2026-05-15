@@ -10,9 +10,11 @@
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
         "usageCount": { "type": "integer" },
-        "lastUsed": { "type": "string", "format": "date-time" }
+        "lastUsed": { "type": "string", "format": "date-time" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "isPremium": { "type": "boolean" }
       },
-      "required": ["uid", "email"]
+      "required": ["uid", "email", "role"]
     }
   },
   "firestore": {

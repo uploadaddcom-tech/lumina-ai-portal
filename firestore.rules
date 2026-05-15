@@ -15,6 +15,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email == "uploadadd.com@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -28,42 +34,63 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.uid is string && data.uid == request.auth.uid &&
+      return data.uid is string && 
              data.email is string && data.email.size() <= 256 &&
              data.displayName is string && data.displayName.size() <= 128 &&
              (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
-             data.usageCount is int && data.usageCount >= 0;
+             data.usageCount is int && data.usageCount >= 0 &&
+             data.role is string && data.role in ['user', 'admin'] &&
+             (data.isPremium == null || data.isPremium is bool);
     }
 
     // Users Collection
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       
       allow create: if isOwner(userId) && 
                       isValidId(userId) && 
                       isValidUser(incoming()) &&
+                      incoming().uid == request.auth.uid &&
+                      incoming().role == 'user' &&
                       incoming().usageCount == 0 &&
+                      (incoming().isPremium == false || incoming().isPremium == null) &&
                       incoming().createdAt == request.time &&
                       incoming().lastUsed == request.time;
       
-      allow update: if isOwner(userId) &&
+      allow update: if (isOwner(userId) || isAdmin()) &&
                       isValidUser(incoming()) &&
-                      // Action: Usage Increment
                       (
-                        incoming().diff(existing()).affectedKeys().hasOnly(['usageCount', 'lastUsed']) &&
-                        incoming().usageCount == existing().usageCount + 1 &&
-                        incoming().lastUsed == request.time &&
-                        incoming().uid == existing().uid &&
-                        incoming().email == existing().email
-                      ) ||
-                      // Action: Profile Sync (Optional if app updates name/photo)
-                      (
-                        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastUsed']) &&
-                        incoming().uid == existing().uid &&
-                        incoming().email == existing().email
+                        // Action: Usage Increment (Owner only)
+                        (
+                          isOwner(userId) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['usageCount', 'lastUsed']) &&
+                          incoming().usageCount == existing().usageCount + 1 &&
+                          incoming().lastUsed == request.time &&
+                          incoming().uid == existing().uid &&
+                          incoming().email == existing().email &&
+                          incoming().role == existing().role &&
+                          incoming().isPremium == existing().isPremium
+                        ) ||
+                        // Action: Profile Sync (Owner only)
+                        (
+                          isOwner(userId) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastUsed']) &&
+                          incoming().uid == existing().uid &&
+                          incoming().email == existing().email &&
+                          incoming().role == existing().role &&
+                          incoming().isPremium == existing().isPremium
+                        ) ||
+                        // Action: Admin upgrade
+                        (
+                          isAdmin() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['isPremium', 'role', 'lastUsed']) &&
+                          incoming().uid == existing().uid &&
+                          incoming().email == existing().email
+                        )
                       );
       
-      allow delete: if false; // System doesn't allow user deletion from client
+      allow delete: if isAdmin();
     }
   }
 }
