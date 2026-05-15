@@ -8,11 +8,9 @@ interface FirebaseContextType {
   user: User | null;
   loading: boolean;
   usageCount: number;
-  diamonds: number;
   role: string | null;
   isPremium: boolean;
   incrementUsage: () => Promise<void>;
-  deductDiamonds: (amount: number) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -22,7 +20,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [usageCount, setUsageCount] = useState(0);
-  const [diamonds, setDiamonds] = useState(0);
   const [role, setRole] = useState<string | null>(null);
   const [isPremium, setIsPremium] = useState(false);
 
@@ -40,7 +37,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUsageCount(0);
-        setDiamonds(0);
         setRole(null);
         setIsPremium(false);
       }
@@ -60,7 +56,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           displayName: user.displayName,
           photoURL: user.photoURL,
           usageCount: 0,
-          diamonds: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 999999 : 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
           isPremium: user.email?.toLowerCase() === 'uploadadd.com@gmail.com',
           createdAt: serverTimestamp(),
@@ -71,7 +66,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       } else {
         const data = userSnap.data();
         setUsageCount(data.usageCount || 0);
-        setDiamonds(data.diamonds || 0);
         // Force admin role for the specific owner email even if DB hasn't synced it yet
         const effectiveRole = user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : (data.role || 'user');
         setRole(effectiveRole);
@@ -96,31 +90,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const deductDiamonds = async (amount: number) => {
-    if (!user) return false;
-    if (role === 'admin') return true;
-
-    const userRef = doc(db, 'users', user.uid);
-    try {
-      const snap = await getDoc(userRef);
-      const currentDiamonds = snap.data()?.diamonds || 0;
-      
-      if (currentDiamonds < amount) return false;
-
-      await updateDoc(userRef, {
-        diamonds: increment(-amount),
-        lastUsed: serverTimestamp()
-      });
-      setDiamonds(prev => prev - amount);
-      return true;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
-      return false;
-    }
-  };
-
   return (
-    <FirebaseContext.Provider value={{ user, loading, usageCount, diamonds, role, isPremium, incrementUsage, deductDiamonds, logout }}>
+    <FirebaseContext.Provider value={{ user, loading, usageCount, role, isPremium, incrementUsage, logout }}>
       {children}
     </FirebaseContext.Provider>
   );

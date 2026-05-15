@@ -10,7 +10,6 @@
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
         "usageCount": { "type": "integer" },
-        "diamonds": { "type": "integer", "description": "Credits for premium tools." },
         "lastUsed": { "type": "string", "format": "date-time" },
         "role": { "type": "string", "enum": ["user", "admin"] },
         "isPremium": { "type": "boolean" }
