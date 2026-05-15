@@ -344,7 +344,7 @@ function ApiKeySelector({ config, setConfig, lang }: {
 }
 
 function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
-  const { user, logout, usageCount, role } = useFirebase();
+  const { user, logout, usageCount, role, diamonds } = useFirebase();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async () => {
@@ -388,7 +388,10 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
               ADMIN-PNL
             </button>
           )}
-          <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">Usage: {usageCount} units</span>
+          <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+            <Sparkles className="w-2 h-2 text-blue-400" />
+            <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">{diamonds} Diamonds</span>
+          </div>
         </div>
       </div>
       <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
@@ -897,8 +900,59 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   );
 }
 
+function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClose: () => void, lang: Language }) {
+  if (!isOpen) return null;
+  return (
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+      >
+        <motion.div 
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.9, y: 20 }}
+          className="bg-[#0f172a] border border-blue-500/30 rounded-[32px] p-8 max-w-sm w-full text-center space-y-6 shadow-[0_0_50px_rgba(59,130,246,0.2)]"
+        >
+          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20">
+            <Sparkles className="w-10 h-10 text-blue-400 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+              {lang === "EN" ? "Diamonds Required" : "Diamond လိုအပ်နေပါသည်"}
+            </h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
+              {lang === "EN" 
+                ? "You need at least 10 diamonds to generate a recap. Please contact us to buy more." 
+                : "Recap ထုတ်လုပ်ရန် Diamond ၁၀ ခု လိုအပ်ပါသည်။ Diamond ထပ်ဝယ်ရန် ကျွန်ုပ်တို့ကို ဆက်သွယ်ပါ။"}
+            </p>
+          </div>
+          <div className="space-y-3">
+            <a 
+              href="https://m.me/uploadadd" 
+              target="_blank" 
+              rel="noreferrer"
+              className="flex items-center justify-center gap-3 w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-500/20"
+            >
+              Contact Admin
+            </a>
+            <button 
+              onClick={onClose}
+              className="w-full h-12 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
-  const { user, incrementUsage } = useFirebase();
+  const { user, incrementUsage, deductDiamonds, diamonds } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -906,6 +960,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
 
   // Voiceover Integration
   const [isVoiceoverGenerating, setIsVoiceoverGenerating] = useState(false);
@@ -988,6 +1043,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   const handleGenerate = async () => {
     if (!file) return;
+
+    if (diamonds < 10) {
+      setShowDiamondModal(true);
+      return;
+    }
     
     setIsGenerating(true);
     setError(null);
@@ -997,6 +1057,13 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
 
     try {
+      const success = await deductDiamonds(10);
+      if (!success) {
+        setShowDiamondModal(true);
+        setIsGenerating(false);
+        return;
+      }
+
       const base64 = await fileToBase64(file);
       const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
       await incrementUsage();
@@ -1151,6 +1218,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   return (
     <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
+      <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} />
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -2332,10 +2400,9 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
 }
 
 export default function App() {
-  const { user, loading, usageCount, role, isPremium } = useFirebase();
+  const { user, loading, usageCount, role, diamonds } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
@@ -2351,19 +2418,11 @@ export default function App() {
 
   useEffect(() => {
     if (user && intendedToolId && !loading) {
-      // Check for premium tools
-      const premiumTools = ["recap-master", "subtitle-editor"];
-      if (premiumTools.includes(intendedToolId) && !isPremium && role !== 'admin') {
-        setShowPremiumModal(true);
-        setIntendedToolId(null);
-        setShowLoginPrompt(false);
-        return;
-      }
       setActiveToolId(intendedToolId);
       setIntendedToolId(null);
       setShowLoginPrompt(false);
     }
-  }, [user, intendedToolId, loading, isPremium, role]);
+  }, [user, intendedToolId, loading, role]);
 
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
@@ -2375,13 +2434,6 @@ export default function App() {
       return;
     }
     
-    // Check for premium tools
-    const premiumTools = ["recap-master", "subtitle-editor"];
-    if (premiumTools.includes(toolId) && !isPremium && role !== 'admin') {
-      setShowPremiumModal(true);
-      return;
-    }
-
     setActiveToolId(toolId);
   };
 
@@ -2398,12 +2450,6 @@ export default function App() {
       <AnimatePresence>
         {showLoginPrompt && !user && (
           <LoginView lang={lang} onCancel={() => setShowLoginPrompt(false)} />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showPremiumModal && (
-          <PremiumModal lang={lang} onClose={() => setShowPremiumModal(false)} />
         )}
       </AnimatePresence>
 
@@ -2553,7 +2599,6 @@ export default function App() {
                       {tool.badge && (
                         <div className="absolute top-0 right-0 p-4 z-20">
                           <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
-                            {tool.badge === 'PRO' && !isPremium && role !== 'admin' && <Lock size={10} className="text-white/80" />}
                             {tool.badge}
                           </div>
                         </div>
@@ -2564,14 +2609,7 @@ export default function App() {
                       </div>
                       
                       <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                        {tool.badge === 'PRO' && !isPremium && role !== 'admin' ? (
-                          <div className="relative">
-                            <tool.icon className={`w-6 h-6 ${tool.iconColor} opacity-20`} />
-                            <Lock className="absolute inset-0 m-auto w-4 h-4 text-white" />
-                          </div>
-                        ) : (
-                          <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
-                        )}
+                        <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
                       </div>
 
                       <div className="relative z-10">

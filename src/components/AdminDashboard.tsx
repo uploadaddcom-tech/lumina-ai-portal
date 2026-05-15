@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, updateDoc, doc, limit, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
-import { Search, UserCheck, UserMinus, Shield, Mail, Calendar, Loader2, ArrowLeft } from 'lucide-react';
+import { Search, UserCheck, UserMinus, Shield, Mail, Calendar, Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserProfile {
@@ -11,7 +11,7 @@ interface UserProfile {
   displayName: string;
   photoURL: string;
   role: string;
-  isPremium: boolean;
+  diamonds: number;
   createdAt: any;
   lastUsed: any;
   usageCount: number;
@@ -82,15 +82,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const togglePremium = async (user: UserProfile) => {
+  const updateDiamonds = async (user: UserProfile, amount: number) => {
     const userRef = doc(db, 'users', user.uid);
-    const newStatus = !user.isPremium;
     try {
       await updateDoc(userRef, {
-        isPremium: newStatus,
-        lastUsed: serverTimestamp() // Admin action updates record
+        diamonds: amount,
+        lastUsed: serverTimestamp()
       });
-      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, isPremium: newStatus } : u));
+      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, diamonds: amount } : u));
     } catch (err: any) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
@@ -216,10 +215,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           }`}>
                             {user.role}
                           </span>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${
-                            user.isPremium ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-zinc-800/50 border-zinc-700/50 text-zinc-400'
-                          }`}>
-                            {user.isPremium ? 'Premium' : 'Free'}
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border bg-blue-500/10 border-blue-500/30 text-blue-400">
+                             <Sparkles size={10} /> {user.diamonds || 0}
                           </span>
                         </div>
                       </td>
@@ -236,17 +233,27 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center justify-end gap-3">
-                          <button
-                            onClick={() => togglePremium(user)}
-                            className={`p-3 rounded-xl border transition-all ${
-                              user.isPremium 
-                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20' 
-                                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                            }`}
-                            title={user.isPremium ? 'Revoke Premium' : 'Grant Premium'}
-                          >
-                            <UserCheck size={18} />
-                          </button>
+                          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1 focus-within:border-blue-500/50 transition-colors">
+                            <input 
+                              type="number"
+                              className="w-16 bg-transparent outline-none text-xs font-bold text-blue-400"
+                              placeholder="Dms"
+                              defaultValue={user.diamonds}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val) && val !== user.diamonds) {
+                                  updateDiamonds(user, val);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseInt((e.target as HTMLInputElement).value);
+                                  if (!isNaN(val)) updateDiamonds(user, val);
+                                }
+                              }}
+                            />
+                            <Sparkles size={14} className="text-blue-500/50" />
+                          </div>
                           <button
                             onClick={() => toggleRole(user)}
                             className={`p-3 rounded-xl border transition-all ${
@@ -276,10 +283,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Footer Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { label: 'Total Users', value: users.length, icon: UserMinus },
-            { label: 'Premium Accounts', value: users.filter(u => u.isPremium).length, icon: UserCheck },
             { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: Shield },
           ].map((stat, i) => (
             <div key={i} className="p-8 bg-zinc-900/30 border border-zinc-800/50 rounded-3xl">

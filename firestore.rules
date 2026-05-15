@@ -40,7 +40,7 @@ service cloud.firestore {
              (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
              data.usageCount is int && data.usageCount >= 0 &&
              data.role is string && data.role in ['user', 'admin'] &&
-             (data.isPremium == null || data.isPremium is bool);
+             data.diamonds is int && data.diamonds >= 0;
     }
 
     // Users Collection
@@ -54,7 +54,7 @@ service cloud.firestore {
                       incoming().uid == request.auth.uid &&
                       incoming().role == 'user' &&
                       incoming().usageCount == 0 &&
-                      (incoming().isPremium == false || incoming().isPremium == null) &&
+                      incoming().diamonds == 50 &&
                       incoming().createdAt == request.time &&
                       incoming().lastUsed == request.time;
       
@@ -70,7 +70,18 @@ service cloud.firestore {
                           incoming().uid == existing().uid &&
                           incoming().email == existing().email &&
                           incoming().role == existing().role &&
-                          incoming().isPremium == existing().isPremium
+                          incoming().diamonds == existing().diamonds
+                        ) ||
+                        // Action: Diamond Deduction (Owner only)
+                        (
+                          isOwner(userId) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['diamonds', 'lastUsed']) &&
+                          incoming().diamonds == existing().diamonds - 10 &&
+                          incoming().lastUsed == request.time &&
+                          incoming().uid == existing().uid &&
+                          incoming().email == existing().email &&
+                          incoming().role == existing().role &&
+                          incoming().usageCount == existing().usageCount
                         ) ||
                         // Action: Profile Sync (Owner only)
                         (
@@ -79,12 +90,12 @@ service cloud.firestore {
                           incoming().uid == existing().uid &&
                           incoming().email == existing().email &&
                           incoming().role == existing().role &&
-                          incoming().isPremium == existing().isPremium
+                          incoming().diamonds == existing().diamonds
                         ) ||
                         // Action: Admin upgrade
                         (
                           isAdmin() &&
-                          incoming().diff(existing()).affectedKeys().hasOnly(['isPremium', 'role', 'lastUsed']) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['diamonds', 'role', 'lastUsed']) &&
                           incoming().uid == existing().uid &&
                           incoming().email == existing().email
                         )
