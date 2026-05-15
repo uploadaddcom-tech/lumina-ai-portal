@@ -56,12 +56,12 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           photoURL: user.photoURL,
           usageCount: 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
-          diamonds: 50, // Initial diamonds for new users
+          diamonds: 10, // Initial diamonds for new users
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         });
         setRole(user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user');
-        setDiamonds(50);
+        setDiamonds(10);
       } else {
         const data = userSnap.data();
         setUsageCount(data.usageCount || 0);

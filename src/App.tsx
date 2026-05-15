@@ -388,7 +388,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
           )}
           <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 md:px-3 py-1 rounded-lg border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
             <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" />
-            <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 uppercase tracking-tighter">{diamonds} Diamonds</span>
+            <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 tracking-tighter">{diamonds} Diamond</span>
           </div>
         </div>
       </div>
@@ -918,10 +918,10 @@ function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClos
             <Sparkles className="w-10 h-10 text-blue-400 animate-pulse" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
-              {lang === "EN" ? "Diamonds Required" : "Diamond လိုအပ်နေပါသည်"}
+            <h2 className="text-2xl font-black text-white italic tracking-tighter">
+              {lang === "EN" ? "Diamond Required" : "Diamond လိုအပ်နေပါသည်"}
             </h2>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
+            <p className="text-slate-400 text-xs font-bold tracking-widest leading-relaxed">
               {lang === "EN" 
                 ? "You need at least 10 diamonds to generate a recap. Please contact us to buy more." 
                 : "Recap ထုတ်လုပ်ရန် Diamond ၁၀ ခု လိုအပ်ပါသည်။ Diamond ထပ်ဝယ်ရန် ကျွန်ုပ်တို့ကို ဆက်သွယ်ပါ။"}
