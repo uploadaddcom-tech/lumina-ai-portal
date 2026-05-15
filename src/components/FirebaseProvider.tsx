@@ -57,19 +57,19 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           photoURL: user.photoURL,
           usageCount: 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
-          isPremium: false,
+          isPremium: user.email?.toLowerCase() === 'uploadadd.com@gmail.com',
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         });
         setRole(user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user');
-        setIsPremium(false);
+        setIsPremium(user.email?.toLowerCase() === 'uploadadd.com@gmail.com');
       } else {
         const data = userSnap.data();
         setUsageCount(data.usageCount || 0);
         // Force admin role for the specific owner email even if DB hasn't synced it yet
         const effectiveRole = user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : (data.role || 'user');
         setRole(effectiveRole);
-        setIsPremium(data.isPremium || false);
+        setIsPremium(data.isPremium || effectiveRole === 'admin');
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
