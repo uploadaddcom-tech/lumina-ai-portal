@@ -375,20 +375,20 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
 
   return (
     <div className="flex items-center gap-4">
-      <div className="hidden md:flex flex-col items-end text-right">
-        <span className="text-[9px] font-black text-text-primary dark:text-white tracking-widest uppercase">{user.displayName || 'Neural User'}</span>
+      <div className="flex flex-col items-end text-right">
+        <span className="hidden md:block text-[10px] font-black text-text-primary dark:text-white tracking-widest uppercase mb-0.5">{user.displayName || 'Neural User'}</span>
         <div className="flex items-center gap-2">
           {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
             <button 
               onClick={onAdminClick}
-              className="px-2 py-0.5 rounded-md bg-emerald-500 text-[8px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
+              className="px-2 py-0.5 rounded-md bg-emerald-500 text-[9px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
             >
               ADMIN-PNL
             </button>
           )}
-          <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
-            <Sparkles className="w-2 h-2 text-blue-400" />
-            <span className="text-[8px] font-tech font-black text-blue-500 uppercase tracking-tighter">{diamonds} Diamonds</span>
+          <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 md:px-3 py-1 rounded-lg border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+            <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" />
+            <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 uppercase tracking-tighter">{diamonds} Diamonds</span>
           </div>
         </div>
       </div>
