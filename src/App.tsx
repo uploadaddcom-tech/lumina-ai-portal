@@ -2350,12 +2350,20 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    if (user && intendedToolId) {
+    if (user && intendedToolId && !loading) {
+      // Check for premium tools
+      const premiumTools = ["recap-master", "subtitle-editor"];
+      if (premiumTools.includes(intendedToolId) && !isPremium && role !== 'admin') {
+        setShowPremiumModal(true);
+        setIntendedToolId(null);
+        setShowLoginPrompt(false);
+        return;
+      }
       setActiveToolId(intendedToolId);
       setIntendedToolId(null);
       setShowLoginPrompt(false);
     }
-  }, [user, intendedToolId]);
+  }, [user, intendedToolId, loading, isPremium, role]);
 
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
