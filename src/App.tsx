@@ -36,7 +36,7 @@ import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
 import { useFirebase } from "./components/FirebaseProvider";
 import { loginWithGoogle, logout } from "./lib/firebase";
-import { LogOut, LogIn, Settings } from "lucide-react";
+import { LogOut, LogIn, Settings, Lock } from "lucide-react";
 import { AdminDashboard } from "./components/AdminDashboard";
 
 // Internal API Helpers to replace GeminiService.ts
@@ -161,7 +161,8 @@ const getTools = (lang: Language) => [
     color: "bg-cyan-500",
     iconColor: "text-white",
     borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
-    shadowColor: "shadow-cyan-500/20"
+    shadowColor: "shadow-cyan-500/20",
+    badge: "PRO"
   },
   {
     id: "auto-recap",
@@ -2269,7 +2270,7 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
 }
 
 export default function App() {
-  const { user, loading, usageCount } = useFirebase();
+  const { user, loading, usageCount, role, isPremium } = useFirebase();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -2302,6 +2303,17 @@ export default function App() {
       setShowLoginPrompt(true);
       return;
     }
+    
+    // Check for premium tools
+    const premiumTools = ["recap-master", "subtitle-editor"];
+    if (premiumTools.includes(toolId) && !isPremium) {
+      const msg = lang === "EN" 
+        ? "This tool is exclusive to Premium members. Please contact support to upgrade." 
+        : "ဤကိရိယာသည် Premium များအတွက်သာ သီးသန့်ဖြစ်ပါသည်။ ကျေးဇူးပြု၍ Premium အဖြစ်မြှင့်တင်ရန် ဆက်သွယ်ပါ။";
+      alert(msg);
+      return;
+    }
+
     setActiveToolId(toolId);
   };
 
@@ -2479,8 +2491,9 @@ export default function App() {
                       <div className="scanline group-hover:block hidden" />
                       
                       {tool.badge && (
-                        <div className="absolute top-0 right-0 p-4">
-                          <div className={`text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-orange-400 to-rose-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                        <div className="absolute top-0 right-0 p-4 z-20">
+                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                            {tool.badge === 'PRO' && !isPremium && role !== 'admin' && <Lock size={10} className="text-white/80" />}
                             {tool.badge}
                           </div>
                         </div>
@@ -2491,7 +2504,14 @@ export default function App() {
                       </div>
                       
                       <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                        <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
+                        {tool.badge === 'PRO' && !isPremium && role !== 'admin' ? (
+                          <div className="relative">
+                            <tool.icon className={`w-6 h-6 ${tool.iconColor} opacity-20`} />
+                            <Lock className="absolute inset-0 m-auto w-4 h-4 text-white" />
+                          </div>
+                        ) : (
+                          <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
+                        )}
                       </div>
 
                       <div className="relative z-10">
