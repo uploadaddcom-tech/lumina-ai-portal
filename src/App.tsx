@@ -70,7 +70,11 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, voiceName, apiKey }),
     });
-    if (!res.ok) throw new Error("Voiceover failed");
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error("Voiceover API error details:", errData);
+      throw new Error(errData.error || "Voiceover failed");
+    }
     return (await res.json());
   },
   async merge(
