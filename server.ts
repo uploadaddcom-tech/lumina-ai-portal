@@ -8,6 +8,7 @@ import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
+import { tts as edgeTts } from "edge-tts";
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -146,6 +147,14 @@ async function startServer() {
   app.post("/api/voiceover", async (req, res) => {
     try {
       const { text, voiceName, apiKey: customKey } = req.body;
+
+      // Edge-TTS Support for Nilar and Thiha
+      if (voiceName === "Nilar" || voiceName === "Thiha") {
+        const edgeVoice = voiceName === "Nilar" ? "my-MM-NilarNeural" : "my-MM-ThihaNeural";
+        const audioBuffer = await edgeTts(text, { voice: edgeVoice });
+        return res.json({ audioData: audioBuffer.toString("base64"), mimeType: "audio/mpeg" });
+      }
+
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3.1-flash-tts-preview";
 
@@ -211,7 +220,7 @@ async function startServer() {
       header.writeUInt32LE(pcmData.length, 40);
 
       const finalAudio = Buffer.concat([header, pcmData]);
-      res.json({ audioData: finalAudio.toString("base64") });
+      res.json({ audioData: finalAudio.toString("base64"), mimeType: "audio/wav" });
     } catch (error: any) {
       console.error("Voiceover Error:", error);
       res.status(500).json({ error: error.message });
