@@ -980,6 +980,94 @@ function AccessDeniedView({ onBack, lang }: { onBack: () => void, lang: Language
   );
 }
 
+function AdminSecondaryLoginView({ onSuccess, onBack, lang }: { onSuccess: () => void, onBack: () => void, lang: Language }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username === "admin" && password === "Aungkohtet97529318@") {
+      onSuccess();
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="hero-glow opacity-20" />
+      
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-card-bg/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-10 relative z-10"
+      >
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/20 mb-4">
+            <Lock className="w-8 h-8 text-blue-500" />
+          </div>
+          <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">
+            {lang === "EN" ? "Neural Verification" : "Admin အတည်ပြုခြင်း"}
+          </h2>
+          <p className="text-slate-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-2">
+            {lang === "EN" ? "Secondary authentication required" : "ဒုတိယအဆင့် အတည်ပြုရန် လိုအပ်သည်"}
+          </p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 font-bold tracking-widest uppercase ml-1">Username</label>
+            <input 
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-medium"
+              placeholder="Admin ID..."
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 font-bold tracking-widest uppercase ml-1">Password</label>
+            <input 
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-medium"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && (
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-red-400 text-[10px] font-bold uppercase tracking-widest text-center"
+            >
+              Invalid Credentials Access Denied
+            </motion.p>
+          )}
+
+          <button 
+            type="submit"
+            className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
+          >
+            {lang === "EN" ? "Authorize Access" : "အတည်ပြုမည်"}
+          </button>
+
+          <button 
+            type="button"
+            onClick={onBack}
+            className="w-full h-14 bg-transparent text-slate-500 hover:text-white transition-colors font-bold text-[10px] uppercase tracking-widest"
+          >
+            Cancel Request
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, diamonds } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
@@ -2436,6 +2524,7 @@ function AppContent() {
   const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
   const [darkMode, setDarkMode] = useState(true);
+  const [isAdminVerified, setIsAdminVerified] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -2510,15 +2599,23 @@ function AppContent() {
         <Routes location={location} key={location.pathname}>
           <Route path="/admin" element={
             isAdmin ? (
-              <motion.div
-                key="admin-dashboard"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                transition={{ duration: 0.4 }}
-              >
-                <AdminDashboard onBack={() => navigate('/')} />
-              </motion.div>
+              !isAdminVerified ? (
+                <AdminSecondaryLoginView 
+                  onSuccess={() => setIsAdminVerified(true)} 
+                  onBack={() => navigate('/')} 
+                  lang={lang} 
+                />
+              ) : (
+                <motion.div
+                  key="admin-dashboard"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <AdminDashboard onBack={() => navigate('/')} />
+                </motion.div>
+              )
             ) : (
               <AccessDeniedView onBack={() => navigate('/')} lang={lang} />
             )
