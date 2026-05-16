@@ -20,9 +20,17 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Improved Edge-TTS requester to avoid 403
+// Improved Edge-TTS requester to avoid 403 and prevent crashes
 async function customEdgeTts(text: string, voice: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      ws.terminate();
+      reject(new Error("Edge-TTS timeout"));
+    }, 15000);
+
     const baseUrl = `speech.platform.bing.com/consumer/speech/synthesize/readaloud`;
     const token = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
     const connectionId = crypto.randomUUID().replace(/-/g, '');
@@ -86,6 +94,7 @@ async function customEdgeTts(text: string, voice: string): Promise<Buffer> {
     });
 
     ws.on('message', (data, isBinary) => {
+      if (settled) return;
       if (isBinary) {
         const buffer = data as Buffer;
         const separator = Buffer.from("Path:audio\r\n");
@@ -96,6 +105,8 @@ async function customEdgeTts(text: string, voice: string): Promise<Buffer> {
       } else {
         const message = data.toString();
         if (message.includes("turn.end")) {
+          settled = true;
+          clearTimeout(timeout);
           ws.close();
           resolve(Buffer.concat(audioChunks));
         }
@@ -103,16 +114,15 @@ async function customEdgeTts(text: string, voice: string): Promise<Buffer> {
     });
 
     ws.on('error', (err) => {
-      ws.close();
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      ws.terminate();
       reject(err);
     });
-
-    setTimeout(() => {
-      ws.terminate();
-      reject(new Error("Edge-TTS timeout"));
-    }, 15000);
   });
 }
+
 
 
 async function startServer() {
@@ -243,6 +253,9 @@ async function startServer() {
     try {
       const { text, voiceName, apiKey: customKey } = req.body;
 
+      let effectiveVoice = voiceName;
+      let usedEdgeTts = false;
+
       // Edge-TTS Support for Nilar and Thiha
       if (voiceName === "Nilar" || voiceName === "Thiha") {
         console.log(`Using custom Edge-TTS for voice: ${voiceName}`);
@@ -253,9 +266,8 @@ async function startServer() {
           return res.json({ audioData: audioBuffer.toString("base64"), mimeType: "audio/mpeg" });
         } catch (edgeError: any) {
           console.warn("Custom Edge-TTS failed, falling back to Gemini:", edgeError.message);
-          // FALLBACK to Gemini if Edge-TTS fails (common due to 403 blocks)
-          // We'll use "Kore" as a safe neutral fallback
-          // continue execution to reach Gemini logic below
+          // FALLBACK to Gemini if Edge-TTS fails
+          effectiveVoice = "Kore"; // Safe fallback voice
         }
       }
 
@@ -290,7 +302,7 @@ async function startServer() {
             responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                prebuiltVoiceConfig: { voiceName: effectiveVoice || "Kore" }
               }
             }
           } as any
