@@ -36,6 +36,7 @@ import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
 import { useFirebase } from "./components/FirebaseProvider";
 import { loginWithGoogle, logout } from "./lib/firebase";
+import { DiamondIcon } from "./components/DiamondIcon";
 import { LogOut, LogIn, Settings, Lock } from "lucide-react";
 import { AdminDashboard } from "./components/AdminDashboard";
 
@@ -387,7 +388,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
             </button>
           )}
           <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 md:px-3 py-1 rounded-lg border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-            <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" />
+            <DiamondIcon className="w-4 h-4 md:w-5 md:h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
             <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 tracking-tighter">{diamonds} Diamond</span>
           </div>
         </div>
@@ -914,8 +915,8 @@ function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClos
           exit={{ scale: 0.9, y: 20 }}
           className="bg-[#0f172a] border border-blue-500/30 rounded-[32px] p-8 max-w-sm w-full text-center space-y-6 shadow-[0_0_50px_rgba(59,130,246,0.2)]"
         >
-          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20">
-            <Sparkles className="w-10 h-10 text-blue-400 animate-pulse" />
+          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+            <DiamondIcon className="w-14 h-14 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] animate-bounce" />
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-white italic tracking-tighter">
@@ -2091,7 +2092,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 {isGenerating ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <Zap className="w-4 h-4" />
+                  <DiamondIcon className="w-6 h-6 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
                 )}
                 {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : `${t.generate} (10 Dia)`}
                </div>
