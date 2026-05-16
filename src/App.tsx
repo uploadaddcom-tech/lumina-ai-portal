@@ -28,16 +28,20 @@ import {
   Check,
   Sun,
   Moon,
-  ChevronDown
+  ChevronDown,
+  LogOut,
+  LogIn,
+  Settings,
+  Lock
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { translations, Language } from "./translations";
 import Markdown from "react-markdown";
 import { useFirebase } from "./components/FirebaseProvider";
 import { loginWithGoogle, logout } from "./lib/firebase";
 import { DiamondIcon } from "./components/DiamondIcon";
-import { LogOut, LogIn, Settings, Lock } from "lucide-react";
 import { AdminDashboard } from "./components/AdminDashboard";
 
 // Internal API Helpers to replace GeminiService.ts
@@ -123,7 +127,7 @@ const api = {
 
 const getTools = (lang: Language) => [
   {
-    id: "recap-master",
+    id: "recapmaster",
     title: translations[lang].tools.recapMaster.title,
     description: translations[lang].tools.recapMaster.desc,
     icon: Zap,
@@ -133,7 +137,7 @@ const getTools = (lang: Language) => [
     shadowColor: "shadow-red-500/20",
   },
   {
-    id: "video-recapper",
+    id: "videorecapper",
     title: translations[lang].tools.videoRecapper.title,
     description: translations[lang].tools.videoRecapper.desc,
     icon: Play,
@@ -175,7 +179,7 @@ const getTools = (lang: Language) => [
     badge: "NEW"
   },
   {
-    id: "video-transcribe",
+    id: "videotranscribe",
     title: translations[lang].tools.videoTranscribe.title,
     description: translations[lang].tools.videoTranscribe.desc,
     icon: Type,
@@ -186,7 +190,7 @@ const getTools = (lang: Language) => [
     badge: "NEW"
   },
   {
-    id: "ai-voiceover",
+    id: "aivoiceover",
     title: translations[lang].tools.aiVoiceover.title,
     description: translations[lang].tools.aiVoiceover.desc,
     icon: Music,
@@ -2398,10 +2402,10 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
   );
 }
 
-export default function App() {
-  const { user, loading, usageCount, role, diamonds } = useFirebase();
-  const [activeToolId, setActiveToolId] = useState<string | null>(null);
-  const [showAdmin, setShowAdmin] = useState(false);
+function AppContent() {
+  const { user, loading, role, diamonds } = useFirebase();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
@@ -2415,13 +2419,25 @@ export default function App() {
     }
   }, [darkMode]);
 
+  const TOOL_PATHS: Record<string, string> = {
+    "recap-master": "recapmaster",
+    "video-recapper": "videorecapper",
+    "ai-voiceover": "voiceover",
+    "video-transcribe": "transcribe",
+  };
+
   useEffect(() => {
     if (user && intendedToolId && !loading) {
-      setActiveToolId(intendedToolId);
+      if (intendedToolId === 'admin') {
+        navigate('/admin');
+      } else {
+        const path = TOOL_PATHS[intendedToolId] || intendedToolId;
+        navigate(`/${path}`);
+      }
       setIntendedToolId(null);
       setShowLoginPrompt(false);
     }
-  }, [user, intendedToolId, loading, role]);
+  }, [user, intendedToolId, loading, role, navigate]);
 
   const tNav = translations[lang].nav;
   const tools = getTools(lang);
@@ -2433,7 +2449,17 @@ export default function App() {
       return;
     }
     
-    setActiveToolId(toolId);
+    const path = TOOL_PATHS[toolId] || toolId;
+    navigate(`/${path}`);
+  };
+
+  const handleAdminClick = () => {
+    if (!user) {
+      setIntendedToolId('admin');
+      setShowLoginPrompt(true);
+      return;
+    }
+    navigate('/admin');
   };
 
   if (loading) {
@@ -2453,209 +2479,216 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {showAdmin ? (
-          <motion.div
-            key="admin-dashboard"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.4 }}
-          >
-            <AdminDashboard onBack={() => setShowAdmin(false)} />
-          </motion.div>
-        ) : activeToolId === "recap-master" ? (
-          <motion.div
-            key="recap-master"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <RecapMasterView 
-              onBack={() => setActiveToolId(null)} 
-              lang={lang}
-              setLang={setLang}
-              onAdminClick={() => setShowAdmin(true)}
-            />
-          </motion.div>
-        ) : activeToolId === "video-recapper" ? (
-          <motion.div
-            key="video-recapper"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <VideoRecapperView 
-              onBack={() => setActiveToolId(null)} 
-              lang={lang}
-              setLang={setLang}
-              onAdminClick={() => setShowAdmin(true)}
-            />
-          </motion.div>
-        ) : activeToolId === "ai-voiceover" ? (
-          <motion.div
-            key="ai-voiceover"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <VoiceoverView 
-              onBack={() => setActiveToolId(null)} 
-              lang={lang}
-              setLang={setLang}
-              onAdminClick={() => setShowAdmin(true)}
-            />
-          </motion.div>
-        ) : activeToolId === "video-transcribe" ? (
-          <motion.div
-            key="video-transcribe"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <TranscribeView 
-              onBack={() => setActiveToolId(null)} 
-              lang={lang}
-              setLang={setLang}
-              onAdminClick={() => setShowAdmin(true)}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            id="lumina-portal"
-            className="text-text-secondary relative overflow-hidden"
-          >
-            <div className="hero-glow animate-pulse" />
-            <div className="absolute inset-0 noise-overlay" />
-            
-            {/* Header */}
-            <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/40 backdrop-blur-3xl">
-              <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                <div className="flex items-center gap-12">
-                  <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80">
-                    <div className="w-10 h-10 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
-                      <Cpu className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex flex-col -gap-1">
-                      <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">LUMINA</span>
-                      <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
+        <Routes location={location} key={location.pathname}>
+          <Route path="/admin" element={
+            <motion.div
+              key="admin-dashboard"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.4 }}
+            >
+              <AdminDashboard onBack={() => navigate('/')} />
+            </motion.div>
+          } />
+          
+          <Route path="/recapmaster" element={
+            <motion.div
+              key="recap-master"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <RecapMasterView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/videorecapper" element={
+            <motion.div
+              key="video-recapper"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <VideoRecapperView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/aivoiceover" element={
+            <motion.div
+              key="ai-voiceover"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <VoiceoverView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/videotranscribe" element={
+            <motion.div
+              key="video-transcribe"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TranscribeView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/" element={
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              id="lumina-portal"
+              className="text-text-secondary relative overflow-hidden"
+            >
+              <div className="hero-glow animate-pulse" />
+              <div className="absolute inset-0 noise-overlay" />
+              
+              {/* Header */}
+              <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/40 backdrop-blur-3xl">
+                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                  <div className="flex items-center gap-12">
+                    <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80" onClick={() => navigate('/')}>
+                      <div className="w-10 h-10 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
+                        <Cpu className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex flex-col -gap-1">
+                        <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">LUMINA</span>
+                        <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
+                      </div>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-8">
+                    <UserHeader onAdminClick={handleAdminClick} />
+                  </div>
                 </div>
+              </header>
 
-                <div className="flex items-center gap-8">
-                  <UserHeader onAdminClick={() => setShowAdmin(true)} />
-                </div>
-              </div>
-            </header>
+              {/* Main Content */}
+              <main className="pt-36 pb-32 px-6 max-w-7xl mx-auto relative z-10">
+                {/* Dashboard Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                  {tools.map((tool, index) => {
+                    const glowClass = 
+                      tool.id === 'recap-master' ? 'card-glow-red' :
+                      tool.id === 'video-recapper' ? 'card-glow-blue' :
+                      tool.id === 'video-recap' ? 'card-glow-purple' :
+                      tool.id === 'subtitle-editor' ? 'card-glow-blue' :
+                      tool.id === 'auto-recap' ? 'card-glow-indigo' :
+                      tool.id === 'video-transcribe' ? 'card-glow-teal' :
+                      tool.id === 'ai-voiceover' ? 'card-glow-orange' : 'card-glow-blue';
 
-            {/* Main Content */}
-            <main className="pt-36 pb-32 px-6 max-w-7xl mx-auto relative z-10">
-              {/* Hero Section */}
-              <motion.div 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: "circOut" }}
-                className="mb-16 text-center md:text-left relative"
-              >
-                <div className="relative inline-block">
-                </div>
-              </motion.div>
-
-              {/* Dashboard Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                {tools.map((tool, index) => {
-                  const glowClass = 
-                    tool.id === 'recap-master' ? 'card-glow-red' :
-                    tool.id === 'video-recapper' ? 'card-glow-blue' :
-                    tool.id === 'video-recap' ? 'card-glow-purple' :
-                    tool.id === 'subtitle-editor' ? 'card-glow-blue' :
-                    tool.id === 'auto-recap' ? 'card-glow-indigo' :
-                    tool.id === 'video-transcribe' ? 'card-glow-teal' :
-                    tool.id === 'ai-voiceover' ? 'card-glow-orange' : 'card-glow-blue';
-
-                  return (
-                    <motion.div
-                      key={tool.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5, delay: index * 0.05 }}
-                      className={`group relative bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-card-bg/60 dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
-                      onClick={() => handleToolClick(tool.id)}
-                    >
-                      {/* Background Glow */}
-                      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ${glowClass}`} />
-                      <div className="scanline group-hover:block hidden" />
-                      
-                      {tool.badge && (
-                        <div className="absolute top-0 right-0 p-4 z-20">
-                          <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
-                            {tool.badge}
+                    return (
+                      <motion.div
+                        key={tool.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: index * 0.05 }}
+                        className={`group relative bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-card-bg/60 dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
+                        onClick={() => handleToolClick(tool.id)}
+                      >
+                        {/* Background Glow */}
+                        <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ${glowClass}`} />
+                        <div className="scanline group-hover:block hidden" />
+                        
+                        {tool.badge && (
+                          <div className="absolute top-0 right-0 p-4 z-20">
+                            <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
+                              {tool.badge}
+                            </div>
                           </div>
+                        )}
+
+                        <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-50 transition-all translate-x-4 group-hover:translate-x-0 hidden md:block">
+                          <ArrowRight className="w-5 h-5 text-white" />
                         </div>
-                      )}
+                        
+                        <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
+                          <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
+                        </div>
 
-                      <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-50 transition-all translate-x-4 group-hover:translate-x-0 hidden md:block">
-                        <ArrowRight className="w-5 h-5 text-white" />
-                      </div>
-                      
-                      <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                        <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
-                      </div>
+                        <div className="relative z-10">
+                          <h3 className="text-xl font-black text-text-primary dark:text-white mb-3 tracking-tighter group-hover:brand-gradient transition-all leading-none">
+                            {tool.title}
+                          </h3>
+                          <p className="text-[10px] text-text-secondary dark:text-slate-500 line-clamp-3 mb-10 leading-relaxed font-tech font-bold uppercase tracking-widest group-hover:text-text-primary dark:group-hover:text-slate-400 transition-colors">
+                            {tool.description}
+                          </p>
+                        </div>
 
-                      <div className="relative z-10">
-                        <h3 className="text-xl font-black text-text-primary dark:text-white mb-3 tracking-tighter group-hover:brand-gradient transition-all leading-none">
-                          {tool.title}
-                        </h3>
-                        <p className="text-[10px] text-text-secondary dark:text-slate-500 line-clamp-3 mb-10 leading-relaxed font-tech font-bold uppercase tracking-widest group-hover:text-text-primary dark:group-hover:text-slate-400 transition-colors">
-                          {tool.description}
-                        </p>
-                      </div>
-
-                      <div className="mt-auto relative z-10">
-                        <div className="relative w-full h-12 rounded-xl overflow-hidden group/btn transition-all active:scale-[0.98] border border-white/5">
-                          <div className="absolute inset-0 bg-white/5 group-hover/btn:bg-white/10 transition-all duration-300" />
-                          <div className="relative flex items-center justify-between px-4 h-full">
-                            <span className="text-[10px] font-tech font-black uppercase tracking-[0.2em] text-slate-400 group-hover/btn:text-white transition-colors">Initialize Tool</span>
-                            <div className="w-6 h-6 bg-white/5 rounded-lg flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
-                               <ArrowRight className="w-3 h-3 text-slate-500 group-hover/btn:text-white transition-all" />
+                        <div className="mt-auto relative z-10">
+                          <div className="relative w-full h-12 rounded-xl overflow-hidden group/btn transition-all active:scale-[0.98] border border-white/5">
+                            <div className="absolute inset-0 bg-white/5 group-hover/btn:bg-white/10 transition-all duration-300" />
+                            <div className="relative flex items-center justify-between px-4 h-full">
+                              <span className="text-[10px] font-tech font-black uppercase tracking-[0.2em] text-slate-400 group-hover/btn:text-white transition-colors">Initialize Tool</span>
+                              <div className="w-6 h-6 bg-white/5 rounded-lg flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
+                                 <ArrowRight className="w-3 h-3 text-slate-500 group-hover/btn:text-white transition-all" />
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Side decoration */}
-                      <div className="absolute top-1/2 left-0 h-8 w-1 bg-blue-600 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all rounded-r-full" />
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </main>
+                        {/* Side decoration */}
+                        <div className="absolute top-1/2 left-0 h-8 w-1 bg-blue-600 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all rounded-r-full" />
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </main>
 
-            {/* Subtle floating elements */}
-            <div className="fixed top-1/4 -left-20 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px] pointer-events-none" />
-            <div className="fixed bottom-1/4 -right-20 w-96 h-96 bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none" />
+              {/* Subtle floating elements */}
+              <div className="fixed top-1/4 -left-20 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px] pointer-events-none" />
+              <div className="fixed bottom-1/4 -right-20 w-96 h-96 bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none" />
 
-            {/* Footer / Meta Data */}
-            <footer className="fixed bottom-0 left-0 right-0 h-16 border-t border-white/[0.03] bg-page-bg/40 backdrop-blur-xl z-50 flex items-center justify-between px-8 pointer-events-none md:pointer-events-auto">
-               <div className="flex items-center gap-6">
-               </div>
-               
-               <div className="flex items-center gap-6">
-                 <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Lumina Neural Systems</span>
-               </div>
-            </footer>
-          </motion.div>
-        )}
+              {/* Footer / Meta Data */}
+              <footer className="fixed bottom-0 left-0 right-0 h-16 border-t border-white/[0.03] bg-page-bg/40 backdrop-blur-xl z-50 flex items-center justify-between px-8 pointer-events-none md:pointer-events-auto">
+                 <div className="flex items-center gap-6">
+                 </div>
+                 
+                 <div className="flex items-center gap-6">
+                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Lumina Neural Systems</span>
+                 </div>
+              </footer>
+            </motion.div>
+          } />
+        </Routes>
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppContent />
   );
 }
