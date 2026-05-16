@@ -44,9 +44,8 @@ async function customEdgeTts(text: string, voice: string): Promise<Buffer> {
       }
     };
 
-    const ws = new WebSocket(wsUrl, {
+      const ws = new WebSocket(wsUrl, {
       headers: {
-        'Pragma': 'no-cache',
         'Cache-Control': 'no-cache',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
         'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
@@ -134,7 +133,7 @@ async function startServer() {
     try {
       const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-      const model = "gemini-3-flash-preview";
+      const model = "gemini-1.5-flash";
       
       const stylePrompts: Record<string, string> = {
         "step-by-step": lang === "EN" 
@@ -217,7 +216,7 @@ async function startServer() {
     try {
       const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-      const model = "gemini-3-flash-preview";
+      const model = "gemini-1.5-flash";
       const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
       const response = await aiClient.models.generateContent({
@@ -243,6 +242,8 @@ async function startServer() {
     try {
       const { text, voiceName, apiKey: customKey } = req.body;
 
+      let effectiveVoice = voiceName;
+      
       // Edge-TTS Support for Nilar and Thiha
       if (voiceName === "Nilar" || voiceName === "Thiha") {
         console.log(`Using custom Edge-TTS for voice: ${voiceName}`);
@@ -253,14 +254,14 @@ async function startServer() {
           return res.json({ audioData: audioBuffer.toString("base64"), mimeType: "audio/mpeg" });
         } catch (edgeError: any) {
           console.warn("Custom Edge-TTS failed, falling back to Gemini:", edgeError.message);
-          // FALLBACK to Gemini if Edge-TTS fails (common due to 403 blocks)
-          // We'll use "Kore" as a safe neutral fallback
-          // continue execution to reach Gemini logic below
+          // FALLBACK to Gemini if Edge-TTS fails
+          // Map to safe Gemini prebuilt voices
+          effectiveVoice = voiceName === "Nilar" ? "Aoede" : "Kore";
         }
       }
 
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-      const model = "gemini-3.1-flash-tts-preview";
+      const model = "gemini-1.5-flash";
 
       const getChunks = (input: string, maxLen = 600) => {
         const sentences = input.split(/(?<=[။၊.!?])\s+/);
@@ -290,7 +291,7 @@ async function startServer() {
             responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                prebuiltVoiceConfig: { voiceName: effectiveVoice || "Kore" }
               }
             }
           } as any
