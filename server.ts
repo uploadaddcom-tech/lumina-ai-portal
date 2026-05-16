@@ -424,24 +424,36 @@ async function startServer() {
           }
         }
 
-        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
-        const getChunks = (text: string, maxChars = 45) => {
+        // Improved chunking: Split by punctuation first, and strictly cap length to ensure 1-2 lines
+        const getChunks = (text: string, maxChars = 70) => {
           const parts = text.split(/(?<=[။၊.!?])\s*/);
           let res = [];
           let current = "";
+          
           for (const p of parts) {
-            if ((current + p).length > maxChars) {
+            let part = p;
+            // If a single part is still too long (no punctuation), break it down
+            while (part.length > maxChars) {
+              if (current) {
+                res.push(current);
+                current = "";
+              }
+              res.push(part.substring(0, maxChars));
+              part = part.substring(maxChars);
+            }
+            
+            if ((current + part).length > maxChars) {
               if (current) res.push(current);
-              current = p;
+              current = part;
             } else {
-              current = current ? current + " " + p : p;
+              current = current ? current + " " + part : part;
             }
           }
-          if (current) res.push(current);
+          if (current) res.push(current.trim());
           return res;
         };
 
-        const chunks = getChunks(subtitleText, 45);
+        const chunks = getChunks(subtitleText, 70);
         const totalTime = aDur || vDur || 1;
         const totalChars = subtitleText.length || 1;
         
@@ -451,8 +463,8 @@ async function startServer() {
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
           
-          // Use smaller wrapLen (25) to ensure padding on edges
-          const wrappedLines = wrapText(chunk.trim(), 25);
+          // Use larger wrapLen (45) to make it wider and fit 1-2 lines
+          const wrappedLines = wrapText(chunk.trim(), 45);
           const wrapped = wrappedLines.join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
           const chunkStartTime = currentTime;
