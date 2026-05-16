@@ -1089,7 +1089,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             audio.play();
 
             // Auto trigger merge
-            performMerge(file, url);
+            performMerge(file, url, recapValue);
           }
         } catch (vErr) {
           console.error("Auto voiceover failed:", vErr);
@@ -1128,7 +1128,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         setVoiceoverAudioUrl(url);
 
         // Auto trigger merge on manual regeneration too
-        performMerge(file, url);
+        performMerge(file, url, result || undefined);
       }
     } catch (err) {
       console.error(err);
@@ -1143,7 +1143,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     }
   };
 
-  const performMerge = async (videoFile: File, audioUrl: string) => {
+  const performMerge = async (videoFile: File, audioUrl: string, subtitleTextOverride?: string) => {
     setIsMerging(true);
     setMergedVideoUrl(null);
 
@@ -1187,7 +1187,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         blurY,
         blurIntensity,
         subtitleEnabled,
-        result?.replace(/[#*`_~]/g, ''),
+        (subtitleTextOverride || result)?.replace(/[#*`_~]/g, ''),
         subtitleColor,
         subtitleFontSize,
         subtitleFont,
@@ -1211,7 +1211,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   const handleMerge = () => {
     if (file && voiceoverAudioUrl) {
-      performMerge(file, voiceoverAudioUrl);
+      performMerge(file, voiceoverAudioUrl, result || undefined);
     }
   };
 
