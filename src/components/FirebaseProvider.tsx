@@ -52,11 +52,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         await setDoc(userRef, {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
           photoURL: user.photoURL,
           usageCount: 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
-          diamonds: 10, // Initial diamonds for new users
+          diamonds: 10,
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         });
@@ -68,9 +68,14 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         setDiamonds(data.diamonds || 0);
         const effectiveRole = user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : (data.role || 'user');
         setRole(effectiveRole);
+        
+        // Update lastUsed on every login to ensure visibility in admin panel
+        await updateDoc(userRef, {
+          lastUsed: serverTimestamp()
+        });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
   };
 
