@@ -469,8 +469,9 @@ async function startServer() {
           const chunkDuration = (chunk.length / totalChars) * totalTime;
           // Apply a -0.5s offset to make subtitles appear earlier (less lag)
           const offset = 0.5;
+          const gap = 0.05; // Small gap to prevent overlap
           const chunkStartTime = Math.max(0, currentTime - offset);
-          const chunkEndTime = Math.max(0, currentTime + chunkDuration - offset);
+          const chunkEndTime = Math.max(0, currentTime + chunkDuration - offset - gap);
           
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
@@ -480,7 +481,7 @@ async function startServer() {
           vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
-          currentTime = chunkEndTime;
+          currentTime += chunkDuration;
           svIndex++;
         }
       }
