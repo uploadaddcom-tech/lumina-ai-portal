@@ -467,8 +467,10 @@ async function startServer() {
           const wrappedLines = wrapText(chunk.trim(), 45);
           const wrapped = wrappedLines.join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
-          const chunkStartTime = currentTime;
-          const chunkEndTime = currentTime + chunkDuration;
+          // Apply a -0.5s offset to make subtitles appear earlier (less lag)
+          const offset = 0.5;
+          const chunkStartTime = Math.max(0, currentTime - offset);
+          const chunkEndTime = Math.max(0, currentTime + chunkDuration - offset);
           
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
