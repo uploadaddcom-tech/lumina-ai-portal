@@ -954,6 +954,32 @@ function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClos
   );
 }
 
+function AccessDeniedView({ onBack, lang }: { onBack: () => void, lang: Language }) {
+  return (
+    <div className="min-h-screen bg-page-bg flex flex-col items-center justify-center p-6 text-center space-y-6">
+      <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.2)] text-red-500">
+        <Lock className="w-10 h-10" />
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
+          {lang === "EN" ? "Access Denied" : "ဝင်ရောက်ခွင့်မရှိပါ"}
+        </h2>
+        <p className="text-slate-500 text-xs font-bold tracking-[0.2em] uppercase max-w-xs mx-auto">
+          {lang === "EN" 
+            ? "You do not have administrative privileges to access this neural sector."
+            : "ဤနေရာသို့ ဝင်ရောက်ရန် သင့်တွင် လုပ်ပိုင်ခွင့် (Admin Role) မရှိပါ။"}
+        </p>
+      </div>
+      <button 
+        onClick={onBack}
+        className="flex items-center gap-3 px-8 h-14 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all border border-white/10"
+      >
+        <ArrowLeft className="w-4 h-4" /> {lang === "EN" ? "Return to Portal" : "ပင်မစာမျက်နှာသို့ ပြန်သွားမည်"}
+      </button>
+    </div>
+  );
+}
+
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, diamonds } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
@@ -2470,6 +2496,8 @@ function AppContent() {
     );
   }
 
+  const isAdmin = user && (role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com');
+
   return (
     <div className="min-h-screen bg-page-bg selection:bg-cyan-500/30">
       <AnimatePresence>
@@ -2481,15 +2509,19 @@ function AppContent() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/admin" element={
-            <motion.div
-              key="admin-dashboard"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              transition={{ duration: 0.4 }}
-            >
-              <AdminDashboard onBack={() => navigate('/')} />
-            </motion.div>
+            isAdmin ? (
+              <motion.div
+                key="admin-dashboard"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.4 }}
+              >
+                <AdminDashboard onBack={() => navigate('/')} />
+              </motion.div>
+            ) : (
+              <AccessDeniedView onBack={() => navigate('/')} lang={lang} />
+            )
           } />
           
           <Route path="/recapmaster" element={
