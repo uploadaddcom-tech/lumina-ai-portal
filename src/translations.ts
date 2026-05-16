@@ -60,9 +60,7 @@ export const translations = {
         Charon: "Charon (Technical & Clear)",
         Kore: "Kore (Bright & Friendly)",
         Fenrir: "Fenrir (Rugged & Warm)",
-        Zephyr: "Zephyr (Soft & Calm)",
-        Nilar: "Nilar (Edge-TTS Myanmar)",
-        Thiha: "Thiha (Edge-TTS Myanmar)"
+        Zephyr: "Zephyr (Soft & Calm)"
       },
       moods: {
         story: "Storytelling",
@@ -207,9 +205,7 @@ export const translations = {
         Charon: "Charon (ကြည်လင်သောအသံ)",
         Kore: "Kore (ဖော်ရွေသောအသံ)",
         Fenrir: "Fenrir (နွေးထွေးသောအသံ)",
-        Zephyr: "Zephyr (အေးချမ်းသောအသံ)",
-        Nilar: "Nilar (Edge-TTS Myanmar)",
-        Thiha: "Thiha (Edge-TTS Myanmar)"
+        Zephyr: "Zephyr (အေးချမ်းသောအသံ)"
       },
       moods: {
         story: "ပုံပြင်ပြောဟန်",

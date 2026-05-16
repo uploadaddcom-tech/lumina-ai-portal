@@ -70,12 +70,8 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, voiceName, apiKey }),
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      console.error("Voiceover API error details:", errData);
-      throw new Error(errData.error || "Voiceover failed");
-    }
-    return (await res.json());
+    if (!res.ok) throw new Error("Voiceover failed");
+    return (await res.json()).audioData;
   },
   async merge(
     videoBase64: string, 
@@ -434,16 +430,16 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
 
     try {
-      const response = await api.voiceover(text, selectedVoice, apiKey);
-      if (response && response.audioData) {
+      const base64 = await api.voiceover(text, selectedVoice, apiKey);
+      if (base64) {
         await incrementUsage();
-        const binaryString = atob(response.audioData);
+        const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        const blob = new Blob([bytes], { type: response.mimeType || 'audio/wav' });
+        const blob = new Blob([bytes], { type: 'audio/wav' });
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
       }
@@ -1195,14 +1191,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         setIsVoiceoverGenerating(true);
         try {
           const cleanText = recapValue.replace(/[#*`_~]/g, '');
-          const voiceRes = await api.voiceover(cleanText, selectedVoice, apiKey);
-          if (voiceRes && voiceRes.audioData) {
-            const binaryString = atob(voiceRes.audioData);
+          const voice64 = await api.voiceover(cleanText, selectedVoice, apiKey);
+          if (voice64) {
+            const binaryString = atob(voice64);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i);
             }
-            const blob = new Blob([bytes], { type: voiceRes.mimeType || "audio/wav" });
+            const blob = new Blob([bytes], { type: "audio/wav" });
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
 
@@ -1236,16 +1232,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       // Clean markdown for better TTS
       const cleanText = result.replace(/[#*`_~]/g, '');
       const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
-      const response = await api.voiceover(cleanText, selectedVoice, apiKey);
-      if (response && response.audioData) {
+      const base64 = await api.voiceover(cleanText, selectedVoice, apiKey);
+      if (base64) {
         await incrementUsage();
-        const binaryString = atob(response.audioData);
+        const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        const blob = new Blob([bytes], { type: response.mimeType || "audio/wav" });
+        const blob = new Blob([bytes], { type: "audio/wav" });
         const url = URL.createObjectURL(blob);
         setVoiceoverAudioUrl(url);
 
