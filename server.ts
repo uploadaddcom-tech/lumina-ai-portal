@@ -8,6 +8,7 @@ import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
+import { WebSocket } from "ws";
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -18,6 +19,101 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Improved Edge-TTS requester to avoid 403
+async function customEdgeTts(text: string, voice: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const baseUrl = `speech.platform.bing.com/consumer/speech/synthesize/readaloud`;
+    const token = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+    const connectionId = crypto.randomUUID().replace(/-/g, '');
+    const wsUrl = `wss://${baseUrl}/edge/v1?TrustedClientToken=${token}&ConnectionId=${connectionId}`;
+    
+    // Attempt to generate the Sec-Ms-Gec token (common in recent Edge versions)
+    const generateSecMsGecToken = () => {
+      try {
+        const S_TO_NS = 10000000n;
+        const WINDOWS_EPOCH_OFFSET = 11644473600n;
+        const FIVE_MINUTES_IN_NS = 3000000000n;
+        const now = BigInt(Math.floor(Date.now() / 1000));
+        let ticks = (now + WINDOWS_EPOCH_OFFSET) * S_TO_NS;
+        ticks -= (ticks % FIVE_MINUTES_IN_NS);
+        const str = ticks.toString() + '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+        return crypto.createHash('sha256').update(str, 'ascii').digest('hex').toUpperCase();
+      } catch (e) {
+        return "";
+      }
+    };
+
+    const ws = new WebSocket(wsUrl, {
+      headers: {
+        'Pragma': 'no-cache',
+        'Cache-Control': 'no-cache',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+        'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
+        'X-Ms-Useragent': 'MicrosoftEdgeTTS/1.0.0',
+        'Sec-Ms-Gec': generateSecMsGecToken(),
+        'Sec-Ms-Gec-Version': '1-131.0.2903.99'
+      }
+    });
+
+    const audioChunks: Buffer[] = [];
+    
+    ws.on('open', () => {
+      const configMsg = `X-Timestamp:${new Date().toISOString()}\r\n` +
+        `Content-Type:application/json; charset=utf-8\r\n` +
+        `Path:speech.config\r\n\r\n` +
+        JSON.stringify({
+          context: {
+            synthesis: {
+              audio: {
+                metadataoptions: { sentenceBoundaryEnabled: "false", wordBoundaryEnabled: "false" },
+                outputFormat: "audio-24khz-48kbitrate-mono-mp3"
+              }
+            }
+          }
+        });
+      
+      ws.send(configMsg, () => {
+        // SSML for Myanmar text
+        const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='my-MM'>` +
+          `<voice name='${voice}'>${text}</voice></speak>`;
+        const ssmlMsg = `X-RequestId:${connectionId}\r\n` +
+          `Content-Type:application/ssml+xml\r\n` +
+          `X-Timestamp:${new Date().toISOString()}\r\n` +
+          `Path:ssml\r\n\r\n` + ssml;
+        ws.send(ssmlMsg);
+      });
+    });
+
+    ws.on('message', (data, isBinary) => {
+      if (isBinary) {
+        const buffer = data as Buffer;
+        const separator = Buffer.from("Path:audio\r\n");
+        const index = buffer.indexOf(separator);
+        if (index !== -1) {
+          audioChunks.push(buffer.subarray(index + separator.length));
+        }
+      } else {
+        const message = data.toString();
+        if (message.includes("turn.end")) {
+          ws.close();
+          resolve(Buffer.concat(audioChunks));
+        }
+      }
+    });
+
+    ws.on('error', (err) => {
+      ws.close();
+      reject(err);
+    });
+
+    setTimeout(() => {
+      ws.terminate();
+      reject(new Error("Edge-TTS timeout"));
+    }, 15000);
+  });
+}
+
 
 async function startServer() {
   const app = express();
@@ -146,6 +242,23 @@ async function startServer() {
   app.post("/api/voiceover", async (req, res) => {
     try {
       const { text, voiceName, apiKey: customKey } = req.body;
+
+      // Edge-TTS Support for Nilar and Thiha
+      if (voiceName === "Nilar" || voiceName === "Thiha") {
+        console.log(`Using custom Edge-TTS for voice: ${voiceName}`);
+        try {
+          const edgeVoice = voiceName === "Nilar" ? "my-MM-NilarNeural" : "my-MM-ThihaNeural";
+          const audioBuffer = await customEdgeTts(text, edgeVoice);
+          console.log(`Custom Edge-TTS success, buffer size: ${audioBuffer.length}`);
+          return res.json({ audioData: audioBuffer.toString("base64"), mimeType: "audio/mpeg" });
+        } catch (edgeError: any) {
+          console.warn("Custom Edge-TTS failed, falling back to Gemini:", edgeError.message);
+          // FALLBACK to Gemini if Edge-TTS fails (common due to 403 blocks)
+          // We'll use "Kore" as a safe neutral fallback
+          // continue execution to reach Gemini logic below
+        }
+      }
+
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3.1-flash-tts-preview";
 
@@ -211,7 +324,7 @@ async function startServer() {
       header.writeUInt32LE(pcmData.length, 40);
 
       const finalAudio = Buffer.concat([header, pcmData]);
-      res.json({ audioData: finalAudio.toString("base64") });
+      res.json({ audioData: finalAudio.toString("base64"), mimeType: "audio/wav" });
     } catch (error: any) {
       console.error("Voiceover Error:", error);
       res.status(500).json({ error: error.message });
