@@ -424,36 +424,24 @@ async function startServer() {
           }
         }
 
-        // Improved chunking: Split by punctuation first, and strictly cap length to ensure 1-2 lines
-        const getChunks = (text: string, maxChars = 70) => {
+        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
+        const getChunks = (text: string, maxChars = 45) => {
           const parts = text.split(/(?<=[။၊.!?])\s*/);
           let res = [];
           let current = "";
-          
           for (const p of parts) {
-            let part = p;
-            // If a single part is still too long (no punctuation), break it down
-            while (part.length > maxChars) {
-              if (current) {
-                res.push(current);
-                current = "";
-              }
-              res.push(part.substring(0, maxChars));
-              part = part.substring(maxChars);
-            }
-            
-            if ((current + part).length > maxChars) {
+            if ((current + p).length > maxChars) {
               if (current) res.push(current);
-              current = part;
+              current = p;
             } else {
-              current = current ? current + " " + part : part;
+              current = current ? current + " " + p : p;
             }
           }
-          if (current) res.push(current.trim());
+          if (current) res.push(current);
           return res;
         };
 
-        const chunks = getChunks(subtitleText, 70);
+        const chunks = getChunks(subtitleText, 45);
         const totalTime = aDur || vDur || 1;
         const totalChars = subtitleText.length || 1;
         
@@ -463,15 +451,12 @@ async function startServer() {
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
           
-          // Use larger wrapLen (45) to make it wider and fit 1-2 lines
-          const wrappedLines = wrapText(chunk.trim(), 45);
+          // Use smaller wrapLen (25) to ensure padding on edges
+          const wrappedLines = wrapText(chunk.trim(), 25);
           const wrapped = wrappedLines.join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
-          // Apply a -0.5s offset to make subtitles appear earlier (less lag)
-          const offset = 0.5;
-          const gap = 0.05; // Small gap to prevent overlap
-          const chunkStartTime = Math.max(0, currentTime - offset);
-          const chunkEndTime = Math.max(0, currentTime + chunkDuration - offset - gap);
+          const chunkStartTime = currentTime;
+          const chunkEndTime = currentTime + chunkDuration;
           
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
@@ -481,7 +466,7 @@ async function startServer() {
           vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
-          currentTime += chunkDuration;
+          currentTime = chunkEndTime;
           svIndex++;
         }
       }

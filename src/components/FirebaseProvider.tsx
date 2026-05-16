@@ -49,18 +49,19 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       const userSnap = await getDoc(userRef);
       if (!userSnap.exists()) {
-        await setDoc(userRef, {
+        const newUser = {
           uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0] || 'User',
-          photoURL: user.photoURL,
+          email: user.email || '',
+          displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+          photoURL: user.photoURL || null,
           usageCount: 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
           diamonds: 10,
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
-        });
-        setRole(user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user');
+        };
+        await setDoc(userRef, newUser);
+        setRole(newUser.role);
         setDiamonds(10);
       } else {
         const data = userSnap.data();
@@ -68,14 +69,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         setDiamonds(data.diamonds || 0);
         const effectiveRole = user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : (data.role || 'user');
         setRole(effectiveRole);
-        
-        // Update lastUsed on every login to ensure visibility in admin panel
-        await updateDoc(userRef, {
-          lastUsed: serverTimestamp()
-        });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     }
   };
 

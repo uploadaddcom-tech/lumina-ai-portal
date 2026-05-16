@@ -196,14 +196,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <img src={user.photoURL} className="w-12 h-12 rounded-2xl object-cover ring-2 ring-zinc-800" referrerPolicy="no-referrer" />
                           ) : (
                             <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center font-bold text-zinc-500">
-                              {user.email[0].toUpperCase()}
+                              {(user.email?.[0] || user.displayName?.[0] || 'U').toUpperCase()}
                             </div>
                           )}
                           <div>
                             <div className="font-bold text-lg">{user.displayName || 'Anonymous'}</div>
                             <div className="text-zinc-500 text-sm flex items-center gap-1">
                               <Mail size={12} />
-                              {user.email}
+                              {user.email || 'No email provided'}
                             </div>
                           </div>
                         </div>
