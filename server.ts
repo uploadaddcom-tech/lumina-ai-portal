@@ -159,14 +159,17 @@ async function startServer() {
         let lastError = null;
 
         while (retryCount <= maxRetries) {
-          // Fix: MsEdgeTTS constructor expects { agent, headers, enableLogger }
-          // The headers should be an object with a 'headers' key for ws.
+          // Fix: Try forcing IPv4 (family: 4) as some servers have broken IPv6 routing for WSS.
+          // Also use a more robust set of headers.
           const localEdgeTts = new MsEdgeTTS({
             enableLogger: true,
             headers: {
+              family: 4, 
               headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
-                "Origin": "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
+                "Origin": "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
               }
             }
           });
@@ -201,9 +204,9 @@ async function startServer() {
           } catch (error: any) {
             lastError = error;
             retryCount++;
-            console.error(`Edge-TTS Attempt ${retryCount} failed:`, error?.message || error);
+            console.error(`Edge-TTS Attempt ${retryCount} failed. Full error:`, error);
             if (retryCount <= maxRetries) {
-              await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
+              await new Promise(r => setTimeout(r, 2000));
             }
           } finally {
             try { localEdgeTts.close(); } catch (e) {}
