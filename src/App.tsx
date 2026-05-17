@@ -1682,7 +1682,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             className="w-full h-full object-cover opacity-80 transition-transform duration-300 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
                             muted 
@@ -1800,7 +1799,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             className="w-full h-full object-cover opacity-60 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
                             muted 
@@ -1932,7 +1930,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             className="w-full h-full object-cover opacity-60 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
                             muted 
@@ -2084,7 +2081,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             className="w-full h-full object-cover opacity-60 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
                             muted 
