@@ -34,9 +34,6 @@ async function startServer() {
   }
   const ai = new GoogleGenAI({ apiKey: apiKey || "" });
   
-  // Edge-TTS instance
-  const edgeTts = new MsEdgeTTS({});
-
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
     try {
@@ -157,18 +154,51 @@ async function startServer() {
       const cleanVoiceName = voiceName?.replace("edge-", "");
 
       if (isEdgeVoice) {
-        await edgeTts.setMetadata(cleanVoiceName || "my-MM-NilarNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-        const stream = edgeTts.toStream(text);
-        const audioBuffer = await new Promise<Buffer>((resolve, reject) => {
-          const chunks: any[] = [];
-          stream.on("data", (chunk) => chunks.push(chunk));
-          stream.on("end", () => resolve(Buffer.concat(chunks)));
-          stream.on("error", (err) => reject(err));
-        });
-        return res.json({ 
-          audioData: audioBuffer.toString("base64"),
-          mimeType: "audio/mpeg" 
-        });
+        let retryCount = 0;
+        const maxRetries = 2;
+        let lastError = null;
+
+        while (retryCount <= maxRetries) {
+          const localEdgeTts = new MsEdgeTTS({
+            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          });
+          try {
+            await localEdgeTts.setMetadata(cleanVoiceName || "my-MM-NilarNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+            const stream = localEdgeTts.toStream(text);
+            const audioBuffer = await new Promise<Buffer>((resolve, reject) => {
+              const chunks: any[] = [];
+              let timeout = setTimeout(() => {
+                reject(new Error("Edge-TTS connection timeout (15s)"));
+              }, 15000);
+
+              stream.on("data", (chunk) => chunks.push(chunk));
+              stream.on("end", () => {
+                clearTimeout(timeout);
+                resolve(Buffer.concat(chunks));
+              });
+              stream.on("error", (err) => {
+                clearTimeout(timeout);
+                reject(err);
+              });
+            });
+            
+            return res.json({ 
+              audioData: audioBuffer.toString("base64"),
+              mimeType: "audio/mpeg" 
+            });
+          } catch (error: any) {
+            lastError = error;
+            retryCount++;
+            console.error(`Edge-TTS Attempt ${retryCount} failed:`, error?.message || error);
+            if (retryCount <= maxRetries) {
+              await new Promise(r => setTimeout(r, 1000)); // wait 1s before retry
+            }
+          } finally {
+            try { localEdgeTts.close(); } catch (e) {}
+          }
+        }
+        
+        throw new Error(`Edge-TTS failed after ${maxRetries + 1} attempts. Last error: ${lastError?.message || JSON.stringify(lastError)}`);
       }
 
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
