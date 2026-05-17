@@ -341,8 +341,8 @@ async function startServer() {
       let vFilters: string[] = [];
       let lastV = "[0:v]";
       
-      // Stage 1: Ratio & Zoom & Auto Flip (User requested flip)
-      let baseFilters = [ratioFilter, "hflip"].filter(Boolean).join(",");
+      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested)
+      let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"].filter(Boolean).join(",");
       if (baseFilters) {
         vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
