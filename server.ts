@@ -3,7 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { MsEdgeTTS, OUTPUT_FORMAT } from "edge-tts-node";
+import { EdgeTTS } from "@lobehub/tts";
 import dotenv from "dotenv";
 import fs from "fs";
 import { exec } from "child_process";
@@ -159,43 +159,26 @@ async function startServer() {
         let lastError = null;
 
         while (retryCount <= maxRetries) {
-          // Fix: Try forcing IPv4 (family: 4) as some servers have broken IPv6 routing for WSS.
-          // Also use a more robust set of headers.
-          const localEdgeTts = new MsEdgeTTS({
-            enableLogger: true,
-            headers: {
-              family: 4, 
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
-                "Origin": "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache"
-              }
-            }
-          });
           try {
-            await localEdgeTts.setMetadata(cleanVoiceName || "my-MM-NilarNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-            const stream = localEdgeTts.toStream(text);
-            const audioBuffer = await new Promise<Buffer>((resolve, reject) => {
-              const chunks: any[] = [];
-              let timeout = setTimeout(() => {
-                reject(new Error("Edge-TTS connection timeout (20s)"));
-              }, 20000);
-
-              stream.on("data", (chunk) => chunks.push(chunk));
-              stream.on("end", () => {
-                clearTimeout(timeout);
-                if (chunks.length === 0) {
-                  reject(new Error("Edge-TTS returned empty audio data"));
-                } else {
-                  resolve(Buffer.concat(chunks));
-                }
-              });
-              stream.on("error", (err) => {
-                clearTimeout(timeout);
-                reject(err);
-              });
+            const edgeTts = new EdgeTTS();
+            const response = await edgeTts.create({
+              input: text,
+              options: {
+                voice: cleanVoiceName || "my-MM-NilarNeural"
+              }
             });
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`Edge-TTS API responded with ${response.status}: ${errorText}`);
+            }
+
+            const audioArrayBuffer = await response.arrayBuffer();
+            const audioBuffer = Buffer.from(audioArrayBuffer);
+            
+            if (audioBuffer.length === 0) {
+              throw new Error("Edge-TTS returned empty audio data");
+            }
             
             return res.json({ 
               audioData: audioBuffer.toString("base64"),
@@ -204,16 +187,14 @@ async function startServer() {
           } catch (error: any) {
             lastError = error;
             retryCount++;
-            console.error(`Edge-TTS Attempt ${retryCount} failed. Full error:`, error);
+            console.error(`Edge-TTS Attempt ${retryCount} failed:`, error?.message || error);
             if (retryCount <= maxRetries) {
-              await new Promise(r => setTimeout(r, 2000));
+              await new Promise(r => setTimeout(r, 1500));
             }
-          } finally {
-            try { localEdgeTts.close(); } catch (e) {}
           }
         }
         
-        throw new Error(`Edge-TTS Error: ${lastError?.message || JSON.stringify(lastError)}. Please check your server's network connection to Microsoft services.`);
+        throw new Error(`Edge-TTS Error: ${lastError?.message || JSON.stringify(lastError)}. Switching to LobeHub TTS failed as well.`);
       }
 
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
