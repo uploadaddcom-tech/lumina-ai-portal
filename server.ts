@@ -3,15 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { EdgeSpeechTTS } from "@lobehub/tts";
-import { WebSocket } from "ws";
 import dotenv from "dotenv";
-
-// Polyfill WebSocket for @lobehub/tts in Node.js
-if (typeof global !== "undefined" && !global.WebSocket) {
-  // @ts-ignore
-  global.WebSocket = WebSocket;
-}
 import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
@@ -40,7 +32,7 @@ async function startServer() {
     console.error("GEMINI_API_KEY is not set in environment variables.");
   }
   const ai = new GoogleGenAI({ apiKey: apiKey || "" });
-  
+
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
     try {
@@ -154,56 +146,6 @@ async function startServer() {
   app.post("/api/voiceover", async (req, res) => {
     try {
       const { text, voiceName, apiKey: customKey } = req.body;
-      
-      // Check if it's an Edge-TTS voice
-      // We'll use a prefix or a known list. Let's assume voiceNames like 'my-MM-NilarNeural' are Edge TTS.
-      const isEdgeVoice = voiceName && (voiceName.includes("-") || voiceName.startsWith("edge-"));
-      const cleanVoiceName = voiceName?.replace("edge-", "");
-
-      if (isEdgeVoice) {
-        let retryCount = 0;
-        const maxRetries = 2;
-        let lastError = null;
-
-        while (retryCount <= maxRetries) {
-          try {
-            const edgeTts = new EdgeSpeechTTS();
-            const response = await edgeTts.create({
-              input: text,
-              options: {
-                voice: cleanVoiceName || "my-MM-NilarNeural"
-              }
-            });
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(`Edge-TTS API responded with ${response.status}: ${errorText}`);
-            }
-
-            const audioArrayBuffer = await response.arrayBuffer();
-            const audioBuffer = Buffer.from(audioArrayBuffer);
-            
-            if (audioBuffer.length === 0) {
-              throw new Error("Edge-TTS returned empty audio data");
-            }
-            
-            return res.json({ 
-              audioData: audioBuffer.toString("base64"),
-              mimeType: "audio/mpeg" 
-            });
-          } catch (error: any) {
-            lastError = error;
-            retryCount++;
-            console.error(`Edge-TTS Attempt ${retryCount} failed:`, error?.message || error);
-            if (retryCount <= maxRetries) {
-              await new Promise(r => setTimeout(r, 1500));
-            }
-          }
-        }
-        
-        throw new Error(`Edge-TTS Error: ${lastError?.message || JSON.stringify(lastError)}. Switching to LobeHub TTS failed as well.`);
-      }
-
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3.1-flash-tts-preview";
 
@@ -269,10 +211,7 @@ async function startServer() {
       header.writeUInt32LE(pcmData.length, 40);
 
       const finalAudio = Buffer.concat([header, pcmData]);
-      res.json({ 
-        audioData: finalAudio.toString("base64"),
-        mimeType: "audio/wav"
-      });
+      res.json({ audioData: finalAudio.toString("base64") });
     } catch (error: any) {
       console.error("Voiceover Error:", error);
       res.status(500).json({ error: error.message });
