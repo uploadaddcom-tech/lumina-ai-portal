@@ -159,8 +159,16 @@ async function startServer() {
         let lastError = null;
 
         while (retryCount <= maxRetries) {
+          // Fix: MsEdgeTTS constructor expects { agent, headers, enableLogger }
+          // The headers should be an object with a 'headers' key for ws.
           const localEdgeTts = new MsEdgeTTS({
-            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            enableLogger: true,
+            headers: {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
+                "Origin": "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
+              }
+            }
           });
           try {
             await localEdgeTts.setMetadata(cleanVoiceName || "my-MM-NilarNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
@@ -168,13 +176,17 @@ async function startServer() {
             const audioBuffer = await new Promise<Buffer>((resolve, reject) => {
               const chunks: any[] = [];
               let timeout = setTimeout(() => {
-                reject(new Error("Edge-TTS connection timeout (15s)"));
-              }, 15000);
+                reject(new Error("Edge-TTS connection timeout (20s)"));
+              }, 20000);
 
               stream.on("data", (chunk) => chunks.push(chunk));
               stream.on("end", () => {
                 clearTimeout(timeout);
-                resolve(Buffer.concat(chunks));
+                if (chunks.length === 0) {
+                  reject(new Error("Edge-TTS returned empty audio data"));
+                } else {
+                  resolve(Buffer.concat(chunks));
+                }
               });
               stream.on("error", (err) => {
                 clearTimeout(timeout);
@@ -191,14 +203,14 @@ async function startServer() {
             retryCount++;
             console.error(`Edge-TTS Attempt ${retryCount} failed:`, error?.message || error);
             if (retryCount <= maxRetries) {
-              await new Promise(r => setTimeout(r, 1000)); // wait 1s before retry
+              await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
             }
           } finally {
             try { localEdgeTts.close(); } catch (e) {}
           }
         }
         
-        throw new Error(`Edge-TTS failed after ${maxRetries + 1} attempts. Last error: ${lastError?.message || JSON.stringify(lastError)}`);
+        throw new Error(`Edge-TTS Error: ${lastError?.message || JSON.stringify(lastError)}. Please check your server's network connection to Microsoft services.`);
       }
 
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
