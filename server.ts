@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
+import { MsEdgeTTS, OUTPUT_FORMAT } from "edge-tts-node";
 import dotenv from "dotenv";
 import fs from "fs";
 import { exec } from "child_process";
@@ -32,6 +33,9 @@ async function startServer() {
     console.error("GEMINI_API_KEY is not set in environment variables.");
   }
   const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+  
+  // Edge-TTS instance
+  const edgeTts = new MsEdgeTTS({});
 
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
@@ -146,6 +150,27 @@ async function startServer() {
   app.post("/api/voiceover", async (req, res) => {
     try {
       const { text, voiceName, apiKey: customKey } = req.body;
+      
+      // Check if it's an Edge-TTS voice
+      // We'll use a prefix or a known list. Let's assume voiceNames like 'my-MM-NilarNeural' are Edge TTS.
+      const isEdgeVoice = voiceName && (voiceName.includes("-") || voiceName.startsWith("edge-"));
+      const cleanVoiceName = voiceName?.replace("edge-", "");
+
+      if (isEdgeVoice) {
+        await edgeTts.setMetadata(cleanVoiceName || "my-MM-NilarNeural", OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+        const stream = edgeTts.toStream(text);
+        const audioBuffer = await new Promise<Buffer>((resolve, reject) => {
+          const chunks: any[] = [];
+          stream.on("data", (chunk) => chunks.push(chunk));
+          stream.on("end", () => resolve(Buffer.concat(chunks)));
+          stream.on("error", (err) => reject(err));
+        });
+        return res.json({ 
+          audioData: audioBuffer.toString("base64"),
+          mimeType: "audio/mpeg" 
+        });
+      }
+
       const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
       const model = "gemini-3.1-flash-tts-preview";
 
@@ -211,7 +236,10 @@ async function startServer() {
       header.writeUInt32LE(pcmData.length, 40);
 
       const finalAudio = Buffer.concat([header, pcmData]);
-      res.json({ audioData: finalAudio.toString("base64") });
+      res.json({ 
+        audioData: finalAudio.toString("base64"),
+        mimeType: "audio/wav"
+      });
     } catch (error: any) {
       console.error("Voiceover Error:", error);
       res.status(500).json({ error: error.message });
