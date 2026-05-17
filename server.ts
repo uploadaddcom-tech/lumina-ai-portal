@@ -3,8 +3,15 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { EdgeTTS } from "@lobehub/tts";
+import { EdgeSpeechTTS } from "@lobehub/tts";
+import { WebSocket } from "ws";
 import dotenv from "dotenv";
+
+// Polyfill WebSocket for @lobehub/tts in Node.js
+if (typeof global !== "undefined" && !global.WebSocket) {
+  // @ts-ignore
+  global.WebSocket = WebSocket;
+}
 import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
@@ -160,7 +167,7 @@ async function startServer() {
 
         while (retryCount <= maxRetries) {
           try {
-            const edgeTts = new EdgeTTS();
+            const edgeTts = new EdgeSpeechTTS();
             const response = await edgeTts.create({
               input: text,
               options: {
