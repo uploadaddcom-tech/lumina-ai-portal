@@ -19,6 +19,36 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const mergeJobs = new Map<string, { status: string; downloadUrl?: string; error?: string }>();
+
+// Periodic cleanup of temp files and job history (every 30 minutes)
+setInterval(() => {
+  const tempDir = path.join(process.cwd(), "temp");
+  if (fs.existsSync(tempDir)) {
+    const now = Date.now();
+    const files = fs.readdirSync(tempDir);
+    for (const file of files) {
+      try {
+        const filePath = path.join(tempDir, file);
+        const stats = fs.statSync(filePath);
+        // Delete files older than 1 hour
+        if (now - stats.mtimeMs > 60 * 60 * 1000) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (e) {
+        console.error("Cleanup Error for file", file, e);
+      }
+    }
+  }
+  // Also cleanup stale jobs
+  if (mergeJobs.size > 100) {
+    const keys = Array.from(mergeJobs.keys());
+    for (let i = 0; i < 50; i++) {
+      mergeJobs.delete(keys[i]);
+    }
+  }
+}, 30 * 60 * 1000);
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -220,35 +250,29 @@ async function startServer() {
 
   // Server-side Merging Endpoint
   app.post("/api/merge", async (req, res) => {
-    const tempId = crypto.randomBytes(8).toString("hex");
+    const jobId = crypto.randomBytes(12).toString("hex");
+    const tempId = jobId; 
     const tempDir = path.join(process.cwd(), "temp");
     
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    // Periodic cleanup of temp files older than 1 hour
-    const now = Date.now();
-    try {
-      const files = fs.readdirSync(tempDir);
-      for (const file of files) {
-        const filePath = path.join(tempDir, file);
-        const stats = fs.statSync(filePath);
-        if (now - stats.mtimeMs > 60 * 60 * 1000) {
-          fs.unlinkSync(filePath);
-        }
-      }
-    } catch (e) {
-      console.error("Auto Cleanup Error:", e);
-    }
+    // Initialize job status
+    mergeJobs.set(jobId, { status: "processing" });
 
-    const videoPath = path.join(tempDir, `video_${tempId}.mp4`);
-    const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
-    const logoPath = path.join(tempDir, `logo_${tempId}.png`);
-    const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
+    // Return jobId immediately
+    res.json({ jobId });
 
-    try {
-      const { 
+    // Proceed in background
+    (async () => {
+      const videoPath = path.join(tempDir, `video_${tempId}.mp4`);
+      const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
+      const logoPath = path.join(tempDir, `logo_${tempId}.png`);
+      const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
+
+      try {
+        const { 
         videoBase64, 
         audioBase64, 
         logoBase64, 
@@ -549,14 +573,17 @@ async function startServer() {
       console.log("Executing CMD:", ffmpegCmd);
       await execPromise(ffmpegCmd);
 
-      // Return download URL instead of huge base64
+      // Success
       const downloadFilename = `output_${tempId}.mp4`;
-      res.json({ downloadUrl: `/api/download/${downloadFilename}` });
+      mergeJobs.set(jobId, { 
+        status: "completed", 
+        downloadUrl: `/api/download/${downloadFilename}` 
+      });
 
     } catch (error: any) {
       console.error("FFmpeg Error Output:", error.stderr || error);
       const errorMessage = error.stderr ? `FFmpeg Failed: ${error.stderr.split('\n').pop()}` : error.message;
-      res.status(500).json({ error: errorMessage });
+      mergeJobs.set(jobId, { status: "error", error: errorMessage });
     } finally {
       // Cleanup source files only, KEEP the output file for download
       try {
@@ -581,6 +608,16 @@ async function startServer() {
         console.error("Cleanup Error:", cleanError);
       }
     }
+  })();
+});
+
+  // Status endpoint for polling
+  app.get("/api/status/:jobId", (req, res) => {
+    const job = mergeJobs.get(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    res.json(job);
   });
 
   // Download endpoint

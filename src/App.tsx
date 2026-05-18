@@ -133,7 +133,12 @@ const api = {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || "Merge failed");
     }
-    return (await res.json()).downloadUrl;
+    return (await res.json()).jobId;
+  },
+  status: async (jobId: string) => {
+    const res = await fetch(`/api/status/${jobId}`);
+    if (!res.ok) throw new Error("Failed to check status");
+    return res.json();
   }
 };
 
@@ -1309,7 +1314,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         reader.readAsDataURL(audioBlob);
       });
 
-      const downloadUrl = await api.merge(
+      const jobId = await api.merge(
         videoBase64, 
         audioBase64, 
         logoBase64, 
@@ -1336,11 +1341,28 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         apiKey
       );
       
-      if (downloadUrl) {
-        setMergedVideoUrl(downloadUrl);
+      if (jobId) {
+        // Polling loop
+        let attempts = 0;
+        const maxAttempts = 300; // 5 minutes with 1s interval
+        while (attempts < maxAttempts) {
+          const job = await api.status(jobId);
+          if (job.status === "completed") {
+            setMergedVideoUrl(job.downloadUrl);
+            break;
+          } else if (job.status === "error") {
+            throw new Error(job.error || "Processing failed");
+          }
+          attempts++;
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        if (attempts >= maxAttempts) {
+          throw new Error("Processing timed out");
+        }
       }
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : "Something went wrong during merging");
     } finally {
       setIsMerging(false);
     }
