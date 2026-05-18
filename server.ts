@@ -551,9 +551,15 @@ async function startServer() {
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
           
-          // Use wider wrapLen (80) to spread text horizontally
-          const wrappedLines = wrapText(chunk.trim(), 80).map(l => `          ${l}          `);
-          const wrapped = wrappedLines.join('\n');
+          // Center each line and moderately pad
+          const lines = wrapText(chunk.trim(), 50);
+          const maxLineLen = Math.max(...lines.map(l => l.length));
+          const centeredLines = lines.map(l => {
+            const padSize = Math.max(0, Math.floor((maxLineLen - l.length) / 2));
+            const pad = " ".repeat(padSize);
+            return `${pad}${l}${pad}`;
+          });
+          const wrapped = centeredLines.map(l => `  ${l}  `).join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
           const chunkStartTime = currentTime;
           const chunkEndTime = currentTime + chunkDuration;
@@ -563,7 +569,7 @@ async function startServer() {
           
           const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
           // Position: center horizontally, 90% from top (Bottom Center)
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=30:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=15:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           currentTime = chunkEndTime;
