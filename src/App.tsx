@@ -884,34 +884,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-border">
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                      <ListOrdered className="w-4 h-4" />
-                    </div>
-                    {t.actionsTitle}
-                  </h3>
-                  <ul className="space-y-3">
-                    {t.actions.map((action, i) => (
-                      <li key={i} className="text-[11px] text-text-secondary font-bold uppercase tracking-widest flex items-center gap-3 bg-card-bg/20 dark:bg-white/[0.02] p-4 rounded-2xl border border-border dark:border-white/5 transition-all hover:bg-card-bg/30 dark:hover:bg-white/[0.04]">
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> {action}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-purple-600 dark:text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    {t.usageTitle}
-                  </h3>
-                  <div className="bg-card-bg/20 dark:bg-white/[0.02] p-8 rounded-2xl border border-border dark:border-white/5 h-full">
-                    <p className="text-[11px] text-text-secondary leading-relaxed font-bold uppercase tracking-widest">{t.usage}</p>
-                  </div>
-                </div>
-              </div>
+
             </motion.div>
           )}
         </AnimatePresence>
@@ -2539,35 +2512,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 </div>
               )}
 
-              {/* Detailed Breakdown Panels */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                      <ListOrdered className="w-4 h-4" />
-                    </div>
-                    {t.actionsTitle}
-                  </h3>
-                  <ul className="space-y-3">
-                    {t.actions.map((action, i) => (
-                      <li key={i} className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-3 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> {action}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-purple-600 dark:text-purple-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    {t.usageTitle}
-                  </h3>
-                  <div className="bg-white/[0.02] p-8 rounded-2xl border border-white/5 h-full">
-                    <p className="text-[11px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">{t.usage}</p>
-                  </div>
-                </div>
-              </div>
+
 
               {/* Regeneration Section */}
               <div className="pt-8 border-t border-white/5 flex flex-col gap-4">
