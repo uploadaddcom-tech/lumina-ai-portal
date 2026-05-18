@@ -1700,24 +1700,42 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
-                        {file ? (
-                          <video 
-                            src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-contain opacity-80"
-                            style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
-                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
-                            }}
-                            autoPlay 
-                            muted 
-                            loop 
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center w-full h-full">
-                             <Play className="w-12 h-12 text-white/5" />
-                          </div>
-                        )}
+                        <div 
+                          className="relative w-full h-full flex items-center justify-center overflow-hidden"
+                          style={{ backgroundColor: bgColor }}
+                        >
+                          {file ? (
+                            <>
+                              {bgBlurEnabled && (
+                                <video 
+                                  src={URL.createObjectURL(file)} 
+                                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-60 scale-110"
+                                  autoPlay 
+                                  muted 
+                                  loop 
+                                  playsInline
+                                />
+                              )}
+                              <video 
+                                src={URL.createObjectURL(file)} 
+                                className="relative w-full h-full object-contain transition-transform duration-200"
+                                style={{ 
+                                  transform: `scale(${(videoScale || 100) / 100})`,
+                                  clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
+                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                }}
+                                autoPlay 
+                                muted 
+                                loop 
+                                playsInline
+                              />
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center w-full h-full">
+                               <Play className="w-12 h-12 text-white/5" />
+                            </div>
+                          )}
+                        </div>
                         
                         {/* Overlay Grid for context */}
                         <div className="absolute inset-0 border border-emerald-500/20 pointer-events-none" />
@@ -1915,24 +1933,42 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
-                        {file ? (
-                          <video 
-                            src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-contain opacity-60"
-                            style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
-                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
-                            }}
-                            autoPlay 
-                            muted 
-                            loop 
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center w-full h-full">
-                             <Play className="w-12 h-12 text-white/5" />
-                          </div>
-                        )}
+                        <div 
+                          className="relative w-full h-full flex items-center justify-center overflow-hidden"
+                          style={{ backgroundColor: bgColor }}
+                        >
+                          {file ? (
+                            <>
+                              {bgBlurEnabled && (
+                                <video 
+                                  src={URL.createObjectURL(file)} 
+                                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-110"
+                                  autoPlay 
+                                  muted 
+                                  loop 
+                                  playsInline
+                                />
+                              )}
+                              <video 
+                                src={URL.createObjectURL(file)} 
+                                className="relative w-full h-full object-contain transition-transform duration-200"
+                                style={{ 
+                                  transform: `scale(${(videoScale || 100) / 100})`,
+                                  clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
+                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                }}
+                                autoPlay 
+                                muted 
+                                loop 
+                                playsInline
+                              />
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center w-full h-full">
+                               <Play className="w-12 h-12 text-white/5" />
+                            </div>
+                          )}
+                        </div>
 
                         {/* The Actual Logo Preview Overlay */}
                         <div 
@@ -2048,24 +2084,42 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
-                        {file ? (
-                          <video 
-                            src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-contain opacity-60"
-                            style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
-                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
-                            }}
-                            autoPlay 
-                            muted 
-                            loop 
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center w-full h-full">
-                             <Play className="w-12 h-12 text-white/5" />
-                          </div>
-                        )}
+                        <div 
+                          className="relative w-full h-full flex items-center justify-center overflow-hidden"
+                          style={{ backgroundColor: bgColor }}
+                        >
+                          {file ? (
+                            <>
+                              {bgBlurEnabled && (
+                                <video 
+                                  src={URL.createObjectURL(file)} 
+                                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-110"
+                                  autoPlay 
+                                  muted 
+                                  loop 
+                                  playsInline
+                                />
+                              )}
+                              <video 
+                                src={URL.createObjectURL(file)} 
+                                className="relative w-full h-full object-contain transition-transform duration-200"
+                                style={{ 
+                                  transform: `scale(${(videoScale || 100) / 100})`,
+                                  clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
+                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                }}
+                                autoPlay 
+                                muted 
+                                loop 
+                                playsInline
+                              />
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center w-full h-full">
+                               <Play className="w-12 h-12 text-white/5" />
+                            </div>
+                          )}
+                        </div>
 
                         {/* Blur Overlay Preview */}
                         <div 
@@ -2201,24 +2255,42 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
-                        {file ? (
-                          <video 
-                            src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-contain opacity-60"
-                            style={{ 
-                              transform: `scale(${(videoScale || 100) / 100})`,
-                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                              filter: "contrast(115%) brightness(95%) saturate(125%)"
-                            }}
-                            autoPlay 
-                            muted 
-                            loop 
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center w-full h-full">
-                             <Play className="w-12 h-12 text-white/5" />
-                          </div>
-                        )}
+                        <div 
+                          className="relative w-full h-full flex items-center justify-center overflow-hidden"
+                          style={{ backgroundColor: bgColor }}
+                        >
+                          {file ? (
+                            <>
+                              {bgBlurEnabled && (
+                                <video 
+                                  src={URL.createObjectURL(file)} 
+                                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-110"
+                                  autoPlay 
+                                  muted 
+                                  loop 
+                                  playsInline
+                                />
+                              )}
+                              <video 
+                                src={URL.createObjectURL(file)} 
+                                className="relative w-full h-full object-contain transition-transform duration-200"
+                                style={{ 
+                                  transform: `scale(${(videoScale || 100) / 100})`,
+                                  clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
+                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                }}
+                                autoPlay 
+                                muted 
+                                loop 
+                                playsInline
+                              />
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center w-full h-full">
+                               <Play className="w-12 h-12 text-white/5" />
+                            </div>
+                          )}
+                        </div>
                         
                         {/* Subtitle Preview Overlay */}
                         <div className="absolute bottom-6 md:bottom-12 left-0 right-0 px-2 md:px-8 flex flex-col items-center gap-2 pointer-events-none">
