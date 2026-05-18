@@ -1747,7 +1747,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-4 md:p-5 flex flex-col gap-4 border-l border-white/5 bg-[#0f172a]">
+                    <div className="w-full md:w-80 p-4 md:p-5 flex flex-col gap-4 border-l border-white/5 bg-[#0f172a] flex-1 min-h-0">
                       
                       <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-2">
@@ -1991,10 +1991,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
+                    <div className="w-full md:w-80 p-4 md:p-5 flex flex-col gap-4 border-l border-white/5 bg-[#0f172a] flex-1 min-h-0">
                       
-                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="space-y-4">
+                      <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
                             {lang === "EN" ? "Position" : "တည်နေရာ"}
                           </label>
@@ -2008,9 +2008,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               <button
                                 key={pos.id}
                                 onClick={() => setLogoPosition(pos.id)}
-                                className={`px-4 py-3 rounded-xl border text-[10px] font-black transition-all ${
+                                className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
                                   logoPosition === pos.id 
-                                    ? "bg-emerald-600 border-emerald-500 text-white shadow-xl shadow-emerald-500/20" 
+                                    ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
                                     : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
                                 }`}
                               >
@@ -2020,12 +2020,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Logo Scale" : "အရွယ်အစား"}
                             </label>
-                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">{logoSize}px</span>
+                            <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">{logoSize}px</span>
                           </div>
                           <input 
                             type="range" 
@@ -2033,7 +2033,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="300" 
                             value={logoSize} 
                             onChange={(e) => setLogoSize(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                           />
                         </div>
                       </div>
@@ -2136,14 +2136,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
-                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="w-full md:w-80 p-4 md:p-5 flex flex-col gap-4 border-l border-white/5 bg-[#0f172a] flex-1 min-h-0">
+                      <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Blur Width" : "အကျယ်"}
                             </label>
-                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurWidth}</span>
+                            <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurWidth}</span>
                           </div>
                           <input 
                             type="range" 
@@ -2151,16 +2151,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="1000" 
                             value={blurWidth} 
                             onChange={(e) => setBlurWidth(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Blur Height" : "အမြင့်"}
                             </label>
-                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurHeight}</span>
+                            <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurHeight}</span>
                           </div>
                           <input 
                             type="range" 
@@ -2168,16 +2168,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="500" 
                             value={blurHeight} 
                             onChange={(e) => setBlurHeight(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Vertical Position" : "အပေါ်အောက် ရွှေ့ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurY}</span>
+                            <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurY}</span>
                           </div>
                           <input 
                             type="range" 
@@ -2185,16 +2185,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="1000" 
                             value={blurY} 
                             onChange={(e) => setBlurY(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Blur Intensity" : "ဝါးနှုန်း (Blur Strength)"}
                             </label>
-                             <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">{blurIntensity}</span>
+                             <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurIntensity}</span>
                           </div>
                           <input 
                             type="range" 
@@ -2202,7 +2202,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="50" 
                             value={blurIntensity} 
                             onChange={(e) => setBlurIntensity(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
                           />
                         </div>
                       </div>
@@ -2308,8 +2308,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
-                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="w-full md:w-80 p-4 md:p-5 flex flex-col gap-4 border-l border-white/5 bg-[#0f172a] flex-1 min-h-0">
+                      <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
                             {lang === "EN" ? "Subtitle Color" : "အရောင်"}
@@ -2332,12 +2332,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Font Size" : "အရွယ်အစား"}
                             </label>
-                            <span className="text-[10px] font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">{subtitleFontSize}px</span>
+                            <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">{subtitleFontSize}px</span>
                           </div>
                           <input 
                             type="range" 
@@ -2345,7 +2345,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="100" 
                             value={subtitleFontSize} 
                             onChange={(e) => setSubtitleFontSize(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                           />
                         </div>
 
