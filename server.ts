@@ -315,14 +315,25 @@ async function startServer() {
       const padding = 20 * logoScale;
       const zoom = (videoScale || 100) / 100;
 
-      // Ratio Filter with Zoom support and even dimension safety
+      // Ratio Filter with Zoom support (Fit & Pad - Avoid Cropping)
       let ratioFilter = "";
-      if (videoRatio === "9:16") {
-        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih*9/16)/${zoom}/2)*2':h='trunc(min(ih,iw/(9/16))/${zoom}/2)*2',scale=w='trunc(min(iw,ih*9/16)/2)*2':h='trunc(min(ih,iw/(9/16))/2)*2',format=yuv420p`;
-      } else if (videoRatio === "1:1") {
-        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih)/${zoom}/2)*2':h='trunc(min(ih,iw)/${zoom}/2)*2',scale=w='trunc(min(iw,ih)/2)*2':h='trunc(min(ih,iw)/2)*2',format=yuv420p`;
-      } else if (videoRatio === "16:9") {
-        ratioFilter = `setsar=1,crop=w='trunc(min(iw,ih*16/9)/${zoom}/2)*2':h='trunc(min(ih,iw/(16/9))/${zoom}/2)*2',scale=w='trunc(min(iw,ih*16/9)/2)*2':h='trunc(min(ih,iw/(16/9))/2)*2',format=yuv420p`;
+      if (videoRatio) {
+        const [rw, rh] = videoRatio.split(':').map(Number);
+        const targetAR = rw / rh;
+        const videoAR = vRes.w / vRes.h;
+        
+        let outW, outH;
+        if (videoAR > targetAR) {
+          outH = vRes.h;
+          outW = Math.round(vRes.h * targetAR);
+        } else {
+          outW = vRes.w;
+          outH = Math.round(vRes.w / targetAR);
+        }
+        outW = Math.max(2, Math.floor(outW / 2) * 2);
+        outH = Math.max(2, Math.floor(outH / 2) * 2);
+
+        ratioFilter = `setsar=1,scale=w=${outW}:h=${outH}:force_original_aspect_ratio=contain,pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:color=black,scale=iw*${zoom}:ih*${zoom},crop=${outW}:${outH},format=yuv420p`;
       }
       
       let posFilter = "";

@@ -1679,7 +1679,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-80 transition-transform duration-300 scale-x-[-1]"
+                            className="w-full h-full object-contain opacity-80 transition-transform duration-300 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
@@ -1797,7 +1797,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-60 scale-x-[-1]"
+                            className="w-full h-full object-contain opacity-60 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
@@ -1929,7 +1929,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-60 scale-x-[-1]"
+                            className="w-full h-full object-contain opacity-60 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
@@ -2081,7 +2081,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         {file ? (
                           <video 
                             src={URL.createObjectURL(file)} 
-                            className="w-full h-full object-cover opacity-60 scale-x-[-1]"
+                            className="w-full h-full object-contain opacity-60 scale-x-[-1]"
                             style={{ 
                               transform: `scale-x-[-1] scale(${(videoScale || 100) / 100})`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
