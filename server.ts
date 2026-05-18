@@ -245,6 +245,8 @@ async function startServer() {
         cropBottom,
         cropLeft,
         cropRight,
+        bgColor,
+        bgBlurEnabled,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -321,6 +323,7 @@ async function startServer() {
       const cBottom = (cropBottom || 0) / 100;
       const cLeft = (cropLeft || 0) / 100;
       const cRight = (cropRight || 0) / 100;
+      const bgColorVal = bgColor || "black";
 
       // Ratio Filter with Zoom support (Fit & Pad - Avoid Cropping)
       let ratioFilter = "";
@@ -337,7 +340,13 @@ async function startServer() {
         const safeW = Math.max(2, Math.floor(outW / 2) * 2);
         const safeH = Math.max(2, Math.floor(outH / 2) * 2);
 
-        ratioFilter = `${manualCrop},setsar=1,scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=contain,pad=${safeW}:${safeH}:(ow-iw)/2:(oh-ih)/2:color=black,scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
+        if (bgBlurEnabled) {
+          // Background blur path: scale background to fill, blur it, map foreground on top
+          ratioFilter = `split[main][bg]; [bg]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=increase,boxblur=40:20,crop=${safeW}:${safeH}[bg_applied]; [main]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=contain[fg]; [bg_applied][fg]overlay=(W-w)/2:(H-h)/2,scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
+        } else {
+          // Solid color path: standard pad
+          ratioFilter = `${manualCrop},setsar=1,scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=contain,pad=${safeW}:${safeH}:(ow-iw)/2:(oh-ih)/2:color=${bgColorVal.replace('#', '0x')},scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
+        }
       }
       
       let posFilter = "";

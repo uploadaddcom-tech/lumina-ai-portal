@@ -85,6 +85,8 @@ const api = {
     cropBottom?: number,
     cropLeft?: number,
     cropRight?: number,
+    bgColor?: string,
+    bgBlurEnabled?: boolean,
     blurEnabled?: boolean, 
     blurWidth?: number, 
     blurHeight?: number, 
@@ -112,6 +114,8 @@ const api = {
         cropBottom,
         cropLeft,
         cropRight,
+        bgColor,
+        bgBlurEnabled,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -1109,6 +1113,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [cropBottom, setCropBottom] = useState(0);
   const [cropLeft, setCropLeft] = useState(0);
   const [cropRight, setCropRight] = useState(0);
+  const [bgColor, setBgColor] = useState("#000000");
+  const [bgBlurEnabled, setBgBlurEnabled] = useState(false);
   const [showRatioSettings, setShowRatioSettings] = useState(false);
   
   // Blur Settings
@@ -1315,6 +1321,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         cropBottom,
         cropLeft,
         cropRight,
+        bgColor,
+        bgBlurEnabled,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -1834,6 +1842,34 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             onChange={(e) => setCropRight(parseInt(e.target.value))}
                             className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Background Color" : "နောက်ခံအရောင်"}
+                            </label>
+                            <input 
+                              type="color" 
+                              value={bgColor} 
+                              onChange={(e) => setBgColor(e.target.value)}
+                              className="w-10 h-6 bg-transparent border-none cursor-pointer rounded overflow-hidden"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Background Blur" : "နောက်ခံ ဝါးရန်"}
+                            </label>
+                            <button 
+                              onClick={() => setBgBlurEnabled(!bgBlurEnabled)}
+                              className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${bgBlurEnabled ? 'bg-blue-500' : 'bg-white/10'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${bgBlurEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
