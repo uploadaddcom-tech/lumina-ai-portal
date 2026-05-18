@@ -40,7 +40,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const mergeJobs = new Map<string, { status: string; downloadUrl?: string; error?: string }>();
+const appJobs = new Map<string, { status: string; downloadUrl?: string; text?: string; audioData?: string; error?: string }>();
 
 // Periodic cleanup of temp files and job history (every 30 minutes)
 setInterval(() => {
@@ -62,10 +62,10 @@ setInterval(() => {
     }
   }
   // Also cleanup stale jobs
-  if (mergeJobs.size > 100) {
-    const keys = Array.from(mergeJobs.keys());
-    for (let i = 0; i < 50; i++) {
-      mergeJobs.delete(keys[i]);
+  if (appJobs.size > 200) {
+    const keys = Array.from(appJobs.keys());
+    for (let i = 0; i < 100; i++) {
+        appJobs.delete(keys[i]);
     }
   }
 }, 30 * 60 * 1000);
@@ -86,187 +86,203 @@ async function startServer() {
 
   // Specialized Gemini Endpoints for Video Portal
   app.post("/api/recap", async (req, res) => {
-    try {
-      const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
-      const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-      const model = "gemini-3-flash-preview";
-      
-      const stylePrompts: Record<string, string> = {
-        "step-by-step": lang === "EN" 
-          ? "Create a very detailed, comprehensive, step-by-step guide based on this video. Break it down into logical phases and include every minor detail and technique shown."
-          : "ဒီဗီဒီယိုကို အခြေခံပြီး အလွန်အသေးစိတ်ကျပြီး ပြည့်စုံတဲ့ အဆင့်ဆင့်လမ်းညွှန်ချက်တစ်ခုကို ပြုလုပ်ပေးပါ။ အဆင့်တွေကို အပိုင်းလိုက် ခွဲခြားဖော်ပြပေးပြီး ဗီဒီယိုထဲမှာပါတဲ့ နည်းစနစ်နဲ့ အသေးစိတ်အချက်အလက်အားလုံးကို ထည့်သွင်းပေးပါ။",
-        "material-list": lang === "EN"
-          ? "Identify and list all the materials, tools, and supplies shown or used in this video in great detail."
-          : "ဒီဗီဒီယိုထဲမှာ အသုံးပြုထားတဲ့ ကိရိယာတွေ၊ ပစ္စည်းတွေကို အသေးစိတ် ရှာဖွေပြီး စာရင်းပြုစုပေးပါ။",
-        "funny-commentary": lang === "EN"
-          ? "Provide an entertaining, hilarious, and detailed recap of this video."
-          : "ဒီဗီဒီယိုအကြောင်းကို ဖျော်ဖြေမှုပေးနိုင်ပြီး ရယ်စရာကောင်းတဲ့ အသေးစိတ် ပြန်ပြောပြချက်တစ်ခု ပြုလုပ်ပေးပါ။",
-        "epic-exaggerated": lang === "EN"
-          ? "Treat this project like a world-changing masterpiece. Provide a long, epic recap."
-          : "ဒီပရောဂျက်ကို ကမ္ဘာကြီးကို ပြောင်းလဲစေမယ့် လက်ရာမွန်တစ်ခုလို သဘောထားပြီး အရမ်းကြီးကျယ်ခမ်းနားတဲ့ပုံစံနဲ့ ပြန်ပြောပြပေးပါ။",
-        "project-story": lang === "EN"
-          ? "Tell the complete story of this project as a narrative journey."
-          : "ဒီပရောဂျက်ရဲ့ ဇာတ်လမ်းအပြည့်အစုံကို ခရီးစဉ်တစ်ခုလို ပုံပြောသလိုမျိုး ပြန်ပြောပြပေးပါ။",
-        "pro-tips": lang === "EN"
-          ? "Exhaustively extract every expert technique, pro tip, and potential pitfall shown."
-          : "ဒီဗီဒီယိုတစ်ခုလုံးမှာပါတဲ့ ကျွမ်းကျင်သူတွေရဲ့ နည်းလမ်းတွေ၊ အကြံပြုချက်တွေကို အသေးစိတ် ထုတ်နုတ်ဖော်ပြပေးပါ။",
-        "quick-summary": lang === "EN"
-          ? "Provide a comprehensive overall summary that captures the essence of the entire video."
-          : "ဗီဒီယိုတစ်ခုလုံးရဲ့ အနှစ်သာရကို ခြုံငုံမိစေမယ့် ပြည့်စုံတဲ့ အကျဉ်းချုပ်တစ်ခုကို ဖော်ပြပေးပါ။",
-        "real-time-narration": lang === "EN"
-          ? "Provide a chronological, real-time narration script for this video. DO NOT include timestamps."
-          : "ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေကို အခြေခံပြီး အချိန်နဲ့တပြေးညီ နောက်ခံစကားပြော script တစ်ခု ရေးသားပေးပါ။ အချိန်မှတ်တမ်းတွေ မထည့်ပါနဲ့။",
-      };
+    const jobId = crypto.randomBytes(12).toString("hex");
+    appJobs.set(jobId, { status: "processing" });
+    res.json({ jobId });
 
-      const wordCount = duration ? Math.floor((duration / 60) * 150) : 150;
-      
-      const constraintPrompt = lang === "EN"
-        ? `Constraints:
-           - Script length: Approximately ${wordCount} words (Strictly target 150 words per 60 seconds).
-           - Output: Final polished narrative script ONLY.
-           - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
-           - DO NOT use numbering, bullet points, or list formatting.
-           - DO NOT include timestamps.
-           - Provide the text exactly as it should be read for a voiceover.`
-        : `ကန့်သတ်ချက်များ -
-           - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ၁၅၀ နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
-           - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
-           - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
-           - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
-           - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
-           - Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
-           - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+    (async () => {
+      try {
+        const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        const model = "gemini-3-flash-preview";
+        
+        const stylePrompts: Record<string, string> = {
+          "step-by-step": lang === "EN" 
+            ? "Create a very detailed, comprehensive, step-by-step guide based on this video. Break it down into logical phases and include every minor detail and technique shown."
+            : "ဒီဗီဒီယိုကို အခြေခံပြီး အလွန်အသေးစိတ်ကျပြီး ပြည့်စုံတဲ့ အဆင့်ဆင့်လမ်းညွှန်ချက်တစ်ခုကို ပြုလုပ်ပေးပါ။ အဆင့်တွေကို အပိုင်းလိုက် ခွဲခြားဖော်ပြပေးပြီး ဗီဒီယိုထဲမှာပါတဲ့ နည်းစနစ်နဲ့ အသေးစိတ်အချက်အလက်အားလုံးကို ထည့်သွင်းပေးပါ။",
+          "material-list": lang === "EN"
+            ? "Identify and list all the materials, tools, and supplies shown or used in this video in great detail."
+            : "ဒီဗီဒီယိုထဲမှာ အသုံးပြုထားတဲ့ ကိရိယာတွေ၊ ပစ္စည်းတွေကို အသေးစိတ် ရှာဖွေပြီး စာရင်းပြုစုပေးပါ။",
+          "funny-commentary": lang === "EN"
+            ? "Provide an entertaining, hilarious, and detailed recap of this video."
+            : "ဒီဗီဒီယိုအကြောင်းကို ဖျော်ဖြေမှုပေးနိုင်ပြီး ရယ်စရာကောင်းတဲ့ အသေးစိတ် ပြန်ပြောပြချက်တစ်ခု ပြုလုပ်ပေးပါ။",
+          "epic-exaggerated": lang === "EN"
+            ? "Treat this project like a world-changing masterpiece. Provide a long, epic recap."
+            : "ဒီပရောဂျက်ကို ကမ္ဘာကြီးကို ပြောင်းလဲစေမယ့် လက်ရာမွန်တစ်ခုလို သဘောထားပြီး အရမ်းကြီးကျယ်ခမ်းနားတဲ့ပုံစံနဲ့ ပြန်ပြောပြပေးပါ။",
+          "project-story": lang === "EN"
+            ? "Tell the complete story of this project as a narrative journey."
+            : "ဒီပရောဂျက်ရဲ့ ဇာတ်လမ်းအပြည့်အစုံကို ခရီးစဉ်တစ်ခုလို ပုံပြောသလိုမျိုး ပြန်ပြောပြပေးပါ။",
+          "pro-tips": lang === "EN"
+            ? "Exhaustively extract every expert technique, pro tip, and potential pitfall shown."
+            : "ဒီဗီဒီယိုတစ်ခုလုံးမှာပါတဲ့ ကျွမ်းကျင်သူတွေရဲ့ နည်းလမ်းတွေ၊ အကြံပြုချက်တွေကို အသေးစိတ် ထုတ်နုတ်ဖော်ပြပေးပါ။",
+          "quick-summary": lang === "EN"
+            ? "Provide a comprehensive overall summary that captures the essence of the entire video."
+            : "ဗီဒီယိုတစ်ခုလုံးရဲ့ အနှစ်သာရကို ခြုံငုံမိစေမယ့် ပြည့်စုံတဲ့ အကျဉ်းချုပ်တစ်ခုကို ဖော်ပြပေးပါ။",
+          "real-time-narration": lang === "EN"
+            ? "Provide a chronological, real-time narration script for this video. DO NOT include timestamps."
+            : "ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေကို အခြေခံပြီး အချိန်နဲ့တပြေးညီ နောက်ခံစကားပြော script တစ်ခု ရေးသားပေးပါ။ အချိန်မှတ်တမ်းတွေ မထည့်ပါနဲ့။",
+        };
 
-      const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
-      const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
+        const wordCount = duration ? Math.floor((duration / 60) * 150) : 150;
+        
+        const constraintPrompt = lang === "EN"
+          ? `Constraints:
+             - Script length: Approximately ${wordCount} words (Strictly target 150 words per 60 seconds).
+             - Output: Final polished narrative script ONLY.
+             - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
+             - DO NOT use numbering, bullet points, or list formatting.
+             - DO NOT include timestamps.
+             - Provide the text exactly as it should be read for a voiceover.`
+          : `ကန့်သတ်ချက်များ -
+             - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ၁၅၀ နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
+             - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
+             - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
+             - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
+             - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
+             - Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
+             - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
 
-      const response = await retryWithBackoff(() => aiClient.models.generateContent({
-        model: model,
-        contents: [
-          {
-            parts: [
-              { text: finalPrompt },
-              { inlineData: { data: videoBase64, mimeType } }
-            ]
-          }
-        ]
-      }));
-      
-      let text = response.text || "";
-      if (lang === "MY") {
-        // Post-process to replace formal 'သည်' with 'တယ်' for real-time natural speaking style
-        // We target 'သည်' at the end of sentences/phrases
-        text = text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1');
-        text = text.replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1');
-        text = text.replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1');
+        const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
+        const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
+
+        const response = await retryWithBackoff(() => aiClient.models.generateContent({
+          model: model,
+          contents: [
+            {
+              parts: [
+                { text: finalPrompt },
+                { inlineData: { data: videoBase64, mimeType } }
+              ]
+            }
+          ]
+        }));
+        
+        let text = response.text || "";
+        if (lang === "MY") {
+          text = text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1');
+          text = text.replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1');
+          text = text.replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1');
+        }
+
+        appJobs.set(jobId, { status: "completed", text });
+      } catch (error: any) {
+        console.error("Recap Error Background:", error);
+        appJobs.set(jobId, { status: "error", error: error.message });
       }
-
-      res.json({ text });
-    } catch (error: any) {
-      console.error("Recap Error:", error);
-      res.status(500).json({ error: error.message });
-    }
+    })();
   });
 
   app.post("/api/transcribe", async (req, res) => {
-    try {
-      const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
-      const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-      const model = "gemini-3-flash-preview";
-      const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
+    const jobId = crypto.randomBytes(12).toString("hex");
+    appJobs.set(jobId, { status: "processing" });
+    res.json({ jobId });
 
-      const response = await retryWithBackoff(() => aiClient.models.generateContent({
-        model: model,
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              { inlineData: { data: videoBase64, mimeType } }
-            ]
-          }
-        ]
-      }));
-      
-      res.json({ text: response.text });
-    } catch (error: any) {
-      console.error("Transcribe Error:", error);
-      res.status(500).json({ error: error.message });
-    }
+    (async () => {
+      try {
+        const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        const model = "gemini-3-flash-preview";
+        const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
+
+        const response = await retryWithBackoff(() => aiClient.models.generateContent({
+          model: model,
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                { inlineData: { data: videoBase64, mimeType } }
+              ]
+            }
+          ]
+        }));
+        
+        appJobs.set(jobId, { status: "completed", text: response.text });
+      } catch (error: any) {
+        console.error("Transcribe Error Background:", error);
+        appJobs.set(jobId, { status: "error", error: error.message });
+      }
+    })();
   });
 
   app.post("/api/voiceover", async (req, res) => {
-    try {
-      const { text, voiceName, apiKey: customKey } = req.body;
-      const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-      const model = "gemini-3.1-flash-tts-preview";
+    const jobId = crypto.randomBytes(12).toString("hex");
+    appJobs.set(jobId, { status: "processing" });
+    res.json({ jobId });
 
-      const getChunks = (input: string, maxLen = 600) => {
-        const sentences = input.split(/(?<=[။၊.!?])\s+/);
-        const chunks = [];
-        let current = "";
-        for (const s of sentences) {
-          if ((current + s).length > maxLen && current) {
-            chunks.push(current.trim());
-            current = s;
-          } else {
-            current = current ? current + " " + s : s;
+    (async () => {
+      try {
+        const { text, voiceName, apiKey: customKey } = req.body;
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        const model = "gemini-3.1-flash-tts-preview";
+
+        const getChunks = (input: string, maxLen = 600) => {
+          const sentences = input.split(/(?<=[။၊.!?])\s+/);
+          const chunks = [];
+          let current = "";
+          for (const s of sentences) {
+            if ((current + s).length > maxLen && current) {
+              chunks.push(current.trim());
+              current = s;
+            } else {
+              current = current ? current + " " + s : s;
+            }
+          }
+          if (current) chunks.push(current.trim());
+          return chunks;
+        };
+
+        const textChunks = getChunks(text);
+        const audioBuffers: Buffer[] = [];
+
+        for (const chunk of textChunks) {
+          if (!chunk.trim()) continue;
+          const response = await retryWithBackoff(() => aiClient.models.generateContent({
+            model: model,
+            contents: [{ parts: [{ text: chunk }] }],
+            config: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                }
+              }
+            } as any
+          }));
+          
+          const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          if (audioBase64) {
+            audioBuffers.push(Buffer.from(audioBase64, 'base64'));
           }
         }
-        if (current) chunks.push(current.trim());
-        return chunks;
-      };
 
-      const textChunks = getChunks(text);
-      const audioBuffers: Buffer[] = [];
-
-      for (const chunk of textChunks) {
-        if (!chunk.trim()) continue;
-        const response = await retryWithBackoff(() => aiClient.models.generateContent({
-          model: model,
-          contents: [{ parts: [{ text: chunk }] }],
-          config: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
-              }
-            }
-          } as any
-        }));
+        const pcmData = Buffer.concat(audioBuffers);
+        const sampleRate = 24000;
+        const numChannels = 1;
+        const byteRate = sampleRate * numChannels * 2; // 16-bit
+        const blockAlign = numChannels * 2;
         
-        const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (audioBase64) {
-          audioBuffers.push(Buffer.from(audioBase64, 'base64'));
-        }
+        const header = Buffer.alloc(44);
+        header.write('RIFF', 0);
+        header.writeUInt32LE(36 + pcmData.length, 4);
+        header.write('WAVE', 8);
+        header.write('fmt ', 12);
+        header.writeUInt32LE(16, 16);
+        header.writeUInt16LE(1, 20); // PCM
+        header.writeUInt16LE(numChannels, 22);
+        header.writeUInt32LE(sampleRate, 24);
+        header.writeUInt32LE(byteRate, 28);
+        header.writeUInt16LE(blockAlign, 32);
+        header.writeUInt16LE(16, 34); // 16-bit
+        header.write('data', 36);
+        header.writeUInt32LE(pcmData.length, 40);
+
+        const finalAudio = Buffer.concat([header, pcmData]);
+        appJobs.set(jobId, { status: "completed", audioData: finalAudio.toString("base64") });
+      } catch (error: any) {
+        console.error("Voiceover Error Background:", error);
+        appJobs.set(jobId, { status: "error", error: error.message });
       }
-
-      const pcmData = Buffer.concat(audioBuffers);
-      const sampleRate = 24000;
-      const numChannels = 1;
-      const byteRate = sampleRate * numChannels * 2; // 16-bit
-      const blockAlign = numChannels * 2;
-      
-      const header = Buffer.alloc(44);
-      header.write('RIFF', 0);
-      header.writeUInt32LE(36 + pcmData.length, 4);
-      header.write('WAVE', 8);
-      header.write('fmt ', 12);
-      header.writeUInt32LE(16, 16);
-      header.writeUInt16LE(1, 20); // PCM
-      header.writeUInt16LE(numChannels, 22);
-      header.writeUInt32LE(sampleRate, 24);
-      header.writeUInt32LE(byteRate, 28);
-      header.writeUInt16LE(blockAlign, 32);
-      header.writeUInt16LE(16, 34); // 16-bit
-      header.write('data', 36);
-      header.writeUInt32LE(pcmData.length, 40);
-
-      const finalAudio = Buffer.concat([header, pcmData]);
-      res.json({ audioData: finalAudio.toString("base64") });
-    } catch (error: any) {
-      console.error("Voiceover Error:", error);
-      res.status(500).json({ error: error.message });
-    }
+    })();
   });
 
   // Server-side Merging Endpoint
@@ -280,7 +296,7 @@ async function startServer() {
     }
 
     // Initialize job status
-    mergeJobs.set(jobId, { status: "processing" });
+    appJobs.set(jobId, { status: "processing" });
 
     // Return jobId immediately
     res.json({ jobId });
@@ -596,7 +612,7 @@ async function startServer() {
 
       // Success
       const downloadFilename = `output_${tempId}.mp4`;
-      mergeJobs.set(jobId, { 
+      appJobs.set(jobId, { 
         status: "completed", 
         downloadUrl: `/api/download/${downloadFilename}` 
       });
@@ -604,7 +620,7 @@ async function startServer() {
     } catch (error: any) {
       console.error("FFmpeg Error Output:", error.stderr || error);
       const errorMessage = error.stderr ? `FFmpeg Failed: ${error.stderr.split('\n').pop()}` : error.message;
-      mergeJobs.set(jobId, { status: "error", error: errorMessage });
+      appJobs.set(jobId, { status: "error", error: errorMessage });
     } finally {
       // Cleanup source files only, KEEP the output file for download
       try {
@@ -634,7 +650,7 @@ async function startServer() {
 
   // Status endpoint for polling
   app.get("/api/status/:jobId", (req, res) => {
-    const job = mergeJobs.get(req.params.jobId);
+    const job = appJobs.get(req.params.jobId);
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
     }

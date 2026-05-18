@@ -52,8 +52,8 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ videoBase64, mimeType, style, lang, duration, apiKey }),
     });
-    if (!res.ok) throw new Error("Recap failed");
-    return (await res.json()).text;
+    if (!res.ok) throw new Error("Recap request failed");
+    return (await res.json()).jobId;
   },
   async transcribe(videoBase64: string, mimeType: string, lang: Language, apiKey?: string) {
     const res = await fetch("/api/transcribe", {
@@ -61,8 +61,8 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ videoBase64, mimeType, lang, apiKey }),
     });
-    if (!res.ok) throw new Error("Transcription failed");
-    return (await res.json()).text;
+    if (!res.ok) throw new Error("Transcription request failed");
+    return (await res.json()).jobId;
   },
   async voiceover(text: string, voiceName: string, apiKey?: string) {
     const res = await fetch("/api/voiceover", {
@@ -70,8 +70,8 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, voiceName, apiKey }),
     });
-    if (!res.ok) throw new Error("Voiceover failed");
-    return (await res.json()).audioData;
+    if (!res.ok) throw new Error("Voiceover request failed");
+    return (await res.json()).jobId;
   },
   async merge(
     videoBase64: string, 
@@ -140,6 +140,21 @@ const api = {
     if (!res.ok) throw new Error("Failed to check status");
     return res.json();
   }
+};
+
+const pollForCompletion = async (jobId: string, maxAttempts = 300): Promise<any> => {
+  let attempts = 0;
+  while (attempts < maxAttempts) {
+    const job = await api.status(jobId);
+    if (job.status === "completed") {
+      return job;
+    } else if (job.status === "error") {
+      throw new Error(job.error || "Operation failed");
+    }
+    attempts++;
+    await new Promise(r => setTimeout(r, 2000)); // Poll every 2 seconds
+  }
+  throw new Error("Operation timed out");
 };
 
 const getTools = (lang: Language) => [
@@ -447,7 +462,10 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
 
     try {
-      const base64 = await api.voiceover(text, selectedVoice, apiKey);
+      const jobId = await api.voiceover(text, selectedVoice, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      const base64 = jobResult.audioData;
+      
       if (base64) {
         await incrementUsage();
         const binaryString = atob(base64);
@@ -460,9 +478,9 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to generate voiceover.");
+      setError(lang === "EN" ? `Failed to generate voiceover: ${err.message}` : `Voiceover ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ${err.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -647,11 +665,18 @@ function VideoRecapperView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const transcription = await api.transcribe(base64, file.type, lang, apiKey);
-        await incrementUsage();
-        setResult(transcription || "");
-        setIsGenerating(false);
+        try {
+          const base64 = (reader.result as string).split(",")[1];
+          const jobId = await api.transcribe(base64, file.type, lang, apiKey);
+          const jobResult = await pollForCompletion(jobId);
+          await incrementUsage();
+          setResult(jobResult.text || "");
+        } catch (err: any) {
+          console.error(err);
+          setError(lang === "EN" ? `Analysis failed: ${err.message}` : `စစ်ဆေးရန် အဆင်မပြေပါ။ ${err.message}`);
+        } finally {
+          setIsGenerating(false);
+        }
       };
     } catch (err) {
       console.error(err);
@@ -786,11 +811,18 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const transcription = await api.transcribe(base64, file.type, lang, apiKey);
-        await incrementUsage();
-        setResult(transcription || "");
-        setIsGenerating(false);
+        try {
+          const base64 = (reader.result as string).split(",")[1];
+          const jobId = await api.transcribe(base64, file.type, lang, apiKey);
+          const jobResult = await pollForCompletion(jobId);
+          await incrementUsage();
+          setResult(jobResult.text || "");
+        } catch (err: any) {
+          console.error(err);
+          setError(lang === "EN" ? `Transcription failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
+        } finally {
+          setIsGenerating(false);
+        }
       };
     } catch (err) {
       console.error(err);
@@ -1178,7 +1210,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       }
 
       const base64 = await fileToBase64(file);
-      const recapValue = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
+      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      const recapValue = jobResult.text;
+      
       await incrementUsage();
       setResult(recapValue || "");
 
@@ -1187,7 +1222,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         setIsVoiceoverGenerating(true);
         try {
           const cleanText = recapValue.replace(/[#*`_~]/g, '');
-          const voice64 = await api.voiceover(cleanText, selectedVoice, apiKey);
+          const vJobId = await api.voiceover(cleanText, selectedVoice, apiKey);
+          const vResult = await pollForCompletion(vJobId);
+          const voice64 = vResult.audioData;
+          
           if (voice64) {
             const binaryString = atob(voice64);
             const bytes = new Uint8Array(binaryString.length);
@@ -1228,7 +1266,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       // Clean markdown for better TTS
       const cleanText = result.replace(/[#*`_~]/g, '');
       const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
-      const base64 = await api.voiceover(cleanText, selectedVoice, apiKey);
+      const jobId = await api.voiceover(cleanText, selectedVoice, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      const base64 = jobResult.audioData;
+      
       if (base64) {
         await incrementUsage();
         const binaryString = atob(base64);
@@ -1315,23 +1356,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       );
       
       if (jobId) {
-        // Polling loop
-        let attempts = 0;
-        const maxAttempts = 300; // 5 minutes with 1s interval
-        while (attempts < maxAttempts) {
-          const job = await api.status(jobId);
-          if (job.status === "completed") {
-            setMergedVideoUrl(job.downloadUrl);
-            break;
-          } else if (job.status === "error") {
-            throw new Error(job.error || "Processing failed");
-          }
-          attempts++;
-          await new Promise(r => setTimeout(r, 1000));
-        }
-        if (attempts >= maxAttempts) {
-          throw new Error("Processing timed out");
-        }
+        // Use generic helper
+        const job = await pollForCompletion(jobId);
+        setMergedVideoUrl(job.downloadUrl);
       }
     } catch (err) {
       console.error(err);
