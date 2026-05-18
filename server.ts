@@ -241,6 +241,8 @@ async function startServer() {
         logoPosition, 
         videoRatio, 
         videoScale,
+        videoX,
+        videoY,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -314,6 +316,8 @@ async function startServer() {
 
       const padding = 20 * logoScale;
       const zoom = (videoScale || 100) / 100;
+      const panX = (videoX || 0) * (vRes.w / 400);
+      const panY = (videoY || 0) * (vRes.w / 400);
 
       // Ratio Filter with Zoom support (Fit & Pad - Avoid Cropping)
       let ratioFilter = "";
@@ -333,7 +337,7 @@ async function startServer() {
         outW = Math.max(2, Math.floor(outW / 2) * 2);
         outH = Math.max(2, Math.floor(outH / 2) * 2);
 
-        ratioFilter = `setsar=1,scale=w=${outW}:h=${outH}:force_original_aspect_ratio=contain,pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:color=black,scale=iw*${zoom}:ih*${zoom},crop=${outW}:${outH},format=yuv420p`;
+        ratioFilter = `setsar=1,scale=w=${outW}:h=${outH}:force_original_aspect_ratio=contain,pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:color=black,scale=iw*${zoom}:ih*${zoom},crop=${outW}:${outH}:(iw-ow)/2-${panX}:(ih-oh)/2-${panY},format=yuv420p`;
       }
       
       let posFilter = "";
