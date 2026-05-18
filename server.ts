@@ -342,6 +342,7 @@ async function startServer() {
 
         if (bgBlurEnabled) {
           // Background blur path: scale background to fill, blur it, map foreground on top
+          // force_original_aspect_ratio: decrease | increase
           ratioFilter = `split[main][bg]; [bg]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=increase,boxblur=40:20,crop=${safeW}:${safeH}[bg_applied]; [main]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=decrease[fg]; [bg_applied][fg]overlay=(W-w)/2:(H-h)/2,scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
         } else {
           // Solid color path: standard pad
@@ -532,10 +533,22 @@ async function startServer() {
       }
 
       console.log("Executing CMD:", ffmpegCmd);
-      await execPromise(ffmpegCmd);
+      try {
+        const { stdout, stderr } = await execPromise(ffmpegCmd);
+        console.log("FFmpeg Success:", stdout);
+        if (stderr) console.log("FFmpeg Warnings/Info:", stderr);
+      } catch (err: any) {
+        console.error("FFmpeg Execution Failed:", err);
+        throw err;
+      }
 
+      if (!fs.existsSync(outputPath)) {
+        throw new Error("FFmpeg finished but output file was not created.");
+      }
 
+      console.log("Reading output file:", outputPath);
       const outputBuffer = await readFilePromise(outputPath);
+      console.log("Output file read successfully, size:", outputBuffer.length);
       res.json({ videoBase64: outputBuffer.toString("base64") });
 
     } catch (error: any) {

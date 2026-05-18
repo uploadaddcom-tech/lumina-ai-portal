@@ -1161,6 +1161,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setError(null);
       setResult(null);
       setVoiceoverAudioUrl(null);
+      setMergedVideoUrl(null);
     }
   };
 
@@ -1343,9 +1344,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         setMergedVideoUrl(URL.createObjectURL(new Blob([bytes], { type: "video/mp4" })));
+      } else {
+        throw new Error("Final video generation returned empty data.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(lang === "EN" ? `Error: ${err.message}` : `အမှားဖြစ်သွားပါသည်။ ကျေးဇူးပြု၍ ပြန်လည်ကြိုးစားပေးပါ။ ${err.message}`);
     } finally {
       setIsMerging(false);
     }
@@ -1702,7 +1706,15 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           className="relative w-full h-full flex items-center justify-center overflow-hidden"
                           style={{ backgroundColor: bgColor }}
                         >
-                          {file ? (
+                          {mergedVideoUrl ? (
+                            <video 
+                              key="merged-preview"
+                              src={mergedVideoUrl}
+                              className="relative w-full h-full object-contain"
+                              controls
+                              autoPlay
+                            />
+                          ) : file ? (
                             <>
                               {bgBlurEnabled && (
                                 <video 
@@ -2495,25 +2507,25 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
                     {mergedVideoUrl && (
                       <motion.div 
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="p-6 bg-white/[0.03] rounded-2xl border border-white/10 flex flex-col sm:flex-row gap-6 items-center sm:justify-between"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-6 bg-green-500/10 rounded-[24px] border-2 border-green-500/30 flex flex-col sm:flex-row gap-6 items-center sm:justify-between shadow-2xl shadow-green-500/10"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
-                            <Play className="w-6 h-6 text-slate-400" />
+                          <div className="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center border border-green-500/30">
+                            <Check className="w-7 h-7 text-green-500" />
                           </div>
                           <div>
                             <span className="text-xs font-black text-white uppercase tracking-[0.2em] block">RECAP_FINAL.MP4</span>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">System Bound Master Output</span>
+                            <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">ဗီဒီယို ပေါင်းစပ်မှု အောင်မြင်ပါသည်။</span>
                           </div>
                         </div>
                         <a 
                           href={mergedVideoUrl} 
                           download="recap_master_final.mp4"
-                          className="w-full sm:w-auto h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
+                          className="w-full sm:w-auto h-14 px-12 bg-green-500 hover:bg-green-400 text-white rounded-2xl flex items-center justify-center gap-3 text-[12px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/40 active:scale-95 animate-pulse"
                         >
-                          <CloudUpload className="w-4 h-4" />
+                          <CloudUpload className="w-5 h-5" />
                           {t.downloadMerged}
                         </a>
                       </motion.div>
