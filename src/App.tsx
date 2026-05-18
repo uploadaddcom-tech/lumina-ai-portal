@@ -1684,10 +1684,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[95vh] md:max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                    <div className="relative flex-none h-[220px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
                       <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -1696,8 +1696,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           aspectRatio: videoRatio.replace(':', '/'),
                           maxHeight: '100%',
                           maxWidth: '100%',
-                          height: videoRatio === '9:16' ? '100%' : 'auto',
-                          width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
                         <div 
@@ -1917,10 +1915,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[95vh] md:max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                    <div className="relative flex-none h-[220px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
                       <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -1929,8 +1927,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           aspectRatio: videoRatio.replace(':', '/'),
                           maxHeight: '100%',
                           maxWidth: '100%',
-                          height: videoRatio === '9:16' ? '100%' : 'auto',
-                          width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
                         <div 
@@ -2068,10 +2064,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[95vh] md:max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-none h-[180px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                    <div className="relative flex-none h-[220px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
                       <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -2080,8 +2076,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           aspectRatio: videoRatio.replace(':', '/'),
                           maxHeight: '100%',
                           maxWidth: '100%',
-                          height: videoRatio === '9:16' ? '100%' : 'auto',
-                          width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
                         <div 
@@ -2239,10 +2233,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] md:overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+                    className="relative w-full max-w-5xl bg-[#0f172a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[95vh] md:max-h-[90vh]"
                   >
                     {/* Visual Preview Side */}
-                    <div className="relative flex-none h-[300px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-2 md:p-12">
+                    <div className="relative flex-none h-[220px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
                       <motion.div 
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -2251,8 +2245,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           aspectRatio: videoRatio.replace(':', '/'),
                           maxHeight: '100%',
                           maxWidth: '100%',
-                          height: videoRatio === '9:16' ? '100%' : 'auto',
-                          width: videoRatio === '9:16' ? 'auto' : '100%',
                         }}
                       >
                         <div 
