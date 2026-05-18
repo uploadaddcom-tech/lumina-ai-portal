@@ -675,12 +675,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running at http://0.0.0.0:${PORT}`);
     if (!apiKey) {
       console.warn("WARNING: GEMINI_API_KEY is missing. API calls will fail.");
     }
   });
+
+  server.timeout = 300000; // 5 minutes
+  server.headersTimeout = 305000;
+  server.keepAliveTimeout = 305000;
 }
 
 startServer();
