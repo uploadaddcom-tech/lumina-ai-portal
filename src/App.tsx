@@ -1749,14 +1749,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     </div>
 
                     {/* Controls Side */}
-                    <div className="w-full md:w-80 p-6 md:p-8 flex flex-col gap-6 md:gap-8 border-l border-white/5 bg-[#0f172a]">
+                    <div className="w-full md:w-80 p-4 md:p-5 flex flex-col gap-4 border-l border-white/5 bg-[#0f172a]">
                       
-                      <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="space-y-4">
+                      <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
                             {lang === "EN" ? "Aspect Ratio" : "Ratio ရွေးချယ်ပါ"}
                           </label>
-                          <div className="grid grid-cols-1 gap-2">
+                          <div className="grid grid-cols-1 gap-1.5">
                             {[
                               { id: "16:9", label: "16:9 Landscape" },
                               { id: "9:16", label: "9:16 Portrait" },
@@ -1765,24 +1765,24 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               <button
                                 key={ratio.id}
                                 onClick={() => setVideoRatio(ratio.id)}
-                                className={`px-4 py-3 rounded-xl border text-left transition-all ${
+                                className={`px-4 py-2 rounded-lg border text-left transition-all ${
                                   videoRatio === ratio.id 
-                                    ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20" 
+                                    ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20" 
                                     : "bg-white/5 border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-300"
                                 }`}
                               >
-                                <div className="text-[11px] font-black uppercase tracking-wider">{ratio.label}</div>
+                                <div className="text-[10px] font-black uppercase tracking-wider">{ratio.label}</div>
                               </button>
                             ))}
                           </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Content Scale" : "ဗီဒီယို Zoom"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{videoScale}%</span>
+                            <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{videoScale}%</span>
                           </div>
                           <input 
                             type="range" 
@@ -1790,16 +1790,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="200" 
                             value={videoScale} 
                             onChange={(e) => setVideoScale(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Crop Top" : "အပေါ်မှ ဖြတ်ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropTop}%</span>
+                            <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropTop}%</span>
                           </div>
                           <input 
                             type="range" 
@@ -1807,16 +1807,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="50" 
                             value={cropTop} 
                             onChange={(e) => setCropTop(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Crop Bottom" : "အောက်မှ ဖြတ်ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropBottom}%</span>
+                            <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropBottom}%</span>
                           </div>
                           <input 
                             type="range" 
@@ -1824,16 +1824,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="50" 
                             value={cropBottom} 
                             onChange={(e) => setCropBottom(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Crop Left" : "ဘယ်ဘက်မှ ဖြတ်ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropLeft}%</span>
+                            <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropLeft}%</span>
                           </div>
                           <input 
                             type="range" 
@@ -1841,16 +1841,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="50" 
                             value={cropLeft} 
                             onChange={(e) => setCropLeft(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Crop Right" : "ညာဘက်မှ ဖြတ်ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropRight}%</span>
+                            <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropRight}%</span>
                           </div>
                           <input 
                             type="range" 
@@ -1858,11 +1858,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="50" 
                             value={cropRight} 
                             onChange={(e) => setCropRight(parseInt(e.target.value))}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Background Color" : "နောက်ခံအရောင်"}
@@ -1871,21 +1871,21 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               type="color" 
                               value={bgColor} 
                               onChange={(e) => setBgColor(e.target.value)}
-                              className="w-10 h-6 bg-transparent border-none cursor-pointer rounded overflow-hidden"
+                              className="w-8 h-5 bg-transparent border-none cursor-pointer rounded overflow-hidden"
                             />
                           </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                               {lang === "EN" ? "Background Blur" : "နောက်ခံ ဝါးရန်"}
                             </label>
                             <button 
                               onClick={() => setBgBlurEnabled(!bgBlurEnabled)}
-                              className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${bgBlurEnabled ? 'bg-blue-500' : 'bg-white/10'}`}
+                              className={`w-8 h-5 rounded-full p-0.5 transition-colors duration-300 ${bgBlurEnabled ? 'bg-blue-500' : 'bg-white/10'}`}
                             >
-                              <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${bgBlurEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${bgBlurEnabled ? 'translate-x-3' : 'translate-x-0'}`} />
                             </button>
                           </div>
                         </div>
