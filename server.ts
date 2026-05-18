@@ -551,10 +551,18 @@ async function startServer() {
         throw new Error("FFmpeg finished but output file was not created.");
       }
 
-      console.log("Reading output file:", outputPath);
-      const outputBuffer = await readFilePromise(outputPath);
-      console.log("Output file read successfully, size:", outputBuffer.length);
-      res.json({ videoBase64: outputBuffer.toString("base64") });
+      console.log("Serving output file:", outputPath);
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Content-Disposition', 'attachment; filename="recap_final.mp4"');
+      
+      const stream = fs.createReadStream(outputPath);
+      await new Promise((resolve, reject) => {
+        stream.pipe(res);
+        res.on('finish', resolve);
+        res.on('error', reject);
+        stream.on('error', reject);
+      });
+      console.log("Output file sent successfully");
 
     } catch (error: any) {
       console.error("FFmpeg Error Output:", error.stderr || error);

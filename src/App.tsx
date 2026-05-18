@@ -121,6 +121,7 @@ const api = {
         blurHeight,
         blurY,
         blurIntensity,
+        blurEnabledSubtitle: subtitleEnabled, // Backend uses this name or check mapping
         subtitleEnabled,
         subtitleText,
         subtitleColor,
@@ -130,10 +131,15 @@ const api = {
       }),
     });
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || "Merge failed");
+      const errorText = await res.text().catch(() => "Merge failed");
+      try {
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.error || "Merge failed");
+      } catch {
+        throw new Error(errorText || "Merge failed");
+      }
     }
-    return (await res.json()).videoBase64;
+    return await res.blob();
   }
 };
 
@@ -1314,7 +1320,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       });
 
       console.log("Starting server-side merge...");
-      const mergedBase64 = await api.merge(
+      const mergedBlob = await api.merge(
         videoBase64, 
         audioBase64, 
         logoBase64, 
@@ -1341,13 +1347,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         apiKey
       );
       
-      if (mergedBase64) {
-        const binaryString = atob(mergedBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const url = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
+      if (mergedBlob && mergedBlob.size > 0) {
+        const url = URL.createObjectURL(mergedBlob);
         setMergedVideoUrl(url);
         
         // Final scroll to success
