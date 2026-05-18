@@ -130,25 +130,10 @@ const api = {
       }),
     });
     if (!res.ok) {
-      const errorText = await res.text().catch(() => "Merge failed");
-      try {
-        const errorData = JSON.parse(errorText);
-        throw new Error(errorData.error || "Merge failed");
-      } catch {
-        throw new Error(errorText || "Merge failed");
-      }
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || "Merge failed");
     }
-    return (await res.json()).jobId;
-  },
-  async checkJob(jobId: string) {
-    const res = await fetch(`/api/job-status/${jobId}`);
-    if (!res.ok) throw new Error("Status check failed");
-    return await res.json();
-  },
-  async download(jobId: string) {
-    const res = await fetch(`/api/download/${jobId}`);
-    if (!res.ok) throw new Error("Download failed");
-    return await res.blob();
+    return (await res.json()).videoBase64;
   }
 };
 
@@ -1176,7 +1161,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setError(null);
       setResult(null);
       setVoiceoverAudioUrl(null);
-      setMergedVideoUrl(null);
     }
   };
 
@@ -1299,9 +1283,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     setIsMerging(true);
     setMergedVideoUrl(null);
 
-    // Auto-scroll to feedback area
-    document.getElementById('merge-status-area')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
     try {
       const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
       const fileToBase64 = (file: File): Promise<string> => {
@@ -1328,8 +1309,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         reader.readAsDataURL(audioBlob);
       });
 
-      console.log("Starting server-side merge job...");
-      const jobId = await api.merge(
+      const mergedBase64 = await api.merge(
         videoBase64, 
         audioBase64, 
         logoBase64, 
@@ -1356,65 +1336,17 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         apiKey
       );
       
-      if (jobId) {
-        // Start polling
-        let pollCount = 0;
-        const maxPolls = 300; // 10 minutes at 2s interval
-        
-        const poll = async () => {
-          try {
-            const job = await api.checkJob(jobId);
-            if (job.status === "completed") {
-              const blob = await api.download(jobId);
-              if (blob && blob.size > 0) {
-                const url = URL.createObjectURL(blob);
-                setMergedVideoUrl(url);
-                setIsMerging(false);
-                
-                // Final scroll to success
-                setTimeout(() => {
-                  document.getElementById('final-download-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300);
-              }
-              return true;
-            } else if (job.status === "failed") {
-              throw new Error(job.error || "Async merge failed");
-            }
-          } catch (err: any) {
-            console.error("Polling error:", err);
-            throw err;
-          }
-          return false;
-        };
-
-        const interval = setInterval(async () => {
-          pollCount++;
-          if (pollCount > maxPolls) {
-            clearInterval(interval);
-            setIsMerging(false);
-            alert("Merge timed out after 10 minutes. Please try again with a shorter video.");
-            return;
-          }
-
-          try {
-            const done = await poll();
-            if (done) clearInterval(interval);
-          } catch (err: any) {
-            clearInterval(interval);
-            setIsMerging(false);
-            alert(`Merge failed: ${err.message}`);
-          }
-        }, 2000);
-
-      } else {
-        throw new Error("Failed to start merge job.");
+      if (mergedBase64) {
+        const binaryString = atob(mergedBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        setMergedVideoUrl(URL.createObjectURL(new Blob([bytes], { type: "video/mp4" })));
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      const msg = lang === "EN" 
-        ? `Merge failed: ${err.message}. Please check if your video is too large or try again.` 
-        : `ဗီဒီယို ပေါင်းစပ်မှု မအောင်မြင်ပါ။ ${err.message}။ ဗီဒီယို ဖိုင်အရွယ်အစား သိုက်မဟုတ် အင်တာနက်ကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပေးပါ။`;
-      alert(msg);
+    } finally {
       setIsMerging(false);
     }
   };
@@ -1770,15 +1702,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           className="relative w-full h-full flex items-center justify-center overflow-hidden"
                           style={{ backgroundColor: bgColor }}
                         >
-                          {mergedVideoUrl ? (
-                            <video 
-                              key="merged-preview"
-                              src={mergedVideoUrl}
-                              className="relative w-full h-full object-contain"
-                              controls
-                              autoPlay
-                            />
-                          ) : file ? (
+                          {file ? (
                             <>
                               {bgBlurEnabled && (
                                 <video 
@@ -2515,7 +2439,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
               {/* Audio result if ready */}
               {voiceoverAudioUrl && (
-                <div id="merge-status-area" className="bg-[#0f172a]/60 backdrop-blur-xl rounded-3xl p-8 border border-white/5 shadow-2xl space-y-8">
+                <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-3xl p-8 border border-white/5 shadow-2xl space-y-8">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
                       <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
@@ -2571,26 +2495,25 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
                     {mergedVideoUrl && (
                       <motion.div 
-                        id="final-download-section"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-6 bg-green-500/10 rounded-[24px] border-2 border-green-500/30 flex flex-col sm:flex-row gap-6 items-center sm:justify-between shadow-2xl shadow-green-500/10"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-6 bg-white/[0.03] rounded-2xl border border-white/10 flex flex-col sm:flex-row gap-6 items-center sm:justify-between"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center border border-green-500/30">
-                            <Check className="w-7 h-7 text-green-500" />
+                          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
+                            <Play className="w-6 h-6 text-slate-400" />
                           </div>
                           <div>
                             <span className="text-xs font-black text-white uppercase tracking-[0.2em] block">RECAP_FINAL.MP4</span>
-                            <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">ဗီဒီယို ပေါင်းစပ်မှု အောင်မြင်ပါသည်။</span>
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">System Bound Master Output</span>
                           </div>
                         </div>
                         <a 
                           href={mergedVideoUrl} 
                           download="recap_master_final.mp4"
-                          className="w-full sm:w-auto h-14 px-12 bg-green-500 hover:bg-green-400 text-white rounded-2xl flex items-center justify-center gap-3 text-[12px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/40 active:scale-95 animate-pulse"
+                          className="w-full sm:w-auto h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
                         >
-                          <CloudUpload className="w-5 h-5" />
+                          <CloudUpload className="w-4 h-4" />
                           {t.downloadMerged}
                         </a>
                       </motion.div>
@@ -2646,49 +2569,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           )}
         </AnimatePresence>
       </div>
-
-      <AnimatePresence>
-        {isMerging && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#0f172a]/95 backdrop-blur-2xl p-6 text-center"
-          >
-            <div className="relative">
-              <div className="w-32 h-32 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Sparkles className="w-10 h-10 text-purple-400 animate-pulse" />
-              </div>
-            </div>
-            
-            <h2 className="mt-10 text-2xl font-black text-white uppercase tracking-[0.2em]">{t.merging}</h2>
-            <p className="mt-4 text-slate-400 font-bold uppercase tracking-widest text-[11px] max-w-sm mx-auto leading-relaxed">
-              {lang === "EN" 
-                ? "Finalizing your masterpiece. This involves high-quality video encoding and audio synchronization. Please wait..." 
-                : "ဗီဒီယိုနှင့် အသံကို အဆင့်မြင့်နည်းပညာဖြင့် ပေါင်းစပ်နေပါသည်။ ခေတ္တစောင့်ဆိုင်းပေးပါ။"}
-            </p>
-            
-            <div className="mt-12 flex gap-2">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  animate={{ 
-                    scale: [1, 1.5, 1],
-                    opacity: [0.3, 1, 0.3] 
-                  }}
-                  transition={{ 
-                    duration: 1.5, 
-                    repeat: Infinity, 
-                    delay: i * 0.2 
-                  }}
-                  className="w-3 h-3 bg-purple-500 rounded-full"
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

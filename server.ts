@@ -218,27 +218,19 @@ async function startServer() {
     }
   });
 
-  const jobs: Record<string, { status: string; error?: string }> = {};
-
   // Server-side Merging Endpoint
   app.post("/api/merge", async (req, res) => {
-    const jobId = crypto.randomBytes(8).toString("hex");
-    jobs[jobId] = { status: "processing" };
-    
-    // Return early to prevent timeout
-    res.json({ jobId });
-
-    // Continue in background
+    const tempId = crypto.randomBytes(8).toString("hex");
     const tempDir = path.join(process.cwd(), "temp");
+    
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const videoPath = path.join(tempDir, `video_${jobId}.mp4`);
-    const audioPath = path.join(tempDir, `audio_${jobId}.wav`);
-    const logoPath = path.join(tempDir, `logo_${jobId}.png`);
-    const outputPath = path.join(tempDir, `output_${jobId}.mp4`);
-    const filterPath = path.join(tempDir, `filter_${jobId}.txt`);
+    const videoPath = path.join(tempDir, `video_${tempId}.mp4`);
+    const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
+    const logoPath = path.join(tempDir, `logo_${tempId}.png`);
+    const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
 
     try {
       const { 
@@ -267,42 +259,63 @@ async function startServer() {
         subtitleFont
       } = req.body;
       
-      const videoBuffer = Buffer.from(videoBase64, "base64");
-      const audioBuffer = Buffer.from(audioBase64, "base64");
+      const videoBuffer = Buffer.from(videoBase64, 'base64');
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
 
       await writeFilePromise(videoPath, videoBuffer);
       await writeFilePromise(audioPath, audioBuffer);
 
       let hasLogo = false;
       if (logoBase64) {
-        const logoBuffer = Buffer.from(logoBase64, "base64");
+        const logoBuffer = Buffer.from(logoBase64, 'base64');
         await writeFilePromise(logoPath, logoBuffer);
         hasLogo = true;
       }
 
-      // Get Durations
+      // Get Durations to handle speed adjustment
       const getDuration = async (filePath: string) => {
         try {
           const { stdout } = await execPromise(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
-          return parseFloat(stdout.trim()) || 0;
-        } catch (e) { return 0; }
+          const duration = parseFloat(stdout.trim());
+          if (!isNaN(duration)) return duration;
+        } catch (e) {
+          // Fallback to ffmpeg if ffprobe fails for some reason
+          try {
+            const { stderr } = await execPromise(`ffmpeg -i "${filePath}" 2>&1`);
+            const match = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d+)/);
+            if (match) {
+              const h = parseInt(match[1]);
+              const m = parseInt(match[2]);
+              const s = parseInt(match[3]);
+              const ms = parseFloat("0." + match[4]);
+              return h * 3600 + m * 60 + s + ms;
+            }
+          } catch (innerE) {
+            console.error("Duration Parsing Error:", innerE);
+          }
+        }
+        return 0;
       };
 
       const vDur = await getDuration(videoPath);
       const aDur = await getDuration(audioPath);
       
-      // Get Resolution
+      // Get video resolution for scaling
       const getResolution = async (filePath: string) => {
         try {
           const { stdout } = await execPromise(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filePath}"`);
-          const parts = stdout.trim().split("x");
+          const parts = stdout.trim().split('x');
           if (parts.length === 2) return { w: parseInt(parts[0]), h: parseInt(parts[1]) };
-        } catch (e) {}
+        } catch (e) {
+          console.error("Resolution Error:", e);
+        }
         return { w: 1280, h: 720 };
       };
       
       const vRes = await getResolution(videoPath);
+      // Reference width for logo scaling (UI preview container is approx 400px wide)
       const logoScale = vRes.w / 400;
+      // Reference width for font scaling (UI preview container is approx 400px wide)
       const fontScale = vRes.w / 400;
       const padding = 20 * logoScale;
       const zoom = (videoScale || 100) / 100;
@@ -312,57 +325,93 @@ async function startServer() {
       const cRight = (cropRight || 0) / 100;
       const bgColorVal = bgColor || "black";
 
+      // Ratio Filter with Zoom support (Fit & Pad - Avoid Cropping)
       let ratioFilter = "";
       if (videoRatio) {
-        const [rw, rh] = videoRatio.split(":").map(Number);
+        const [rw, rh] = videoRatio.split(':').map(Number);
         const targetAR = rw / rh;
+        
+        // 1. Initial manual crop if user specified
         const manualCrop = `crop=iw*(1-${cLeft+cRight}):ih*(1-${cTop+cBottom}):iw*${cLeft}:ih*${cTop}`;
+        
+        // 2. Final dimensions based on output ratio
         const outW = vRes.w;
         const outH = Math.round(vRes.w / targetAR);
         const safeW = Math.max(2, Math.floor(outW / 2) * 2);
         const safeH = Math.max(2, Math.floor(outH / 2) * 2);
 
         if (bgBlurEnabled) {
-          ratioFilter = `split[main][bg]; [bg]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=2,boxblur=40:20,crop=${safeW}:${safeH}[bg_applied]; [main]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=1[fg]; [bg_applied][fg]overlay=(W-w)/2:(H-h)/2,scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
+          // Background blur path: scale background to fill, blur it, map foreground on top
+          ratioFilter = `split[main][bg]; [bg]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=increase,boxblur=40:20,crop=${safeW}:${safeH}[bg_applied]; [main]${manualCrop},scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=decrease[fg]; [bg_applied][fg]overlay=(W-w)/2:(H-h)/2,scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
         } else {
-          ratioFilter = `${manualCrop},setsar=1,scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=1,pad=${safeW}:${safeH}:(ow-iw)/2:(oh-ih)/2:color=${bgColorVal.replace("#", "0x")},scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
+          // Solid color path: standard pad
+          ratioFilter = `${manualCrop},setsar=1,scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=decrease,pad=${safeW}:${safeH}:(ow-iw)/2:(oh-ih)/2:color=${bgColorVal.replace('#', '0x')},scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
         }
       }
       
       let posFilter = "";
       switch (logoPosition) {
-        case "top-left": posFilter = `${padding}:${padding}`; break;
-        case "top-right": posFilter = `W-w-${padding}:${padding}`; break;
-        case "bottom-left": posFilter = `${padding}:H-h-${padding}`; break;
-        case "bottom-right": posFilter = `W-w-${padding}:H-h-${padding}`; break;
-        default: posFilter = `W-w-${padding}:${padding}`;
+        case 'top-left': posFilter = `${padding}:${padding}`; break;
+        case 'top-right': posFilter = `W-w-${padding}:${padding}`; break;
+        case 'bottom-left': posFilter = `${padding}:H-h-${padding}`; break;
+        case 'bottom-right': posFilter = `W-w-${padding}:H-h-${padding}`; break;
+        default: posFilter = `W-w-${padding}:${padding}`; // top-right default
       }
 
+      // If audio is longer than video, speed it up to match video duration exactly
       const speed = (vDur > 0 && aDur > (vDur + 0.1)) ? (aDur / vDur) : 1;
+      
+      // Build filter complex
       let vFilters: string[] = [];
       let lastV = "[0:v]";
       
+      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested)
       let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"].filter(Boolean).join(",");
       if (baseFilters) {
         vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
       }
 
+      // Re-calculate effective resolution after ratio/scale
+      const effectiveRes = { w: vRes.w, h: vRes.h };
+      if (videoRatio) {
+        const [rw, rh] = videoRatio.split(':').map(Number);
+        if (effectiveRes.w / rw > effectiveRes.h / rh) {
+           effectiveRes.w = Math.floor(effectiveRes.h * rw / rh);
+        } else {
+           effectiveRes.h = Math.floor(effectiveRes.w * rh / rw);
+        }
+      }
+      const effectiveLogoScale = effectiveRes.w / 400;
+      const effectiveFontScale = effectiveRes.w / 400;
+
+      // Stage 2: Blur
       if (blurEnabled) {
         const bw = `(iw*${blurWidth || 400}/1000)`;
         const bh = `(ih*${blurHeight || 100}/1000)`;
         const byValue = blurY !== undefined ? blurY : 800;
         const radius = blurIntensity || 10;
+        
+        // Define coordinate tokens for different filters
         const cropY = `(ih*${byValue}/1000)`;
         const overlayY = `(H*${byValue}/1000)`;
+        
         vFilters.push(`${lastV}split[v_main][v_blur]`);
         vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
         vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
         lastV = "[bv]";
       }
 
+      // Stage 3: Sync Subtitles
       if (subtitleEnabled && subtitleText) {
         const wrapText = (text: string, maxLen: number) => {
+          if (!text.includes(' ') && text.length > maxLen) {
+            let res = [];
+            for (let i = 0; i < text.length; i += maxLen) {
+              res.push(text.substring(i, i + maxLen));
+            }
+            return res;
+          }
           const words = text.split(/\s+/);
           let lines = [];
           let currentLine = "";
@@ -378,8 +427,11 @@ async function startServer() {
           return lines;
         };
 
-        const color = (subtitleColor || "#ffffff").replace("#", "0x");
-        const fSize = Math.floor(Math.max(8, (subtitleFontSize || 24) * 0.4) * fontScale);
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        
+        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
+        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
         const fontPaths = [
           path.join(__dirname, "Padauk-Bold.ttf"),
@@ -391,11 +443,12 @@ async function startServer() {
         let fontArg = "";
         for (const fp of fontPaths) {
           if (fs.existsSync(fp)) {
-            fontArg = `:fontfile='${fp.replace(/\\/g, "/").replace(/'/g, "\\'")}'`;
+            fontArg = `:fontfile='${fp}'`;
             break;
           }
         }
 
+        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
         const getChunks = (text: string, maxChars = 45) => {
           const parts = text.split(/(?<=[။၊.!?])\s*/);
           let res = [];
@@ -415,27 +468,36 @@ async function startServer() {
         const chunks = getChunks(subtitleText, 45);
         const totalTime = aDur || vDur || 1;
         const totalChars = subtitleText.length || 1;
+        
         let currentTime = 0;
         let svIndex = 0;
 
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
-          const wrapped = wrapText(chunk.trim(), 25).join("\n");
+          
+          // Use smaller wrapLen (25) to ensure padding on edges
+          const wrappedLines = wrapText(chunk.trim(), 25);
+          const wrapped = wrappedLines.join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
           const chunkStartTime = currentTime;
           const chunkEndTime = currentTime + chunkDuration;
-          const chunkPath = path.join(tempDir, `chunk_${jobId}_${svIndex}.txt`);
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
+          
           const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath.replace(/\\/g, "/").replace(/'/g, "\\'")}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          // Position: center horizontally, 90% from top (Bottom Center)
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
           lastV = `[sv${svIndex}]`;
           currentTime = chunkEndTime;
           svIndex++;
         }
       }
 
+      // Stage 4: Logo
       if (hasLogo) {
-        const logoSizeVal = Math.floor((logoSize || 100) * logoScale);
+        const logoSizeVal = Math.floor((logoSize || 100) * effectiveLogoScale);
         vFilters.push(`[2:v]scale=${logoSizeVal}:-2[l]`);
         vFilters.push(`${lastV}[l]overlay=${posFilter}[vout]`);
         lastV = "[vout]";
@@ -448,14 +510,20 @@ async function startServer() {
         audioComplexFilters.push(`[1:a]${atempo}[aout]`);
       }
 
-      const allFilters = [...vFilters, ...audioComplexFilters].join(";");
+      // Combine all filters
+      const allFilters = [...vFilters, ...audioComplexFilters].join(';');
+      const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
+      
       let ffmpegCmd = "";
       if (allFilters) {
         await writeFilePromise(filterPath, allFilters);
+        // If lastV is still [0:v], it means no video filters were applied to it as labels
         const mapV = (lastV === "[0:v]") ? " -map 0:v:0" : ` -map "${lastV}"`;
-        const mapA = (speed > 1) ? ' -map "[aout]"' : " -map 1:a:0";
+        const mapA = (speed > 1) ? ' -map "[aout]"' : ' -map 1:a:0';
+        
         ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -c:a aac -b:a 192k -movflags +faststart -shortest -y "${outputPath}"`;
       } else {
+        // No filters at all
         if (speed > 1) {
           ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast -y "${outputPath}"`;
         } else {
@@ -463,63 +531,41 @@ async function startServer() {
         }
       }
 
-      console.log(`Job ${jobId} executing CMD: ${ffmpegCmd}`);
+      console.log("Executing CMD:", ffmpegCmd);
       await execPromise(ffmpegCmd);
-      
-      if (!fs.existsSync(outputPath)) {
-        throw new Error("FFmpeg finished but output file was not created.");
-      }
 
-      jobs[jobId].status = "completed";
-      console.log(`Job ${jobId} completed successfully`);
+
+      const outputBuffer = await readFilePromise(outputPath);
+      res.json({ videoBase64: outputBuffer.toString("base64") });
 
     } catch (error: any) {
-      console.error(`Job ${jobId} failed:`, error);
-      jobs[jobId].status = "failed";
-      jobs[jobId].error = error.message;
+      console.error("FFmpeg Error Output:", error.stderr || error);
+      const errorMessage = error.stderr ? `FFmpeg Failed: ${error.stderr.split('\n').pop()}` : error.message;
+      res.status(500).json({ error: errorMessage });
     } finally {
-      // Small delay cleanup of input files
-      setTimeout(async () => {
-        try {
-          if (fs.existsSync(videoPath)) await unlinkPromise(videoPath);
-          if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
-          if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
-          if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
-          const files = fs.readdirSync(tempDir);
-          for (const file of files) {
-            if (file.startsWith(`chunk_${jobId}_`)) await unlinkPromise(path.join(tempDir, file));
+      // Cleanup
+      try {
+        if (fs.existsSync(videoPath)) await unlinkPromise(videoPath);
+        if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
+        if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
+        if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
+        const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
+        if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
+        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
+        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
+        
+        // Cleanup chunks
+        const files = fs.readdirSync(tempDir);
+        for (const file of files) {
+          if (file.startsWith(`chunk_${tempId}_`)) {
+            await unlinkPromise(path.join(tempDir, file));
           }
-        } catch (e) {}
-      }, 5000);
+        }
+      } catch (cleanError) {
+        console.error("Cleanup Error:", cleanError);
+      }
     }
   });
-
-  app.get("/api/job-status/:jobId", (req, res) => {
-    const job = jobs[req.params.jobId];
-    if (!job) return res.status(404).json({ error: "Job not found" });
-    res.json(job);
-  });
-
-  app.get("/api/download/:jobId", (req, res) => {
-    const jobId = req.params.jobId;
-    const outputPath = path.join(process.cwd(), "temp", `output_${jobId}.mp4`);
-    if (fs.existsSync(outputPath)) {
-      res.setHeader("Content-Type", "video/mp4");
-      res.setHeader("Content-Disposition", `attachment; filename="recap_${jobId}.mp4"`);
-      const stream = fs.createReadStream(outputPath);
-      stream.pipe(res);
-      res.on("finish", () => {
-        // Cleanup after download
-        setTimeout(() => {
-          if (fs.existsSync(outputPath)) fs.unlink(outputPath, () => {});
-          delete jobs[jobId];
-        }, 10000);
-      });
-    } else {
-      res.status(404).json({ error: "File not found" });
-    }
-  });
-
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
