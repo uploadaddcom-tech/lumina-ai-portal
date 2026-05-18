@@ -81,8 +81,10 @@ const api = {
     logoPosition?: string, 
     videoRatio?: string, 
     videoScale?: number, 
-    videoX?: number,
-    videoY?: number,
+    cropTop?: number,
+    cropBottom?: number,
+    cropLeft?: number,
+    cropRight?: number,
     blurEnabled?: boolean, 
     blurWidth?: number, 
     blurHeight?: number, 
@@ -106,8 +108,10 @@ const api = {
         logoPosition, 
         videoRatio, 
         videoScale,
-        videoX,
-        videoY,
+        cropTop,
+        cropBottom,
+        cropLeft,
+        cropRight,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -1101,8 +1105,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   // Video Ratio Settings
   const [videoRatio, setVideoRatio] = useState("16:9");
   const [videoScale, setVideoScale] = useState(100);
-  const [videoX, setVideoX] = useState(0);
-  const [videoY, setVideoY] = useState(0);
+  const [cropTop, setCropTop] = useState(0);
+  const [cropBottom, setCropBottom] = useState(0);
+  const [cropLeft, setCropLeft] = useState(0);
+  const [cropRight, setCropRight] = useState(0);
   const [showRatioSettings, setShowRatioSettings] = useState(false);
   
   // Blur Settings
@@ -1305,8 +1311,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         logoPosition, 
         videoRatio, 
         videoScale,
-        videoX,
-        videoY,
+        cropTop,
+        cropBottom,
+        cropLeft,
+        cropRight,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -1689,7 +1697,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             src={URL.createObjectURL(file)} 
                             className="w-full h-full object-contain opacity-80"
                             style={{ 
-                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100}) translate(${videoX}px, ${videoY}px)`,
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
@@ -1762,16 +1771,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Horizontal Adjust" : "ဘယ်ညာ ရွှေ့ရန်"}
+                              {lang === "EN" ? "Crop Top" : "အပေါ်မှ ဖြတ်ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{videoX}px</span>
+                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropTop}%</span>
                           </div>
                           <input 
                             type="range" 
-                            min="-200" 
-                            max="200" 
-                            value={videoX} 
-                            onChange={(e) => setVideoX(parseInt(e.target.value))}
+                            min="0" 
+                            max="50" 
+                            value={cropTop} 
+                            onChange={(e) => setCropTop(parseInt(e.target.value))}
                             className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
@@ -1779,16 +1788,50 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Vertical Adjust" : "အပေါ်အောက် ရွှေ့ရန်"}
+                              {lang === "EN" ? "Crop Bottom" : "အောက်မှ ဖြတ်ရန်"}
                             </label>
-                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{videoY}px</span>
+                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropBottom}%</span>
                           </div>
                           <input 
                             type="range" 
-                            min="-200" 
-                            max="200" 
-                            value={videoY} 
-                            onChange={(e) => setVideoY(parseInt(e.target.value))}
+                            min="0" 
+                            max="50" 
+                            value={cropBottom} 
+                            onChange={(e) => setCropBottom(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Crop Left" : "ဘယ်ဘက်မှ ဖြတ်ရန်"}
+                            </label>
+                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropLeft}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="50" 
+                            value={cropLeft} 
+                            onChange={(e) => setCropLeft(parseInt(e.target.value))}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Crop Right" : "ညာဘက်မှ ဖြတ်ရန်"}
+                            </label>
+                            <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{cropRight}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="50" 
+                            value={cropRight} 
+                            onChange={(e) => setCropRight(parseInt(e.target.value))}
                             className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                           />
                         </div>
@@ -1841,7 +1884,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             src={URL.createObjectURL(file)} 
                             className="w-full h-full object-contain opacity-60"
                             style={{ 
-                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100}) translate(${videoX}px, ${videoY}px)`,
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
@@ -1973,7 +2017,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             src={URL.createObjectURL(file)} 
                             className="w-full h-full object-contain opacity-60"
                             style={{ 
-                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100}) translate(${videoX}px, ${videoY}px)`,
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 
@@ -2125,7 +2170,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             src={URL.createObjectURL(file)} 
                             className="w-full h-full object-contain opacity-60"
                             style={{ 
-                              transform: `scale-x-[-1] scale(${(videoScale || 100) / 100}) translate(${videoX}px, ${videoY}px)`,
+                              transform: `scale(${(videoScale || 100) / 100})`,
+                              clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
                               filter: "contrast(115%) brightness(95%) saturate(125%)"
                             }}
                             autoPlay 

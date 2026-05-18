@@ -241,8 +241,10 @@ async function startServer() {
         logoPosition, 
         videoRatio, 
         videoScale,
-        videoX,
-        videoY,
+        cropTop,
+        cropBottom,
+        cropLeft,
+        cropRight,
         blurEnabled,
         blurWidth,
         blurHeight,
@@ -313,31 +315,29 @@ async function startServer() {
       const logoScale = vRes.w / 400;
       // Reference width for font scaling (UI preview container is approx 400px wide)
       const fontScale = vRes.w / 400;
-
       const padding = 20 * logoScale;
       const zoom = (videoScale || 100) / 100;
-      const panX = (videoX || 0) * (vRes.w / 400);
-      const panY = (videoY || 0) * (vRes.w / 400);
+      const cTop = (cropTop || 0) / 100;
+      const cBottom = (cropBottom || 0) / 100;
+      const cLeft = (cropLeft || 0) / 100;
+      const cRight = (cropRight || 0) / 100;
 
       // Ratio Filter with Zoom support (Fit & Pad - Avoid Cropping)
       let ratioFilter = "";
       if (videoRatio) {
         const [rw, rh] = videoRatio.split(':').map(Number);
         const targetAR = rw / rh;
-        const videoAR = vRes.w / vRes.h;
         
-        let outW, outH;
-        if (videoAR > targetAR) {
-          outH = vRes.h;
-          outW = Math.round(vRes.h * targetAR);
-        } else {
-          outW = vRes.w;
-          outH = Math.round(vRes.w / targetAR);
-        }
-        outW = Math.max(2, Math.floor(outW / 2) * 2);
-        outH = Math.max(2, Math.floor(outH / 2) * 2);
+        // 1. Initial manual crop if user specified
+        const manualCrop = `crop=iw*(1-${cLeft+cRight}):ih*(1-${cTop+cBottom}):iw*${cLeft}:ih*${cTop}`;
+        
+        // 2. Final dimensions based on output ratio
+        const outW = vRes.w;
+        const outH = Math.round(vRes.w / targetAR);
+        const safeW = Math.max(2, Math.floor(outW / 2) * 2);
+        const safeH = Math.max(2, Math.floor(outH / 2) * 2);
 
-        ratioFilter = `setsar=1,scale=w=${outW}:h=${outH}:force_original_aspect_ratio=contain,pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:color=black,scale=iw*${zoom}:ih*${zoom},crop=${outW}:${outH}:(iw-ow)/2-${panX}:(ih-oh)/2-${panY},format=yuv420p`;
+        ratioFilter = `${manualCrop},setsar=1,scale=w=${safeW}:h=${safeH}:force_original_aspect_ratio=contain,pad=${safeW}:${safeH}:(ow-iw)/2:(oh-ih)/2:color=black,scale=iw*${zoom}:ih*${zoom},crop=${safeW}:${safeH},format=yuv420p`;
       }
       
       let posFilter = "";
