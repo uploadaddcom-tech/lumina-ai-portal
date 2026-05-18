@@ -121,7 +121,6 @@ const api = {
         blurHeight,
         blurY,
         blurIntensity,
-        blurEnabledSubtitle: subtitleEnabled, // Backend uses this name or check mapping
         subtitleEnabled,
         subtitleText,
         subtitleColor,
@@ -139,6 +138,16 @@ const api = {
         throw new Error(errorText || "Merge failed");
       }
     }
+    return (await res.json()).jobId;
+  },
+  async checkJob(jobId: string) {
+    const res = await fetch(`/api/job-status/${jobId}`);
+    if (!res.ok) throw new Error("Status check failed");
+    return await res.json();
+  },
+  async download(jobId: string) {
+    const res = await fetch(`/api/download/${jobId}`);
+    if (!res.ok) throw new Error("Download failed");
     return await res.blob();
   }
 };
@@ -1319,8 +1328,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         reader.readAsDataURL(audioBlob);
       });
 
-      console.log("Starting server-side merge...");
-      const mergedBlob = await api.merge(
+      console.log("Starting server-side merge job...");
+      const jobId = await api.merge(
         videoBase64, 
         audioBase64, 
         logoBase64, 
@@ -1347,24 +1356,65 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         apiKey
       );
       
-      if (mergedBlob && mergedBlob.size > 0) {
-        const url = URL.createObjectURL(mergedBlob);
-        setMergedVideoUrl(url);
+      if (jobId) {
+        // Start polling
+        let pollCount = 0;
+        const maxPolls = 300; // 10 minutes at 2s interval
         
-        // Final scroll to success
-        setTimeout(() => {
-          document.getElementById('final-download-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
+        const poll = async () => {
+          try {
+            const job = await api.checkJob(jobId);
+            if (job.status === "completed") {
+              const blob = await api.download(jobId);
+              if (blob && blob.size > 0) {
+                const url = URL.createObjectURL(blob);
+                setMergedVideoUrl(url);
+                setIsMerging(false);
+                
+                // Final scroll to success
+                setTimeout(() => {
+                  document.getElementById('final-download-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+              }
+              return true;
+            } else if (job.status === "failed") {
+              throw new Error(job.error || "Async merge failed");
+            }
+          } catch (err: any) {
+            console.error("Polling error:", err);
+            throw err;
+          }
+          return false;
+        };
+
+        const interval = setInterval(async () => {
+          pollCount++;
+          if (pollCount > maxPolls) {
+            clearInterval(interval);
+            setIsMerging(false);
+            alert("Merge timed out after 10 minutes. Please try again with a shorter video.");
+            return;
+          }
+
+          try {
+            const done = await poll();
+            if (done) clearInterval(interval);
+          } catch (err: any) {
+            clearInterval(interval);
+            setIsMerging(false);
+            alert(`Merge failed: ${err.message}`);
+          }
+        }, 2000);
+
       } else {
-        throw new Error("Final video generation returned empty data.");
+        throw new Error("Failed to start merge job.");
       }
     } catch (err: any) {
       console.error(err);
       const msg = lang === "EN" 
         ? `Merge failed: ${err.message}. Please check if your video is too large or try again.` 
-        : `ဗီဒီယို ပေါင်းစပ်မှု မအောင်မြင်ပါ။ ${err.message}။ ဗီဒီယို ဖိုင်အရွယ်အစား သို့မဟုတ် အင်တာနက်ကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပေးပါ။`;
+        : `ဗီဒီယို ပေါင်းစပ်မှု မအောင်မြင်ပါ။ ${err.message}။ ဗီဒီယို ဖိုင်အရွယ်အစား သိုက်မဟုတ် အင်တာနက်ကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပေးပါ။`;
       alert(msg);
-    } finally {
       setIsMerging(false);
     }
   };
