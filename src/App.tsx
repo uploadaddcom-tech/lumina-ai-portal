@@ -133,7 +133,7 @@ const api = {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || "Merge failed");
     }
-    return (await res.json()).videoBase64;
+    return (await res.json()).downloadUrl;
   }
 };
 
@@ -1309,7 +1309,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         reader.readAsDataURL(audioBlob);
       });
 
-      const mergedBase64 = await api.merge(
+      const downloadUrl = await api.merge(
         videoBase64, 
         audioBase64, 
         logoBase64, 
@@ -1336,13 +1336,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         apiKey
       );
       
-      if (mergedBase64) {
-        const binaryString = atob(mergedBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        setMergedVideoUrl(URL.createObjectURL(new Blob([bytes], { type: "video/mp4" })));
+      if (downloadUrl) {
+        setMergedVideoUrl(downloadUrl);
       }
     } catch (err) {
       console.error(err);

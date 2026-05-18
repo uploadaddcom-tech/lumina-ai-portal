@@ -227,6 +227,21 @@ async function startServer() {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    // Periodic cleanup of temp files older than 1 hour
+    const now = Date.now();
+    try {
+      const files = fs.readdirSync(tempDir);
+      for (const file of files) {
+        const filePath = path.join(tempDir, file);
+        const stats = fs.statSync(filePath);
+        if (now - stats.mtimeMs > 60 * 60 * 1000) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    } catch (e) {
+      console.error("Auto Cleanup Error:", e);
+    }
+
     const videoPath = path.join(tempDir, `video_${tempId}.mp4`);
     const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
     const logoPath = path.join(tempDir, `logo_${tempId}.png`);
@@ -534,25 +549,26 @@ async function startServer() {
       console.log("Executing CMD:", ffmpegCmd);
       await execPromise(ffmpegCmd);
 
-
-      const outputBuffer = await readFilePromise(outputPath);
-      res.json({ videoBase64: outputBuffer.toString("base64") });
+      // Return download URL instead of huge base64
+      const downloadFilename = `output_${tempId}.mp4`;
+      res.json({ downloadUrl: `/api/download/${downloadFilename}` });
 
     } catch (error: any) {
       console.error("FFmpeg Error Output:", error.stderr || error);
       const errorMessage = error.stderr ? `FFmpeg Failed: ${error.stderr.split('\n').pop()}` : error.message;
       res.status(500).json({ error: errorMessage });
     } finally {
-      // Cleanup
+      // Cleanup source files only, KEEP the output file for download
       try {
         if (fs.existsSync(videoPath)) await unlinkPromise(videoPath);
         if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
         if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
-        if (fs.existsSync(outputPath)) await unlinkPromise(outputPath);
-        const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
-        if (fs.existsSync(filterPath)) await unlinkPromise(filterPath);
-        const subtitleFilePath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
-        if (fs.existsSync(subtitleFilePath)) await unlinkPromise(subtitleFilePath);
+        // Note: outputPath is kept for the download endpoint
+        
+        const fPath = path.join(tempDir, `filter_${tempId}.txt`);
+        if (fs.existsSync(fPath)) await unlinkPromise(fPath);
+        const subPath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
+        if (fs.existsSync(subPath)) await unlinkPromise(subPath);
         
         // Cleanup chunks
         const files = fs.readdirSync(tempDir);
@@ -564,6 +580,21 @@ async function startServer() {
       } catch (cleanError) {
         console.error("Cleanup Error:", cleanError);
       }
+    }
+  });
+
+  // Download endpoint
+  app.get("/api/download/:filename", (req, res) => {
+    const filename = req.params.filename;
+    // Basic security: only allow files from temp dir that start with output_
+    if (!filename.startsWith("output_") || filename.includes("..")) {
+      return res.status(403).send("Unauthorized");
+    }
+    const filePath = path.join(process.cwd(), "temp", filename);
+    if (fs.existsSync(filePath)) {
+      res.download(filePath);
+    } else {
+      res.status(404).send("File not found");
     }
   });
 
