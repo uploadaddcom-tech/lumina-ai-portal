@@ -14,6 +14,27 @@ const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
 
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
+  let delay = initialDelay;
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const is503 = error.message?.includes("503") || error.status === 503 || error.message?.includes("high demand");
+      const is429 = error.message?.includes("429") || error.status === 429;
+      
+      if (i === maxRetries || (!is503 && !is429)) {
+        throw error;
+      }
+      
+      console.warn(`Gemini API Error (Retryable): ${error.message}. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Exponential backoff
+    }
+  }
+  throw new Error("Retry failed");
+}
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,7 +140,7 @@ async function startServer() {
       const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
       const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
-      const response = await aiClient.models.generateContent({
+      const response = await retryWithBackoff(() => aiClient.models.generateContent({
         model: model,
         contents: [
           {
@@ -129,7 +150,7 @@ async function startServer() {
             ]
           }
         ]
-      });
+      }));
       
       let text = response.text || "";
       if (lang === "MY") {
@@ -154,7 +175,7 @@ async function startServer() {
       const model = "gemini-3-flash-preview";
       const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
-      const response = await aiClient.models.generateContent({
+      const response = await retryWithBackoff(() => aiClient.models.generateContent({
         model: model,
         contents: [
           {
@@ -164,7 +185,7 @@ async function startServer() {
             ]
           }
         ]
-      });
+      }));
       
       res.json({ text: response.text });
     } catch (error: any) {
@@ -200,7 +221,7 @@ async function startServer() {
 
       for (const chunk of textChunks) {
         if (!chunk.trim()) continue;
-        const response = await aiClient.models.generateContent({
+        const response = await retryWithBackoff(() => aiClient.models.generateContent({
           model: model,
           contents: [{ parts: [{ text: chunk }] }],
           config: {
@@ -211,7 +232,7 @@ async function startServer() {
               }
             }
           } as any
-        });
+        }));
         
         const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
         if (audioBase64) {
