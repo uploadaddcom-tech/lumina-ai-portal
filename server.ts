@@ -525,7 +525,7 @@ async function startServer() {
         }
 
         // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
-        const getChunks = (text: string, maxChars = 45) => {
+        const getChunks = (text: string, maxChars = 80) => {
           const parts = text.split(/(?<=[။၊.!?])\s*/);
           let res = [];
           let current = "";
@@ -541,7 +541,7 @@ async function startServer() {
           return res;
         };
 
-        const chunks = getChunks(subtitleText, 45);
+        const chunks = getChunks(subtitleText, 80);
         const totalTime = aDur || vDur || 1;
         const totalChars = subtitleText.length || 1;
         
@@ -551,8 +551,8 @@ async function startServer() {
         for (const chunk of chunks) {
           if (!chunk.trim()) continue;
           
-          // Use smaller wrapLen (25) to ensure padding on edges
-          const wrappedLines = wrapText(chunk.trim(), 25).map(l => `   ${l}   `);
+          // Use wider wrapLen (80) to spread text horizontally
+          const wrappedLines = wrapText(chunk.trim(), 80).map(l => `          ${l}          `);
           const wrapped = wrappedLines.join('\n');
           const chunkDuration = (chunk.length / totalChars) * totalTime;
           const chunkStartTime = currentTime;
@@ -563,7 +563,7 @@ async function startServer() {
           
           const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
           // Position: center horizontally, 90% from top (Bottom Center)
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=20:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=30:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           currentTime = chunkEndTime;
