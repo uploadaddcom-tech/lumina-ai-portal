@@ -505,7 +505,26 @@ async function startServer() {
         try {
           console.log("Requesting AI Timestamps for Subtitles...");
           const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-          const audioBase64 = audioBuffer.toString('base64');
+          
+          let aiAudioBase64 = audioBuffer.toString('base64');
+          
+          // CRITICAL SYNC FIX: If audio is speed-adjusted, AI must hear the ADJUSTED audio 
+          // to provide accurate timestamps for the final video timeline.
+          if (speed > 1) {
+            console.log(`Pre-adjusting audio for AI sync (speed=${speed.toFixed(2)})...`);
+            const aiAudioPath = path.join(tempDir, `ai_audio_${tempId}.wav`);
+            let atempo = `atempo=${speed}`;
+            if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
+            
+            try {
+              await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempo}" -y "${aiAudioPath}"`);
+              const scaledBuffer = fs.readFileSync(aiAudioPath);
+              aiAudioBase64 = scaledBuffer.toString('base64');
+              if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
+            } catch (ffmpegErr) {
+              console.warn("Pre-adjustment failed, using original audio:", ffmpegErr);
+            }
+          }
           
           const timestampPrompt = `
             Task: Provide a JSON array of subtitle timestamps (start and end times in seconds) for this audio based on the script.
@@ -514,9 +533,10 @@ async function startServer() {
             
             Requirements:
             1. Analyze the audio carefully to match the script to the voice.
-            2. Break the script into small, readable phrases (around 5-10 words each).
+            2. Break the script into small, readable chunks (around 5-10 words each).
             3. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 0.0, "end_time": 2.5}, ...]
             4. Timestamps MUST be in seconds (numbers).
+            5. Ensure the chunks cover the FULL script.
           `;
 
           const tsResponse = await retryWithBackoff(() => aiClient.models.generateContent({
@@ -525,7 +545,7 @@ async function startServer() {
               {
                 parts: [
                   { text: timestampPrompt },
-                  { inlineData: { data: audioBase64, mimeType: 'audio/wav' } }
+                  { inlineData: { data: aiAudioBase64, mimeType: 'audio/wav' } }
                 ]
               }
             ],
@@ -540,11 +560,12 @@ async function startServer() {
         } catch (tsErr) {
           console.warn("AI Timestamping failed, falling back to estimation:", tsErr);
           const totalChars = subtitleText.length || 1;
-          const totalTime = aDur || vDur || 1;
+          // Use vDur if speed adjusted, otherwise aDur
+          const finalTargetDur = speed > 1 ? vDur : (aDur || vDur || 1);
           const parts = subtitleText.split(/(?<=[။၊.!?])\s*/);
           let currentTime = 0;
           svChunks = parts.map(p => {
-            const dur = (p.length / totalChars) * totalTime;
+            const dur = (p.length / totalChars) * finalTargetDur;
             const seg = { text: p, start_time: currentTime, end_time: currentTime + dur };
             currentTime += dur;
             return seg;
@@ -571,20 +592,22 @@ async function startServer() {
             return lines;
           };
 
-          const lines = wrapText(chunk.text.trim(), 40);
+          const lines = wrapText(chunk.text.trim(), 45);
           const maxLineLen = Math.max(...lines.map(l => l.length));
           const centeredLines = lines.map(l => {
             const padSize = Math.max(0, Math.floor((maxLineLen - l.length) / 2));
             const pad = " ".repeat(padSize);
             return `${pad}${l}${pad}`;
           });
+          // Add horizontal padding spaces to the box itself via lines
           const wrapped = centeredLines.map(l => `  ${l}  `).join('\n');
           
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
           const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=20:line_spacing=8:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          // boxborderw controls the visual padding of the background box
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=15:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           svIndex++;
