@@ -95,7 +95,7 @@ async function startServer() {
       try {
         const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-3-flash-preview";
+        const model = "gemini-2.5-flash";
         
         const stylePrompts: Record<string, string> = {
           "step-by-step": lang === "EN" 
@@ -182,7 +182,7 @@ async function startServer() {
       try {
         const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-3-flash-preview";
+        const model = "gemini-2.5-flash";
         const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
         const response = await retryWithBackoff(() => aiClient.models.generateContent({
@@ -543,7 +543,7 @@ async function startServer() {
 
         svChunks = await retryWithBackoff(async () => {
           const tsResponse = await aiClient.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-2.5-flash",
             contents: [
               {
                 parts: [
@@ -563,59 +563,30 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        const wrapText = (text: string, maxLen: number) => {
-          const words = text.split(/\s+/);
-          let lines = [];
-          let currentLine = "";
-          words.forEach(word => {
-            if ((currentLine + word).length > maxLen) {
-              lines.push(currentLine.trim());
-              currentLine = word + " ";
-            } else {
-              currentLine += word + " ";
-            }
-          });
-          if (currentLine) lines.push(currentLine.trim());
-          return lines;
-        };
-
-        const getVisualLength = (str: string) => {
-          // Myanmar combining marks heuristic: ignore non-spacing marks for visual width estimation
-          return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
-        };
-
-        const parseHexToASSColor = (hex: string, opacity: number = 1.0) => {
-          let clean = hex.trim().replace(/^#/, '');
-          if (clean.length === 3) {
-            clean = clean.split('').map(c => c + c).join('');
-          }
-          if (clean.length !== 6) {
-            clean = "FFFFFF";
-          }
-          const r = clean.substring(0, 2);
-          const g = clean.substring(2, 4);
-          const b = clean.substring(4, 6);
-          const alphaVal = Math.min(255, Math.max(0, Math.round((1 - opacity) * 255)));
-          const alphaHex = alphaVal.toString(16).padStart(2, '0').toUpperCase();
-          return `&H${alphaHex}${b}${g}${r}`;
-        };
-
-        const formatSecondsToASS = (sec: number): string => {
-          if (isNaN(sec) || sec < 0) sec = 0;
-          const h = Math.floor(sec / 3600);
-          const m = Math.floor((sec % 3600) / 60);
-          const s = Math.floor(sec % 60);
-          const cs = Math.floor((sec % 1) * 100);
-          return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
-        };
-
-        const assTextColor = parseHexToASSColor(subtitleColor || "#ffffff", 1.0);
-        const assBoxColor = parseHexToASSColor(subtitleBoxColor || "#000000", 0.6);
-        const marginV = Math.round(effectiveRes.h * 0.10);
-
-        let assEvents: string[] = [];
+        let svIndex = 0;
         for (const chunk of svChunks) {
           if (!chunk.text.trim()) continue;
+          
+          const wrapText = (text: string, maxLen: number) => {
+            const words = text.split(/\s+/);
+            let lines = [];
+            let currentLine = "";
+            words.forEach(word => {
+              if ((currentLine + word).length > maxLen) {
+                lines.push(currentLine.trim());
+                currentLine = word + " ";
+              } else {
+                currentLine += word + " ";
+              }
+            });
+            if (currentLine) lines.push(currentLine.trim());
+            return lines;
+          };
+
+          const getVisualLength = (str: string) => {
+            // Myanmar combining marks heuristic: ignore non-spacing marks for visual width estimation
+            return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
+          };
 
           const lines = wrapText(chunk.text.trim(), 40);
           const visualLengths = lines.map(getVisualLength);
@@ -626,37 +597,20 @@ async function startServer() {
             const pad = " ".repeat(padSize);
             return `${pad}${l}${pad}`;
           });
-          const dialogueText = centeredLines.map(l => ` ${l} `).join('\\N');
-
-          const startStr = formatSecondsToASS(chunk.start_time);
-          const endStr = formatSecondsToASS(chunk.end_time);
-          assEvents.push(`Dialogue: 0,${startStr},${endStr},Default,,0,0,0,,${dialogueText}`);
+          // Add tighter horizontal padding to the lines
+          const wrapped = centeredLines.map(l => ` ${l} `).join('\n');
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
+          await writeFilePromise(chunkPath, wrapped);
+          
+          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
+          const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
+          // Use the provided box color with 0.6 opacity
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
+          lastV = `[sv${svIndex}]`;
+          svIndex++;
         }
-
-        const fontName = subtitleFont || "Padauk";
-        const assContent = `[Script Info]
-Title: Generated Subtitles
-ScriptType: v4.00+
-PlayResX: ${effectiveRes.w}
-PlayResY: ${effectiveRes.h}
-WrapStyle: 0
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${fontName},${fSize},${assTextColor},&H000000FF,&H00000000,${assBoxColor},0,0,0,0,100,100,0,0,3,4,0,2,10,10,${marginV},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-${assEvents.join('\n')}
-`;
-
-        const assPath = path.join(tempDir, `subtitles_${tempId}.ass`);
-        await writeFilePromise(assPath, assContent);
-
-        const escapedAssPath = assPath.replace(/\\/g, '/').replace(/'/g, "'\\''");
-        const escapedFontsDir = process.cwd().replace(/\\/g, '/').replace(/'/g, "'\\''");
-        vFilters.push(`${lastV}subtitles='${escapedAssPath}':fontsdir='${escapedFontsDir}'[sv]`);
-        lastV = "[sv]";
       }
 
       // Stage 4: Logo
