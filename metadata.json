@@ -1,6 +1,6 @@
 {
-  "name": "ANY RECAP",
-  "description": "Enterprise-grade AI master system for video, subtitle, and audio automation.",
+  "name": "Lumina AI",
+  "description": "Enterprise-grade AI media processing dashboard for video, subtitle, and audio automation.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

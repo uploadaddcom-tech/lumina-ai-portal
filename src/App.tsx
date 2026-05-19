@@ -19,7 +19,6 @@ import {
   Zap,
   CloudUpload,
   Sparkles,
-  Clapperboard,
   ListOrdered,
   Briefcase,
   Smile,
@@ -2618,13 +2617,12 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="relative z-10 w-full max-w-md bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] p-12 text-center shadow-3xl"
       >
-        <div className="w-20 h-20 bg-linear-to-br from-indigo-600 via-purple-700 to-fuchsia-800 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-purple-900/40 mx-auto mb-8 relative group">
-          <div className="absolute inset-0 bg-white/20 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <Clapperboard className="w-10 h-10 text-white relative z-10 transition-transform group-hover:scale-110" />
+        <div className="w-20 h-20 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 mx-auto mb-8 animate-pulse">
+          <Cpu className="w-10 h-10 text-white" />
         </div>
         
-        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-2">ANY RECAP</h1>
-        <p className="text-[9px] font-tech font-black tracking-[0.5em] text-purple-600 dark:text-purple-400 uppercase mb-8 ml-1">AI MASTER SYSTEM</p>
+        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">LUMINA</h1>
+        <p className="text-[10px] font-tech font-black tracking-[0.4em] text-blue-500 uppercase mb-8">{t.authRequired}</p>
         
         <div className="space-y-3">
           <button
@@ -2917,12 +2915,12 @@ function AppContent() {
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                   <div className="flex items-center gap-12">
                     <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80" onClick={() => navigate('/')}>
-                      <div className="w-10 h-10 bg-linear-to-br from-indigo-600 via-purple-700 to-fuchsia-800 rounded-xl flex items-center justify-center shadow-xl shadow-purple-900/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 relative">
-                        <Clapperboard className="w-5 h-5 text-white" />
+                      <div className="w-10 h-10 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
+                        <Cpu className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex flex-col -gap-1">
-                        <span className="text-xl font-black tracking-tighter text-text-primary dark:text-white leading-none">ANY RECAP</span>
-                        <span className="text-[8px] font-tech font-black tracking-[0.3em] text-purple-600 dark:text-purple-400 uppercase ml-0.5">AI SYSTEM</span>
+                        <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">LUMINA</span>
+                        <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
                       </div>
                     </div>
                   </div>
@@ -3015,7 +3013,7 @@ function AppContent() {
                  </div>
                  
                  <div className="flex items-center gap-6">
-                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Any Recap AI System</span>
+                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Lumina Neural Systems</span>
                  </div>
               </footer>
             </motion.div>
