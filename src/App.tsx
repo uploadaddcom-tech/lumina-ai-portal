@@ -3015,7 +3015,7 @@ function AppContent() {
                  </div>
                  
                  <div className="flex items-center gap-6">
-                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Lumina Neural Systems</span>
+                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Any Recap AI System</span>
                  </div>
               </footer>
             </motion.div>
