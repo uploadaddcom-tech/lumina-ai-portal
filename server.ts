@@ -654,7 +654,8 @@ ${assEvents.join('\n')}
         await writeFilePromise(assPath, assContent);
 
         const escapedAssPath = assPath.replace(/\\/g, '/').replace(/'/g, "'\\''");
-        vFilters.push(`${lastV}subtitles='${escapedAssPath}'[sv]`);
+        const escapedFontsDir = process.cwd().replace(/\\/g, '/').replace(/'/g, "'\\''");
+        vFilters.push(`${lastV}subtitles='${escapedAssPath}':fontsdir='${escapedFontsDir}'[sv]`);
         lastV = "[sv]";
       }
 
