@@ -592,22 +592,29 @@ async function startServer() {
             return lines;
           };
 
-          const lines = wrapText(chunk.text.trim(), 45);
-          const maxLineLen = Math.max(...lines.map(l => l.length));
-          const centeredLines = lines.map(l => {
-            const padSize = Math.max(0, Math.floor((maxLineLen - l.length) / 2));
+          const getVisualLength = (str: string) => {
+            // Myanmar combining marks heuristic: ignore non-spacing marks for visual width estimation
+            return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
+          };
+
+          const lines = wrapText(chunk.text.trim(), 40);
+          const visualLengths = lines.map(getVisualLength);
+          const maxWidth = Math.max(...visualLengths);
+          
+          const centeredLines = lines.map((l, idx) => {
+            const padSize = Math.max(0, Math.floor((maxWidth - visualLengths[idx]) / 2));
             const pad = " ".repeat(padSize);
             return `${pad}${l}${pad}`;
           });
-          // Add horizontal padding spaces to the box itself via lines
-          const wrapped = centeredLines.map(l => `  ${l}  `).join('\n');
+          // Add tighter horizontal padding to the lines
+          const wrapped = centeredLines.map(l => ` ${l} `).join('\n');
           
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
           const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
-          // boxborderw controls the visual padding of the background box
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=15:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          // boxborderw=10 for a tighter fit, line_spacing=5 for better readability
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           svIndex++;

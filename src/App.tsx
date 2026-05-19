@@ -2304,7 +2304,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         {/* Subtitle Preview Overlay */}
                         <div className="absolute bottom-6 md:bottom-12 left-0 right-0 px-2 md:px-8 flex flex-col items-center gap-2 pointer-events-none">
                           <div 
-                            className="bg-black/60 backdrop-blur-md px-8 py-3 rounded-2xl border border-white/10 text-center max-w-[95%]"
+                            className="bg-black/60 backdrop-blur-md px-6 py-2 rounded-xl border border-white/10 text-center max-w-[90%]"
                             style={{
                               color: subtitleColor,
                               fontSize: `${Math.max(8, subtitleFontSize * 0.4)}px`,
@@ -2312,8 +2312,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               lineHeight: '1.5'
                             }}
                           >
-                             This is a sample subtitle line for preview.<br/>
-                             Centered and perfectly padded.
+                             Better Centered Subtitles<br/>
+                             Stable Alignment
                           </div>
                         </div>
                       </motion.div>
