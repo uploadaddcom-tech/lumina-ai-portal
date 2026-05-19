@@ -354,30 +354,62 @@ async function startServer() {
       // Get Durations to handle speed adjustment
       const getDuration = async (filePath: string) => {
         try {
+          // 1. Try format duration
           const { stdout } = await execPromise(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
-          const duration = parseFloat(stdout.trim());
-          if (!isNaN(duration)) return duration;
+          let duration = parseFloat(stdout.trim());
+          if (!isNaN(duration) && duration > 0) return duration;
         } catch (e) {
-          // Fallback to ffmpeg if ffprobe fails for some reason
-          try {
-            const { stderr } = await execPromise(`ffmpeg -i "${filePath}" 2>&1`);
-            const match = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d+)/);
-            if (match) {
-              const h = parseInt(match[1]);
-              const m = parseInt(match[2]);
-              const s = parseInt(match[3]);
-              const ms = parseFloat("0." + match[4]);
-              return h * 3600 + m * 60 + s + ms;
-            }
-          } catch (innerE) {
-            console.error("Duration Parsing Error:", innerE);
+          console.warn(`ffprobe format duration check failed for ${filePath}, trying streams...`);
+        }
+
+        try {
+          // 2. Try select first stream duration
+          const { stdout: streamStream } = await execPromise(`ffprobe -v error -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 -select_streams 0 "${filePath}"`);
+          let duration = parseFloat(streamStream.trim());
+          if (!isNaN(duration) && duration > 0) return duration;
+        } catch (e) {
+          // Silent fallback
+        }
+
+        try {
+          // 3. Try select specific video stream
+          const { stdout: streamV } = await execPromise(`ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
+          let duration = parseFloat(streamV.trim());
+          if (!isNaN(duration) && duration > 0) return duration;
+        } catch (e) {
+          // Silent fallback
+        }
+
+        try {
+          // 4. Try select specific audio stream
+          const { stdout: streamA } = await execPromise(`ffprobe -v error -select_streams a:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
+          let duration = parseFloat(streamA.trim());
+          if (!isNaN(duration) && duration > 0) return duration;
+        } catch (e) {
+          // Silent fallback
+        }
+
+        // Final fallback parsing standard ffmpeg -i stderr output
+        try {
+          const { stderr } = await execPromise(`ffmpeg -i "${filePath}" 2>&1`);
+          const match = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d+)/);
+          if (match) {
+            const h = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const s = parseInt(match[3]);
+            const ms = parseFloat("0." + match[4]);
+            return h * 3600 + m * 60 + s + ms;
           }
+        } catch (innerE) {
+          console.error("Duration Parsing Error in fallback:", innerE);
         }
         return 0;
       };
 
       const vDur = await getDuration(videoPath);
       const aDur = await getDuration(audioPath);
+      
+      console.log(`Duration check -> Video Duration (vDur): ${vDur}s, Audio Duration (aDur): ${aDur}s`);
       
       // Get video resolution for scaling
       const getResolution = async (filePath: string) => {
@@ -438,7 +470,8 @@ async function startServer() {
       }
 
       // If audio is longer than video, speed it up to match video duration exactly
-      const speed = (vDur > 0 && aDur > (vDur + 0.1)) ? (aDur / vDur) : 1;
+      const speed = (vDur > 0 && aDur > vDur) ? (aDur / vDur) : 1;
+      console.log(`Speed calculation results -> audio is longer than video? ${aDur > vDur}. Speed-up factor calculated: ${speed}`);
       
       // Build filter complex
       let vFilters: string[] = [];
