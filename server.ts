@@ -14,7 +14,7 @@ const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
 
-async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay = 2000): Promise<T> {
   let delay = initialDelay;
   for (let i = 0; i <= maxRetries; i++) {
     try {
@@ -22,8 +22,9 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initial
     } catch (error: any) {
       const is503 = error.message?.includes("503") || error.status === 503 || error.message?.includes("high demand");
       const is429 = error.message?.includes("429") || error.status === 429;
+      const is404 = error.status === 404 || error.message?.includes("404"); // Sometimes 404 is transient or model not found during high demand
       
-      if (i === maxRetries || (!is503 && !is429)) {
+      if (i === maxRetries || (!is503 && !is429 && !is404)) {
         throw error;
       }
       
@@ -541,7 +542,7 @@ async function startServer() {
           `;
 
           const tsResponse = await retryWithBackoff(() => aiClient.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-3-flash-preview",
             contents: [
               {
                 parts: [
@@ -559,18 +560,8 @@ async function startServer() {
           svChunks = JSON.parse(tsRaw);
           console.log(`Successfully received ${svChunks.length} AI subtitle segments.`);
         } catch (tsErr) {
-          console.warn("AI Timestamping failed, falling back to estimation:", tsErr);
-          const totalChars = subtitleText.length || 1;
-          // Use vDur if speed adjusted, otherwise aDur
-          const finalTargetDur = speed > 1 ? vDur : (aDur || vDur || 1);
-          const parts = subtitleText.split(/(?<=[။၊.!?])\s*/);
-          let currentTime = 0;
-          svChunks = parts.map(p => {
-            const dur = (p.length / totalChars) * finalTargetDur;
-            const seg = { text: p, start_time: currentTime, end_time: currentTime + dur };
-            currentTime += dur;
-            return seg;
-          });
+          console.error("AI Timestamping failed completely after retries. Aborting job.", tsErr);
+          throw tsErr; // No more estimation fallback as requested
         }
 
         let svIndex = 0;
