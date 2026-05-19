@@ -1140,9 +1140,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
-    const [subtitleBoxColor, setSubtitleBoxColor] = useState("#000000");
     const [subtitleFontSize, setSubtitleFontSize] = useState(24);
     const [subtitleFont, setSubtitleFont] = useState("Padauk");
+    const [subtitleBoxColor, setSubtitleBoxColor] = useState("#000000");
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -2310,8 +2310,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           <div 
                             className="backdrop-blur-md px-6 py-2 rounded-xl border border-white/10 text-center max-w-[90%]"
                             style={{
+                              backgroundColor: `${subtitleBoxColor}99`, // Approx 0.6 opacity
                               color: subtitleColor,
-                              backgroundColor: `${subtitleBoxColor}99`, // add some transparency like 0.6 (~99 in hex)
                               fontSize: `${Math.max(8, subtitleFontSize * 0.4)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.5'
@@ -2334,7 +2334,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Subtitle Color" : "အရောင်"}
+                            {lang === "EN" ? "Subtitle Color" : "စာသားအရောင်"}
                           </label>
                           <div className="flex flex-wrap gap-2">
                             {["#ffffff", "#FFEB3B", "#4CAF50", "#2196F3", "#F44336", "#E91E63"].map((color) => (
@@ -2356,14 +2356,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
                         <div className="space-y-4">
                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Box Background" : "စာတန်းထိုး နောက်ခံအရောင်"}
+                            {lang === "EN" ? "Box Color" : "နောက်ခံဘောက်စ်အရောင်"}
                           </label>
                           <div className="flex flex-wrap gap-2">
-                            {["#000000", "#1a1a1a", "#ffffff", "#F44336", "#2196F3", "#4CAF50"].map((color) => (
+                            {["#000000", "#1a1a1a", "#2c3e50", "#c0392b", "#27ae60", "#2980b9"].map((color) => (
                               <button 
                                 key={color}
                                 onClick={() => setSubtitleBoxColor(color)}
-                                className={`w-8 h-8 rounded-lg border-2 transition-all ${subtitleBoxColor === color ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                className={`w-8 h-8 rounded-full border-2 transition-all ${subtitleBoxColor === color ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"}`}
                                 style={{ backgroundColor: color }}
                               />
                             ))}
@@ -2371,7 +2371,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               type="color" 
                               value={subtitleBoxColor}
                               onChange={(e) => setSubtitleBoxColor(e.target.value)}
-                              className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0"
+                              className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer p-0"
                             />
                           </div>
                         </div>
