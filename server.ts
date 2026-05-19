@@ -504,44 +504,45 @@ async function startServer() {
 
         let svChunks: { text: string; start_time: number; end_time: number }[] = [];
 
-        try {
-          console.log("Requesting AI Timestamps for Subtitles...");
-          const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        console.log("Requesting AI Timestamps for Subtitles...");
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        
+        let aiAudioBase64 = audioBuffer.toString('base64');
+        
+        // CRITICAL SYNC FIX: If audio is speed-adjusted, AI must hear the ADJUSTED audio 
+        // to provide accurate timestamps for the final video timeline.
+        if (speed > 1) {
+          console.log(`Pre-adjusting audio for AI sync (speed=${speed.toFixed(2)})...`);
+          const aiAudioPath = path.join(tempDir, `ai_audio_${tempId}.wav`);
+          let atempo = `atempo=${speed}`;
+          if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
           
-          let aiAudioBase64 = audioBuffer.toString('base64');
-          
-          // CRITICAL SYNC FIX: If audio is speed-adjusted, AI must hear the ADJUSTED audio 
-          // to provide accurate timestamps for the final video timeline.
-          if (speed > 1) {
-            console.log(`Pre-adjusting audio for AI sync (speed=${speed.toFixed(2)})...`);
-            const aiAudioPath = path.join(tempDir, `ai_audio_${tempId}.wav`);
-            let atempo = `atempo=${speed}`;
-            if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
-            
-            try {
-              await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempo}" -y "${aiAudioPath}"`);
-              const scaledBuffer = fs.readFileSync(aiAudioPath);
-              aiAudioBase64 = scaledBuffer.toString('base64');
-              if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
-            } catch (ffmpegErr) {
-              console.warn("Pre-adjustment failed, using original audio:", ffmpegErr);
-            }
+          try {
+            await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempo}" -y "${aiAudioPath}"`);
+            const scaledBuffer = fs.readFileSync(aiAudioPath);
+            aiAudioBase64 = scaledBuffer.toString('base64');
+            if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
+          } catch (ffmpegErr) {
+            console.warn("Pre-adjustment failed, using original audio:", ffmpegErr);
           }
+        }
+        
+        const timestampPrompt = `
+          Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio based on the script.
           
-          const timestampPrompt = `
-            Task: Provide a JSON array of subtitle timestamps (start and end times in seconds) for this audio based on the script.
-            
-            Script: "${subtitleText}"
-            
-            Requirements:
-            1. Analyze the audio carefully to match the script to the voice.
-            2. Break the script into small, readable chunks (around 5-10 words each).
-            3. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 0.0, "end_time": 2.5}, ...]
-            4. Timestamps MUST be in seconds (numbers).
-            5. Ensure the chunks cover the FULL script.
-          `;
+          Script: "${subtitleText}"
+          
+          Requirements:
+          1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
+          2. Break the script into small, highly readable chunks (usually around 4-8 words or a short phrase).
+          3. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
+          4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.234, "end_time": 4.567}, ...]
+          5. Timestamps MUST be numbers in seconds with exactly 3 decimal places (e.g., 2.345) to ensure perfect synchronization.
+          6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
+        `;
 
-          const tsResponse = await retryWithBackoff(() => aiClient.models.generateContent({
+        svChunks = await retryWithBackoff(async () => {
+          const tsResponse = await aiClient.models.generateContent({
             model: "gemini-3-flash-preview",
             contents: [
               {
@@ -554,25 +555,13 @@ async function startServer() {
             config: {
               responseMimeType: "application/json"
             }
-          }));
+          });
 
           const tsRaw = tsResponse.text || "[]";
-          svChunks = JSON.parse(tsRaw);
-          console.log(`Successfully received ${svChunks.length} AI subtitle segments.`);
-        } catch (tsErr) {
-          console.warn("AI Timestamping failed, falling back to estimation:", tsErr);
-          const totalChars = subtitleText.length || 1;
-          // Use vDur if speed adjusted, otherwise aDur
-          const finalTargetDur = speed > 1 ? vDur : (aDur || vDur || 1);
-          const parts = subtitleText.split(/(?<=[။၊.!?])\s*/);
-          let currentTime = 0;
-          svChunks = parts.map(p => {
-            const dur = (p.length / totalChars) * finalTargetDur;
-            const seg = { text: p, start_time: currentTime, end_time: currentTime + dur };
-            currentTime += dur;
-            return seg;
-          });
-        }
+          return JSON.parse(tsRaw);
+        });
+
+        console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
         let svIndex = 0;
         for (const chunk of svChunks) {
