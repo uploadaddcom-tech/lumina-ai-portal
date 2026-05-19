@@ -95,7 +95,7 @@ async function startServer() {
       try {
         const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-1.5-flash";
+        const model = "gemini-3-flash-preview";
         
         const stylePrompts: Record<string, string> = {
           "step-by-step": lang === "EN" 
@@ -182,7 +182,7 @@ async function startServer() {
       try {
         const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-1.5-flash";
+        const model = "gemini-3-flash-preview";
         const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
         const response = await retryWithBackoff(() => aiClient.models.generateContent({
@@ -542,7 +542,7 @@ async function startServer() {
           `;
 
           const tsResponse = await retryWithBackoff(() => aiClient.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-3-flash-preview",
             contents: [
               {
                 parts: [
