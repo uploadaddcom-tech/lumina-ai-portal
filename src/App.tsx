@@ -97,6 +97,7 @@ const api = {
     subtitleColor?: string,
     subtitleFontSize?: number,
     subtitleFont?: string,
+    subtitleBoxColor?: string,
     apiKey?: string
   ) {
     const res = await fetch("/api/merge", {
@@ -126,6 +127,7 @@ const api = {
         subtitleColor,
         subtitleFontSize,
         subtitleFont,
+        subtitleBoxColor,
         apiKey
       }),
     });
@@ -1138,6 +1140,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
+    const [subtitleBoxColor, setSubtitleBoxColor] = useState("#000000");
     const [subtitleFontSize, setSubtitleFontSize] = useState(24);
     const [subtitleFont, setSubtitleFont] = useState("Padauk");
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
@@ -1352,6 +1355,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         subtitleColor,
         subtitleFontSize,
         subtitleFont,
+        subtitleBoxColor,
         apiKey
       );
       
@@ -2304,9 +2308,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         {/* Subtitle Preview Overlay */}
                         <div className="absolute bottom-6 md:bottom-12 left-0 right-0 px-2 md:px-8 flex flex-col items-center gap-2 pointer-events-none">
                           <div 
-                            className="bg-black/60 backdrop-blur-md px-6 py-2 rounded-xl border border-white/10 text-center max-w-[90%]"
+                            className="backdrop-blur-md px-6 py-2 rounded-xl border border-white/10 text-center max-w-[90%]"
                             style={{
                               color: subtitleColor,
+                              backgroundColor: `${subtitleBoxColor}99`, // add some transparency like 0.6 (~99 in hex)
                               fontSize: `${Math.max(8, subtitleFontSize * 0.4)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.5'
@@ -2345,6 +2350,28 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               value={subtitleColor}
                               onChange={(e) => setSubtitleColor(e.target.value)}
                               className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer p-0"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
+                            {lang === "EN" ? "Box Background" : "စာတန်းထိုး နောက်ခံအရောင်"}
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {["#000000", "#1a1a1a", "#ffffff", "#F44336", "#2196F3", "#4CAF50"].map((color) => (
+                              <button 
+                                key={color}
+                                onClick={() => setSubtitleBoxColor(color)}
+                                className={`w-8 h-8 rounded-lg border-2 transition-all ${subtitleBoxColor === color ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                            <input 
+                              type="color" 
+                              value={subtitleBoxColor}
+                              onChange={(e) => setSubtitleBoxColor(e.target.value)}
+                              className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0"
                             />
                           </div>
                         </div>
