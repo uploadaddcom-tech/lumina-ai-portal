@@ -44,6 +44,12 @@ import { loginWithGoogle, logout } from "./lib/firebase";
 import { DiamondIcon } from "./components/DiamondIcon";
 import { AdminDashboard } from "./components/AdminDashboard";
 
+interface SubtitlePhrase {
+  text: string;
+  start_time: number;
+  end_time: number;
+}
+
 // Internal API Helpers to replace GeminiService.ts
 const api = {
   async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number, apiKey?: string) {
@@ -94,6 +100,7 @@ const api = {
     blurIntensity?: number,
     subtitleEnabled?: boolean,
     subtitleText?: string,
+    subtitleTimeline?: SubtitlePhrase[],
     subtitleColor?: string,
     subtitleFontSize?: number,
     subtitleFont?: string,
@@ -123,6 +130,7 @@ const api = {
         blurIntensity,
         subtitleEnabled,
         subtitleText,
+        subtitleTimeline,
         subtitleColor,
         subtitleFontSize,
         subtitleFont,
@@ -1140,6 +1148,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
     const [subtitleFontSize, setSubtitleFontSize] = useState(24);
     const [subtitleFont, setSubtitleFont] = useState("Padauk");
+    const [subtitleTimeline, setSubtitleTimeline] = useState<SubtitlePhrase[] | null>(null);
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -1213,9 +1222,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
       const jobResult = await pollForCompletion(jobId);
       const recapValue = jobResult.text;
+      const timeline = jobResult.subtitleTimeline;
       
       await incrementUsage();
       setResult(recapValue || "");
+      if (timeline) setSubtitleTimeline(timeline);
 
       // Auto-trigger voiceover generation
       if (recapValue) {
@@ -1349,6 +1360,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         blurIntensity,
         subtitleEnabled,
         (subtitleTextOverride || result)?.replace(/[#*`_~]/g, ''),
+        subtitleTimeline || undefined,
         subtitleColor,
         subtitleFontSize,
         subtitleFont,

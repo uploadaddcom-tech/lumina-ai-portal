@@ -2,7 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
 import { exec } from "child_process";
@@ -13,6 +13,25 @@ const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
+
+interface SubtitlePhrase {
+  text: string;
+  start_time: number;
+  end_time: number;
+}
+
+const SubtitleSchema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      text: { type: Type.STRING },
+      start_time: { type: Type.NUMBER },
+      end_time: { type: Type.NUMBER },
+    },
+    required: ["text", "start_time", "end_time"],
+  },
+};
 
 async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
   let delay = initialDelay;
@@ -40,7 +59,14 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const appJobs = new Map<string, { status: string; downloadUrl?: string; text?: string; audioData?: string; error?: string }>();
+const appJobs = new Map<string, { 
+  status: string; 
+  downloadUrl?: string; 
+  text?: string; 
+  subtitleTimeline?: SubtitlePhrase[]; 
+  audioData?: string; 
+  error?: string 
+}>();
 
 // Periodic cleanup of temp files and job history (every 30 minutes)
 setInterval(() => {
@@ -127,23 +153,21 @@ async function startServer() {
         
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target 150 words per 60 seconds).
-             - Output: Final polished narrative script ONLY.
-             - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
-             - DO NOT use numbering, bullet points, or list formatting.
-             - DO NOT include timestamps.
-             - Provide the text exactly as it should be read for a voiceover.`
+             - OUTPUT FORMAT: JSON Array of Objects.
+             - STRUCTURE: Each object must have "text" (string), "start_time" (number), "end_time" (number).
+             - FRAGMENTATION: Break the script into very short, TikTok-style phrases (4-6 words each).
+             - TIMING: Sync "start_time" and "end_time" accurately to the video content events.
+             - SCRIPT CONTENT: High-quality polished narrative ONLY. No intros, no timestamps in text, no bullet points.
+             - Total duration: Approximately ${duration || 60} seconds.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ၁၅၀ နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
-             - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
-             - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
-             - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
-             - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
-             - Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
-             - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+             - ရလဒ်ပုံစံ - JSON Array of Objects သာဖြစ်ရမည်။
+             - တည်ဆောက်ပုံ - Object တစ်ခုစီတွင် "text" (စာသား)၊ "start_time" (စက္ကန့်) နှင့် "end_time" (စက္ကန့်) ပါဝင်ရမည်။
+             - ပမာဏ - စာတန်းများကို TikTok/Reel စတိုင်အတိုင်း ၄ လုံးမှ ၆ လုံးခန့် တိုတိုလေးများသာ ဖြတ်ပေးပါ။
+             - အချိန်ညှိနှိုင်းမှု - "start_time" နှင့် "end_time" ကို ဗီဒီယိုပါ အဖြစ်အပျက်များနှင့် အတိအကျညှိပေးပါ။
+             - ပါဝင်သည့်အချက်အလက် - အချောသတ်ထားသော ဇာတ်ညွှန်းသာ ဖြစ်ရမည်။ နိဒါန်းများ၊ စာရင်းများ လုံးဝမပါရ။ "သည်" အစား "တယ်" သုံးပါ။`;
 
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
-        const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
+        const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide JSON array only.`;
 
         const response = await retryWithBackoff(() => aiClient.models.generateContent({
           model: model,
@@ -154,17 +178,31 @@ async function startServer() {
                 { inlineData: { data: videoBase64, mimeType } }
               ]
             }
-          ]
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: SubtitleSchema,
+          } as any
         }));
         
-        let text = response.text || "";
-        if (lang === "MY") {
-          text = text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1');
-          text = text.replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1');
-          text = text.replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1');
+        const rawJson = response.text || "[]";
+        let timeline: SubtitlePhrase[] = [];
+        try {
+          timeline = JSON.parse(rawJson);
+          if (lang === "MY") {
+            timeline = timeline.map(p => ({
+              ...p,
+              text: p.text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1')
+                         .replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1')
+                         .replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1')
+            }));
+          }
+        } catch (e) {
+          console.error("JSON Parse Error in Recap:", e);
         }
 
-        appJobs.set(jobId, { status: "completed", text });
+        const fullText = timeline.map(p => p.text).join(" ");
+        appJobs.set(jobId, { status: "completed", text: fullText, subtitleTimeline: timeline });
       } catch (error: any) {
         console.error("Recap Error Background:", error);
         appJobs.set(jobId, { status: "error", error: error.message });
@@ -182,7 +220,11 @@ async function startServer() {
         const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3-flash-preview";
-        const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
+        const prompt = lang === "EN"
+          ? `Listen to the video audio. Transcribe and translate into English. 
+             OUTPUT: JSON array of objects with "text" (short phrase 4-6 words), "start_time" (seconds), "end_time" (seconds).`
+          : `ဗီဒီယိုထဲက အသံကို နားထောင်ပြီး Transcription ပြုလုပ်ပါ။ ပြီးလျှင် မြန်မာဘာသာ (စကားပြောစတိုင်) သို့ ပြန်ဆိုပေးပါ။
+             OUTPUT: JSON array of objects သာဖြစ်ရမည်။ တစ်ခုချင်းစီတွင် "text" (စာတန်းတို ၄-၆ လုံး)၊ "start_time" နှင့် "end_time" ပါဝင်ရမည်။`;
 
         const response = await retryWithBackoff(() => aiClient.models.generateContent({
           model: model,
@@ -193,10 +235,31 @@ async function startServer() {
                 { inlineData: { data: videoBase64, mimeType } }
               ]
             }
-          ]
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: SubtitleSchema,
+          } as any
         }));
         
-        appJobs.set(jobId, { status: "completed", text: response.text });
+        const rawJson = response.text || "[]";
+        let timeline: SubtitlePhrase[] = [];
+        try {
+          timeline = JSON.parse(rawJson);
+          if (lang === "MY") {
+            timeline = timeline.map(p => ({
+              ...p,
+              text: p.text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1')
+                         .replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1')
+                         .replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1')
+            }));
+          }
+        } catch (e) {
+          console.error("JSON Parse Error in Transcribe:", e);
+        }
+
+        const fullText = timeline.map(p => p.text).join(" ");
+        appJobs.set(jobId, { status: "completed", text: fullText, subtitleTimeline: timeline });
       } catch (error: any) {
         console.error("Transcribe Error Background:", error);
         appJobs.set(jobId, { status: "error", error: error.message });
@@ -330,9 +393,11 @@ async function startServer() {
         blurIntensity,
         subtitleEnabled,
         subtitleText,
+        subtitleTimeline,
         subtitleColor,
         subtitleFontSize,
-        subtitleFont
+        subtitleFont,
+        apiKey
       } = req.body;
       
       const videoBuffer = Buffer.from(videoBase64, 'base64');
@@ -479,7 +544,28 @@ async function startServer() {
       }
 
       // Stage 3: Sync Subtitles
-      if (subtitleEnabled && subtitleText) {
+      if (subtitleEnabled && subtitleTimeline && Array.isArray(subtitleTimeline)) {
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        
+        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
+        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
+        
+        const fontPaths = [
+          path.join(__dirname, "Padauk-Bold.ttf"),
+          path.join(process.cwd(), "Padauk-Bold.ttf"),
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
+        ];
+
+        let fontArg = "";
+        for (const fp of fontPaths) {
+          if (fs.existsSync(fp)) {
+            fontArg = `:fontfile='${fp}'`;
+            break;
+          }
+        }
+
         const wrapText = (text: string, maxLen: number) => {
           if (!text.includes(' ') && text.length > maxLen) {
             let res = [];
@@ -503,56 +589,16 @@ async function startServer() {
           return lines;
         };
 
-        const color = (subtitleColor || "#ffffff").replace('#', '0x');
-        
-        // Exact Preview Match: Preview uses 0.4 multiplier on a 400px wide container
-        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
-        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
-        
-        const fontPaths = [
-          path.join(__dirname, "Padauk-Bold.ttf"),
-          path.join(process.cwd(), "Padauk-Bold.ttf"),
-          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
-          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
-        ];
-
-        let fontArg = "";
-        for (const fp of fontPaths) {
-          if (fs.existsSync(fp)) {
-            fontArg = `:fontfile='${fp}'`;
-            break;
-          }
-        }
-
-        // Improved chunking: Split by punctuation to create logical pauses that match the AI voice
-        const getChunks = (text: string, maxChars = 80) => {
-          const parts = text.split(/(?<=[။၊.!?])\s*/);
-          let res = [];
-          let current = "";
-          for (const p of parts) {
-            if ((current + p).length > maxChars) {
-              if (current) res.push(current);
-              current = p;
-            } else {
-              current = current ? current + " " + p : p;
-            }
-          }
-          if (current) res.push(current);
-          return res;
-        };
-
-        const chunks = getChunks(subtitleText, 80);
-        const totalTime = aDur || vDur || 1;
-        const totalChars = subtitleText.length || 1;
-        
-        let currentTime = 0;
         let svIndex = 0;
+        // If speed > 1, it means audio was sped up to fit video. 
+        // Timeline was generated against original audio, so we must adjust it.
+        const timelineScale = 1 / speed;
 
-        for (const chunk of chunks) {
-          if (!chunk.trim()) continue;
+        for (const phrase of subtitleTimeline) {
+          if (!phrase.text || !phrase.text.trim()) continue;
           
           // Center each line and moderately pad
-          const lines = wrapText(chunk.trim(), 50);
+          const lines = wrapText(phrase.text.trim(), 50);
           const maxLineLen = Math.max(...lines.map(l => l.length));
           const centeredLines = lines.map(l => {
             const padSize = Math.max(0, Math.floor((maxLineLen - l.length) / 2));
@@ -560,19 +606,18 @@ async function startServer() {
             return `${pad}${l}${pad}`;
           });
           const wrapped = centeredLines.map(l => `  ${l}  `).join('\n');
-          const chunkDuration = (chunk.length / totalChars) * totalTime;
-          const chunkStartTime = currentTime;
-          const chunkEndTime = currentTime + chunkDuration;
+          
+          const startTime = phrase.start_time * timelineScale;
+          const endTime = phrase.end_time * timelineScale;
           
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
-          const enableArg = `:enable='between(t,${chunkStartTime.toFixed(3)},${chunkEndTime.toFixed(3)})'`;
+          const enableArg = `:enable='between(t,${startTime.toFixed(3)},${endTime.toFixed(3)})'`;
           // Position: center horizontally, 90% from top (Bottom Center)
           vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=black@0.6:boxborderw=15:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
-          currentTime = chunkEndTime;
           svIndex++;
         }
       }
