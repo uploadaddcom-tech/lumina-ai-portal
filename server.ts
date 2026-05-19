@@ -534,8 +534,8 @@ async function startServer() {
             
             Requirements:
             1. Analyze the audio carefully to match the script to the voice.
-            2. Break the script into VERY SHORT, dynamic chunks (around 3-5 words each or short meaningful phrases).
-            3. Return ONLY a JSON array of objects: [{"text": "Short phrase here", "start_time": 0.0, "end_time": 1.2}, ...]
+            2. Break the script into small, readable chunks (around 5-10 words each).
+            3. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 0.0, "end_time": 2.5}, ...]
             4. Timestamps MUST be in seconds (numbers).
             5. Ensure the chunks cover the FULL script.
           `;
