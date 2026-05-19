@@ -14,7 +14,7 @@ const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
 
-async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 5, initialDelay = 2000): Promise<T> {
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
   let delay = initialDelay;
   for (let i = 0; i <= maxRetries; i++) {
     try {
@@ -22,9 +22,8 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 5, initial
     } catch (error: any) {
       const is503 = error.message?.includes("503") || error.status === 503 || error.message?.includes("high demand");
       const is429 = error.message?.includes("429") || error.status === 429;
-      const is404 = error.status === 404 || error.message?.includes("404"); // Sometimes 404 is transient or model not found during high demand
       
-      if (i === maxRetries || (!is503 && !is429 && !is404)) {
+      if (i === maxRetries || (!is503 && !is429)) {
         throw error;
       }
       
@@ -535,10 +534,11 @@ async function startServer() {
             
             Requirements:
             1. Analyze the audio carefully to match the script to the voice.
-            2. Break the script into small, readable chunks (around 5-10 words each).
-            3. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 0.0, "end_time": 2.5}, ...]
-            4. Timestamps MUST be in seconds (numbers).
-            5. Ensure the chunks cover the FULL script.
+            2. Break the script into VERY SHORT, readable chunks (around 3-5 words each).
+            3. Each chunk should represent a single logical phrase. Do NOT group multiple sentences or long clauses together.
+            4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 0.0, "end_time": 1.5}, ...]
+            5. Timestamps MUST be in seconds (numbers).
+            6. Ensure the chunks cover the FULL script from start to finish.
           `;
 
           const tsResponse = await retryWithBackoff(() => aiClient.models.generateContent({
@@ -560,8 +560,18 @@ async function startServer() {
           svChunks = JSON.parse(tsRaw);
           console.log(`Successfully received ${svChunks.length} AI subtitle segments.`);
         } catch (tsErr) {
-          console.error("AI Timestamping failed completely after retries. Aborting job.", tsErr);
-          throw tsErr; // No more estimation fallback as requested
+          console.warn("AI Timestamping failed, falling back to estimation:", tsErr);
+          const totalChars = subtitleText.length || 1;
+          // Use vDur if speed adjusted, otherwise aDur
+          const finalTargetDur = speed > 1 ? vDur : (aDur || vDur || 1);
+          const parts = subtitleText.split(/(?<=[။၊.!?])\s*/);
+          let currentTime = 0;
+          svChunks = parts.map(p => {
+            const dur = (p.length / totalChars) * finalTargetDur;
+            const seg = { text: p, start_time: currentTime, end_time: currentTime + dur };
+            currentTime += dur;
+            return seg;
+          });
         }
 
         let svIndex = 0;
