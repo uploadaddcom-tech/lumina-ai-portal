@@ -596,6 +596,69 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
+        // --- Timestamps Filter (Sanitization Logic) ---
+        console.log("Applying Timestamps Filter (Sanitization Logic)...");
+        
+        let sanitizedChunks = (svChunks || []).filter((chunk: any) => {
+          return chunk && 
+                 typeof chunk === "object" && 
+                 typeof chunk.text === "string" && 
+                 chunk.text.trim() !== "" &&
+                 typeof chunk.start_time !== "undefined" && 
+                 typeof chunk.end_time !== "undefined" &&
+                 !isNaN(parseFloat(chunk.start_time)) &&
+                 !isNaN(parseFloat(chunk.end_time));
+        }).map((chunk: any) => {
+          let start = Math.max(0, parseFloat(chunk.start_time));
+          let end = Math.max(0, parseFloat(chunk.end_time));
+          
+          if (end < start) {
+            const tmp = start;
+            start = end;
+            end = tmp;
+          }
+          
+          if (end - start < 0.5) {
+            end = start + 1.5; 
+          }
+          
+          return {
+            text: chunk.text,
+            start_time: Number(start.toFixed(3)),
+            end_time: Number(end.toFixed(3))
+          };
+        });
+
+        // Sort sequentially
+        sanitizedChunks.sort((a, b) => a.start_time - b.start_time);
+
+        // Resolve overlaps sequentially
+        for (let i = 1; i < sanitizedChunks.length; i++) {
+          const prev = sanitizedChunks[i - 1];
+          const curr = sanitizedChunks[i];
+          
+          if (curr.start_time < prev.end_time) {
+            const gap = 0.05;
+            const originalDuration = curr.end_time - curr.start_time;
+            curr.start_time = Number((prev.end_time + gap).toFixed(3));
+            curr.end_time = Number((curr.start_time + Math.max(0.5, originalDuration)).toFixed(3));
+          }
+        }
+
+        // Clip within video duration if available
+        if (vDur > 0) {
+          sanitizedChunks = sanitizedChunks.filter(chunk => chunk.start_time < vDur).map(chunk => {
+            if (chunk.end_time > vDur) {
+              chunk.end_time = Number(vDur.toFixed(3));
+            }
+            return chunk;
+          });
+        }
+
+        console.log(`Timestamps Filter: Sanitized and restored ${sanitizedChunks.length} of ${svChunks.length} segments.`);
+        svChunks = sanitizedChunks;
+        // --- End of Timestamps Filter (Sanitization Logic) ---
+
         let svIndex = 0;
         for (const chunk of svChunks) {
           if (!chunk.text.trim()) continue;
