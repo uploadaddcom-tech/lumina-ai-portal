@@ -528,7 +528,7 @@ async function startServer() {
         // Instead of computationally intensive geq filter, we build a mask using drawbox + boxblur and blend it in addition mode
         vFilters.push(`${lastV}split=[main_v_sweep][mask_bkg]`);
         vFilters.push(`[mask_bkg]drawbox=color=black:t=fill[black_canvas]`);
-        vFilters.push(`[black_canvas]drawbox=x='${X_expr}':y=0:w=120:h=ih:color=white:t=fill:eval=frame[sweep_box]`);
+        vFilters.push(`[black_canvas]drawbox=x='${X_expr}':y=0:w=120:h=ih:color=white:t=fill[sweep_box]`);
         vFilters.push(`[sweep_box]boxblur=luma_radius=50:luma_power=3[blurred_mask]`);
         vFilters.push(`[main_v_sweep][blurred_mask]blend=all_mode='addition'[gsv]`);
         
