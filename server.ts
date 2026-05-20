@@ -591,89 +591,10 @@ async function startServer() {
           });
 
           const tsRaw = tsResponse.text || "[]";
-          try {
-            return JSON.parse(tsRaw);
-          } catch (e) {
-            // Robust check: crop anything outside '[' and ']' to avoid JSON parse errors from markdown blocks
-            const startIdx = tsRaw.indexOf('[');
-            const endIdx = tsRaw.lastIndexOf(']');
-            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-              const cleaned = tsRaw.substring(startIdx, endIdx + 1);
-              try {
-                return JSON.parse(cleaned);
-              } catch (innerE) {
-                console.error("Failed parsing cropped JSON:", innerE);
-              }
-            }
-            throw e;
-          }
+          return JSON.parse(tsRaw);
         });
 
-        // ----------------------------------------------------
-        // Auto-Correction Code Logic for Subtitle Timestamps
-        // ----------------------------------------------------
-        const correctedChunks: { text: string; start_time: number; end_time: number }[] = [];
-        
-        for (const rawChunk of svChunks) {
-          if (!rawChunk || typeof rawChunk !== "object") continue;
-          
-          const text = String(rawChunk.text || "").trim();
-          if (!text) continue;
-          
-          let start_time = parseFloat(String(rawChunk.start_time));
-          if (isNaN(start_time) || start_time < 0) {
-            start_time = 0;
-          }
-          
-          let end_time = parseFloat(String(rawChunk.end_time));
-          if (isNaN(end_time) || end_time < 0) {
-            end_time = start_time + 1.5; // default duration of 1.5s
-          }
-          
-          if (end_time <= start_time) {
-            end_time = start_time + 1.0;
-          }
-          
-          correctedChunks.push({ text, start_time, end_time });
-        }
-        
-        // Do NOT sort chronologically by start_time, because doing so can shuffle the script chunks
-        // out of order if there is a hallucinated or slightly incorrect timestamp.
-        // The array returned by the AI is already in the correct script text sequence and must be kept in that sequence.
-        
-        // Resolve overlaps and sequential order while preserving the natural script sequence
-        for (let i = 0; i < correctedChunks.length; i++) {
-          const current = correctedChunks[i];
-          const targetMax = vDur > 0 ? vDur : 9999;
-          
-          if (i > 0) {
-            const prev = correctedChunks[i - 1];
-            // Ensure this chunk starts after the previous one ends
-            if (current.start_time < prev.end_time) {
-              current.start_time = prev.end_time;
-            }
-          }
-          
-          // Ensure end_time is strictly after start_time
-          if (current.end_time <= current.start_time) {
-            current.end_time = current.start_time + 1.5; // default duration of 1.5s
-          }
-          
-          // Ensure they don't exceed video duration (vDur)
-          if (current.start_time >= targetMax) {
-            current.start_time = Math.max(0, targetMax - 0.5);
-            current.end_time = targetMax;
-          } else if (current.end_time > targetMax) {
-            current.end_time = targetMax;
-            if (current.start_time >= current.end_time) {
-              current.start_time = Math.max(0, current.end_time - 0.5);
-            }
-          }
-        }
-        
-        svChunks = correctedChunks;
-
-        console.log(`Successfully received, parsed, and auto-corrected ${svChunks.length} AI subtitle segments.`);
+        console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
         let svIndex = 0;
         for (const chunk of svChunks) {
