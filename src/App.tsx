@@ -1244,10 +1244,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
 
-            // Auto play audio
-            const audio = new Audio(url);
-            audio.play();
-
             // Auto trigger merge
             performMerge(file, url, recapValue);
           }
@@ -1660,7 +1656,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
               <Sparkles className="w-4 h-4 text-amber-400" />
             </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Glow Light Sweep Effect" : "Glow อလင်းတန်း ဖြတ်ပြေးမှု Effect"}</h2>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Glow Effect" : "Glow Effect"}</h2>
           </div>
 
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
