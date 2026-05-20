@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
 
@@ -13,6 +13,37 @@ const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
+
+function runFFmpegSpawn(args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    console.log("Spawning ffmpeg with arguments:", args.join(" "));
+    const proc = spawn("ffmpeg", args);
+
+    // Consume stdout buffer to ensure child process does not block
+    proc.stdout.on("data", (data) => {
+      // Read stream data to ensure queue is emptied
+    });
+
+    // Consume stderr buffer to print logs without buffering limitation
+    proc.stderr.on("data", (data) => {
+      process.stderr.write(data);
+    });
+
+    proc.on("error", (err) => {
+      console.error("FFmpeg spawn error:", err);
+      reject(err);
+    });
+
+    proc.on("exit", (code) => {
+      console.log(`FFmpeg child process exited with dynamic exit code: ${code}`);
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`FFmpeg processing failed with exit code: ${code}`));
+      }
+    });
+  });
+}
 
 async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
   let delay = initialDelay;
@@ -597,7 +628,7 @@ async function startServer() {
           if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
           
           try {
-            await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempo}" -y "${aiAudioPath}"`);
+            await runFFmpegSpawn(["-i", audioPath, "-filter:a", atempo, "-y", aiAudioPath]);
             const scaledBuffer = fs.readFileSync(aiAudioPath);
             aiAudioBase64 = scaledBuffer.toString('base64');
             if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
@@ -711,25 +742,69 @@ async function startServer() {
       const allFilters = [...vFilters, ...audioComplexFilters].join(';');
       const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
       
-      let ffmpegCmd = "";
+      let ffmpegArgs: string[] = [];
       if (allFilters) {
         await writeFilePromise(filterPath, allFilters);
         // If lastV is still [0:v], it means no video filters were applied to it as labels
-        const mapV = (lastV === "[0:v]") ? " -map 0:v:0" : ` -map "${lastV}"`;
-        const mapA = (speed > 1) ? ' -map "[aout]"' : ' -map 1:a:0';
+        ffmpegArgs = [
+          "-i", videoPath,
+          "-i", audioPath
+        ];
+        if (hasLogo) {
+          ffmpegArgs.push("-i", logoPath);
+        }
+        ffmpegArgs.push("-filter_complex_script", filterPath);
         
-        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -c:a aac -b:a 192k -movflags +faststart -shortest -y "${outputPath}"`;
+        if (lastV === "[0:v]") {
+          ffmpegArgs.push("-map", "0:v:0");
+        } else {
+          const cleanLastV = lastV.replace(/"/g, "");
+          ffmpegArgs.push("-map", cleanLastV);
+        }
+
+        if (speed > 1) {
+          ffmpegArgs.push("-map", "[aout]");
+        } else {
+          ffmpegArgs.push("-map", "1:a:0");
+        }
+
+        ffmpegArgs.push(
+          "-c:v", "libx264",
+          "-preset", "ultrafast",
+          "-c:a", "aac",
+          "-b:a", "192k",
+          "-movflags", "+faststart",
+          "-shortest",
+          "-y", outputPath
+        );
       } else {
         // No filters at all
         if (speed > 1) {
-          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast -y "${outputPath}"`;
+          ffmpegArgs = [
+            "-i", videoPath,
+            "-i", audioPath,
+            "-filter_complex", `[1:a]atempo=${speed}[aout]`,
+            "-map", "0:v:0",
+            "-map", "[aout]",
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-y", outputPath
+          ];
         } else {
-          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y "${outputPath}"`;
+          ffmpegArgs = [
+            "-i", videoPath,
+            "-i", audioPath,
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "copy",
+            "-shortest",
+            "-y", outputPath
+          ];
         }
       }
 
-      console.log("Executing CMD:", ffmpegCmd);
-      await execPromise(ffmpegCmd);
+      console.log("Executing via spawn. Args:", ffmpegArgs.join(" "));
+      await runFFmpegSpawn(ffmpegArgs);
 
       // Success
       const downloadFilename = `output_${tempId}.mp4`;
