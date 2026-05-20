@@ -518,18 +518,20 @@ async function startServer() {
           sweepExpressions.push({ s, e });
         }
 
-        // Build the nested FFMPEG expression for sweep position
-        let S_expr = "-9999";
+        // Build the nested FFMPEG expression for sweep x position
+        let X_expr = "-9999";
         for (let i = numSweeps - 1; i >= 0; i--) {
           const { s, e } = sweepExpressions[i];
-          S_expr = `if(between(T,${s},${e}),(W+H+300)*(T-${s})/${sweepDur}-150,${S_expr})`;
+          X_expr = `if(between(t,${s},${e}),(iw+240)*(t-${s})/${sweepDur}-120,${X_expr})`;
         }
         
-        // We will perform geq on RGB format and then convert back to standard format for optimal performance and color accuracy
-        // This adds a peak brightness of 160 with a soft-blurred roll-off width of 150px
-        const geqFilter = `format=gbrp,geq=r='min(255,r(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))':g='min(255,g(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))':b='min(255,b(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))',format=yuv420p`;
+        // Instead of computationally intensive geq filter, we build a mask using drawbox + boxblur and blend it in addition mode
+        vFilters.push(`${lastV}split=[main_v_sweep][mask_bkg]`);
+        vFilters.push(`[mask_bkg]drawbox=color=black:t=fill[black_canvas]`);
+        vFilters.push(`[black_canvas]drawbox=x='${X_expr}':y=0:w=120:h=ih:color=white:t=fill:eval=frame[sweep_box]`);
+        vFilters.push(`[sweep_box]boxblur=luma_radius=50:luma_power=3[blurred_mask]`);
+        vFilters.push(`[main_v_sweep][blurred_mask]blend=all_mode='addition'[gsv]`);
         
-        vFilters.push(`${lastV}${geqFilter}[gsv]`);
         lastV = "[gsv]";
       }
 
