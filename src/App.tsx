@@ -98,6 +98,7 @@ const api = {
     subtitleFontSize?: number,
     subtitleFont?: string,
     subtitleBoxColor?: string,
+    glowingSweepEnabled?: boolean,
     apiKey?: string
   ) {
     const res = await fetch("/api/merge", {
@@ -128,6 +129,7 @@ const api = {
         subtitleFontSize,
         subtitleFont,
         subtitleBoxColor,
+        glowingSweepEnabled,
         apiKey
       }),
     });
@@ -1137,6 +1139,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [blurIntensity, setBlurIntensity] = useState(10);
   const [showBlurSettings, setShowBlurSettings] = useState(false);
   
+  // Glow Light Sweep Setting
+  const [glowingSweepEnabled, setGlowingSweepEnabled] = useState(false);
+  
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
@@ -1356,6 +1361,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         subtitleFontSize,
         subtitleFont,
         subtitleBoxColor,
+        glowingSweepEnabled,
         apiKey
       );
       
@@ -1642,6 +1648,39 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       {lang === "EN" ? "Blur Settings" : "နေရာညှိရန်"}
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Glow Light Sweep Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Glow Light Sweep Effect" : "Glow อလင်းတန်း ဖြတ်ပြေးမှု Effect"}</h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Light Sweep Accent" : "အလင်းတန်း Effect ဖွင့်/ပိတ်"}
+                </label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setGlowingSweepEnabled(!glowingSweepEnabled)}
+                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
+                      glowingSweepEnabled ? "bg-amber-600/20 border-amber-500/30 text-amber-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {glowingSweepEnabled ? (lang === "EN" ? "Glow Sweep Enabled" : "အလင်းတန်း ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Glow Sweep" : "အလင်းတန်း ဖွင့်ရန်")}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>

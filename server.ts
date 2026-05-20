@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { GoogleGenAI, Modality } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
-import { exec, spawn } from "child_process";
+import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
 
@@ -13,37 +13,6 @@ const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
-
-function runFFmpegSpawn(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    console.log("Spawning ffmpeg with arguments:", args.join(" "));
-    const proc = spawn("ffmpeg", args);
-
-    // Consume stdout buffer to ensure child process does not block
-    proc.stdout.on("data", (data) => {
-      // Read stream data to ensure queue is emptied
-    });
-
-    // Consume stderr buffer to print logs without buffering limitation
-    proc.stderr.on("data", (data) => {
-      process.stderr.write(data);
-    });
-
-    proc.on("error", (err) => {
-      console.error("FFmpeg spawn error:", err);
-      reject(err);
-    });
-
-    proc.on("exit", (code) => {
-      console.log(`FFmpeg child process exited with dynamic exit code: ${code}`);
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`FFmpeg processing failed with exit code: ${code}`));
-      }
-    });
-  });
-}
 
 async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
   let delay = initialDelay;
@@ -366,6 +335,7 @@ async function startServer() {
         subtitleFontSize,
         subtitleFont,
         subtitleBoxColor,
+        glowingSweepEnabled,
         apiKey: customKey
       } = req.body;
       
@@ -522,44 +492,46 @@ async function startServer() {
       // - 1 min and below: exactly 3 times proportionally
       // - Above 1 min & below 2 mins: exactly 6 times proportionally
       // - Above 2 mins & below 3 mins: exactly 9 times proportionally
-      const safeVDur = (vDur && vDur > 0 && !isNaN(vDur)) ? vDur : 10;
-      const sBoundary = safeVDur > 8 ? 3.0 : safeVDur * 0.15;
-      const eBoundary = safeVDur > 8 ? safeVDur - 3.0 : safeVDur * 0.85;
-      const activeRange = Math.max(0.1, eBoundary - sBoundary);
+      if (glowingSweepEnabled === true || glowingSweepEnabled === 'true') {
+        const safeVDur = (vDur && vDur > 0 && !isNaN(vDur)) ? vDur : 10;
+        const sBoundary = safeVDur > 8 ? 3.0 : safeVDur * 0.15;
+        const eBoundary = safeVDur > 8 ? safeVDur - 3.0 : safeVDur * 0.85;
+        const activeRange = Math.max(0.1, eBoundary - sBoundary);
 
-      let numSweeps = 3;
-      if (safeVDur <= 60) {
-        numSweeps = 3;
-      } else if (safeVDur <= 120) {
-        numSweeps = 6;
-      } else {
-        numSweeps = 9;
+        let numSweeps = 3;
+        if (safeVDur <= 60) {
+          numSweeps = 3;
+        } else if (safeVDur <= 120) {
+          numSweeps = 6;
+        } else {
+          numSweeps = 9;
+        }
+
+        const sweepDur = 1.2;
+        const sweepExpressions: { s: string; e: string }[] = [];
+
+        for (let i = 1; i <= numSweeps; i++) {
+          const fraction = i / (numSweeps + 1);
+          const targetTime = sBoundary + activeRange * fraction;
+          const s = (targetTime - sweepDur / 2).toFixed(3);
+          const e = (targetTime + sweepDur / 2).toFixed(3);
+          sweepExpressions.push({ s, e });
+        }
+
+        // Build the nested FFMPEG expression for sweep position
+        let S_expr = "-9999";
+        for (let i = numSweeps - 1; i >= 0; i--) {
+          const { s, e } = sweepExpressions[i];
+          S_expr = `if(between(T,${s},${e}),(W+H+300)*(T-${s})/${sweepDur}-150,${S_expr})`;
+        }
+        
+        // We will perform geq on RGB format and then convert back to standard format for optimal performance and color accuracy
+        // This adds a peak brightness of 160 with a soft-blurred roll-off width of 150px
+        const geqFilter = `format=gbrp,geq=r='min(255,r(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))':g='min(255,g(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))':b='min(255,b(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))',format=yuv420p`;
+        
+        vFilters.push(`${lastV}${geqFilter}[gsv]`);
+        lastV = "[gsv]";
       }
-
-      const sweepDur = 1.2;
-      const sweepExpressions: { s: string; e: string }[] = [];
-
-      for (let i = 1; i <= numSweeps; i++) {
-        const fraction = i / (numSweeps + 1);
-        const targetTime = sBoundary + activeRange * fraction;
-        const s = (targetTime - sweepDur / 2).toFixed(3);
-        const e = (targetTime + sweepDur / 2).toFixed(3);
-        sweepExpressions.push({ s, e });
-      }
-
-      // Build the nested FFMPEG expression for sweep position
-      let S_expr = "-9999";
-      for (let i = numSweeps - 1; i >= 0; i--) {
-        const { s, e } = sweepExpressions[i];
-        S_expr = `if(between(T,${s},${e}),(W+H+300)*(T-${s})/${sweepDur}-150,${S_expr})`;
-      }
-      
-      // We will perform geq on RGB format and then convert back to standard format for optimal performance and color accuracy
-      // This adds a peak brightness of 160 with a soft-blurred roll-off width of 150px
-      const geqFilter = `format=gbrp,geq=r='min(255,r(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))':g='min(255,g(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))':b='min(255,b(X,Y)+max(0,160*(1-abs(X+Y-(${S_expr}))/150)))',format=yuv420p`;
-      
-      vFilters.push(`${lastV}${geqFilter}[gsv]`);
-      lastV = "[gsv]";
 
       // Re-calculate effective resolution after ratio/scale
       const effectiveRes = { w: vRes.w, h: vRes.h };
@@ -628,7 +600,7 @@ async function startServer() {
           if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
           
           try {
-            await runFFmpegSpawn(["-i", audioPath, "-filter:a", atempo, "-y", aiAudioPath]);
+            await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempo}" -y "${aiAudioPath}"`);
             const scaledBuffer = fs.readFileSync(aiAudioPath);
             aiAudioBase64 = scaledBuffer.toString('base64');
             if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
@@ -742,69 +714,25 @@ async function startServer() {
       const allFilters = [...vFilters, ...audioComplexFilters].join(';');
       const filterPath = path.join(tempDir, `filter_${tempId}.txt`);
       
-      let ffmpegArgs: string[] = [];
+      let ffmpegCmd = "";
       if (allFilters) {
         await writeFilePromise(filterPath, allFilters);
         // If lastV is still [0:v], it means no video filters were applied to it as labels
-        ffmpegArgs = [
-          "-i", videoPath,
-          "-i", audioPath
-        ];
-        if (hasLogo) {
-          ffmpegArgs.push("-i", logoPath);
-        }
-        ffmpegArgs.push("-filter_complex_script", filterPath);
+        const mapV = (lastV === "[0:v]") ? " -map 0:v:0" : ` -map "${lastV}"`;
+        const mapA = (speed > 1) ? ' -map "[aout]"' : ' -map 1:a:0';
         
-        if (lastV === "[0:v]") {
-          ffmpegArgs.push("-map", "0:v:0");
-        } else {
-          const cleanLastV = lastV.replace(/"/g, "");
-          ffmpegArgs.push("-map", cleanLastV);
-        }
-
-        if (speed > 1) {
-          ffmpegArgs.push("-map", "[aout]");
-        } else {
-          ffmpegArgs.push("-map", "1:a:0");
-        }
-
-        ffmpegArgs.push(
-          "-c:v", "libx264",
-          "-preset", "ultrafast",
-          "-c:a", "aac",
-          "-b:a", "192k",
-          "-movflags", "+faststart",
-          "-shortest",
-          "-y", outputPath
-        );
+        ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -c:a aac -b:a 192k -movflags +faststart -shortest -y "${outputPath}"`;
       } else {
         // No filters at all
         if (speed > 1) {
-          ffmpegArgs = [
-            "-i", videoPath,
-            "-i", audioPath,
-            "-filter_complex", `[1:a]atempo=${speed}[aout]`,
-            "-map", "0:v:0",
-            "-map", "[aout]",
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-y", outputPath
-          ];
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast -y "${outputPath}"`;
         } else {
-          ffmpegArgs = [
-            "-i", videoPath,
-            "-i", audioPath,
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-c:v", "copy",
-            "-shortest",
-            "-y", outputPath
-          ];
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y "${outputPath}"`;
         }
       }
 
-      console.log("Executing via spawn. Args:", ffmpegArgs.join(" "));
-      await runFFmpegSpawn(ffmpegArgs);
+      console.log("Executing CMD:", ffmpegCmd);
+      await execPromise(ffmpegCmd);
 
       // Success
       const downloadFilename = `output_${tempId}.mp4`;
