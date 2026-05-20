@@ -488,26 +488,40 @@ async function startServer() {
 
       // Stage 1.5: Professional Glowing Light Sweep (geq filter)
       // The user wants a glowing light sweep at equal intervals, avoiding the first 3 seconds and the last 3 seconds.
-      // There will be exactly 3 sweeps under proportional interval bounds.
+      // - 1 min and below: exactly 3 times proportionally
+      // - Above 1 min & below 2 mins: exactly 6 times proportionally
+      // - Above 2 mins & below 3 mins: exactly 9 times proportionally
       const safeVDur = (vDur && vDur > 0 && !isNaN(vDur)) ? vDur : 10;
       const sBoundary = safeVDur > 8 ? 3.0 : safeVDur * 0.15;
       const eBoundary = safeVDur > 8 ? safeVDur - 3.0 : safeVDur * 0.85;
       const activeRange = Math.max(0.1, eBoundary - sBoundary);
 
-      const t1 = sBoundary + activeRange * 0.25;
-      const t2 = sBoundary + activeRange * 0.50;
-      const t3 = sBoundary + activeRange * 0.75;
+      let numSweeps = 3;
+      if (safeVDur <= 60) {
+        numSweeps = 3;
+      } else if (safeVDur <= 120) {
+        numSweeps = 6;
+      } else {
+        numSweeps = 9;
+      }
+
       const sweepDur = 1.2;
+      const sweepExpressions: { s: string; e: string }[] = [];
 
-      const s1 = (t1 - sweepDur / 2).toFixed(3);
-      const e1 = (t1 + sweepDur / 2).toFixed(3);
-      const s2 = (t2 - sweepDur / 2).toFixed(3);
-      const e2 = (t2 + sweepDur / 2).toFixed(3);
-      const s3 = (t3 - sweepDur / 2).toFixed(3);
-      const e3 = (t3 + sweepDur / 2).toFixed(3);
+      for (let i = 1; i <= numSweeps; i++) {
+        const fraction = i / (numSweeps + 1);
+        const targetTime = sBoundary + activeRange * fraction;
+        const s = (targetTime - sweepDur / 2).toFixed(3);
+        const e = (targetTime + sweepDur / 2).toFixed(3);
+        sweepExpressions.push({ s, e });
+      }
 
-      // S_expr builds the dynamic sweep center coordinate along X + Y diagonal based on current timestamp T
-      const S_expr = `if(between(T,${s1},${e1}),(W+H+300)*(T-${s1})/${sweepDur}-150,if(between(T,${s2},${e2}),(W+H+300)*(T-${s2})/${sweepDur}-150,if(between(T,${s3},${e3}),(W+H+300)*(T-${s3})/${sweepDur}-150,-9999)))`;
+      // Build the nested FFMPEG expression for sweep position
+      let S_expr = "-9999";
+      for (let i = numSweeps - 1; i >= 0; i--) {
+        const { s, e } = sweepExpressions[i];
+        S_expr = `if(between(T,${s},${e}),(W+H+300)*(T-${s})/${sweepDur}-150,${S_expr})`;
+      }
       
       // We will perform geq on RGB format and then convert back to standard format for optimal performance and color accuracy
       // This adds a peak brightness of 160 with a soft-blurred roll-off width of 150px
