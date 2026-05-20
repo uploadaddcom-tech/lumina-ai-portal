@@ -637,34 +637,37 @@ async function startServer() {
           correctedChunks.push({ text, start_time, end_time });
         }
         
-        // Sort chronologically by start_time
-        correctedChunks.sort((a, b) => a.start_time - b.start_time);
+        // Do NOT sort chronologically by start_time, because doing so can shuffle the script chunks
+        // out of order if there is a hallucinated or slightly incorrect timestamp.
+        // The array returned by the AI is already in the correct script text sequence and must be kept in that sequence.
         
-        // Resolve overlaps and sequential order
+        // Resolve overlaps and sequential order while preserving the natural script sequence
         for (let i = 0; i < correctedChunks.length; i++) {
           const current = correctedChunks[i];
+          const targetMax = vDur > 0 ? vDur : 9999;
           
           if (i > 0) {
             const prev = correctedChunks[i - 1];
+            // Ensure this chunk starts after the previous one ends
             if (current.start_time < prev.end_time) {
               current.start_time = prev.end_time;
-              if (current.end_time <= current.start_time) {
-                current.end_time = current.start_time + 1.0;
-              }
             }
           }
           
+          // Ensure end_time is strictly after start_time
+          if (current.end_time <= current.start_time) {
+            current.end_time = current.start_time + 1.5; // default duration of 1.5s
+          }
+          
           // Ensure they don't exceed video duration (vDur)
-          const targetMax = vDur > 0 ? vDur : 9999;
           if (current.start_time >= targetMax) {
-            current.start_time = Math.max(0, targetMax - 1.5);
+            current.start_time = Math.max(0, targetMax - 0.5);
             current.end_time = targetMax;
           } else if (current.end_time > targetMax) {
             current.end_time = targetMax;
-          }
-          
-          if (current.start_time >= current.end_time) {
-            current.start_time = Math.max(0, current.end_time - 0.5);
+            if (current.start_time >= current.end_time) {
+              current.start_time = Math.max(0, current.end_time - 0.5);
+            }
           }
         }
         
