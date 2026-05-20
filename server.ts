@@ -632,16 +632,25 @@ async function startServer() {
         // Sort sequentially
         sanitizedChunks.sort((a, b) => a.start_time - b.start_time);
 
-        // Resolve overlaps sequentially
+        // Resolve overlaps sequentially (trimming prev.end_time first to prevent cascading shifts)
         for (let i = 1; i < sanitizedChunks.length; i++) {
           const prev = sanitizedChunks[i - 1];
           const curr = sanitizedChunks[i];
           
           if (curr.start_time < prev.end_time) {
-            const gap = 0.05;
-            const originalDuration = curr.end_time - curr.start_time;
-            curr.start_time = Number((prev.end_time + gap).toFixed(3));
-            curr.end_time = Number((curr.start_time + Math.max(0.5, originalDuration)).toFixed(3));
+            const idealPrevEnd = curr.start_time - 0.02;
+            if (idealPrevEnd >= prev.start_time + 0.3) {
+              // Trim previous segment's end time safely (doesn't shift other segments)
+              prev.end_time = Number(idealPrevEnd.toFixed(3));
+            } else {
+              // Otherwise, make sure previous has a minimum of 0.3s duration
+              prev.end_time = Number((prev.start_time + 0.3).toFixed(3));
+              // Adjust current segment's start_time slightly (minimal localized adjustment)
+              curr.start_time = Number((prev.end_time + 0.02).toFixed(3));
+              if (curr.end_time <= curr.start_time) {
+                curr.end_time = Number((curr.start_time + 0.5).toFixed(3));
+              }
+            }
           }
         }
 
