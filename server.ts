@@ -470,15 +470,22 @@ async function startServer() {
       }
 
       // If audio is longer than video, speed it up to match video duration exactly
-      const speed = (vDur > 0 && aDur > vDur) ? (aDur / vDur) : 1;
-      console.log(`Speed calculation results -> audio is longer than video? ${aDur > vDur}. Speed-up factor calculated: ${speed}`);
+      const copyrightSpeedup = 1.05; // 5% subtle speed up to bypass copyright detection
+      const effectiveVDur = vDur > 0 ? (vDur / copyrightSpeedup) : 0;
+      const speed = (effectiveVDur > 0 && aDur > effectiveVDur) ? (aDur / effectiveVDur) : copyrightSpeedup;
+      console.log(`Speed calculation results -> copyrightSpeedup: ${copyrightSpeedup}, effectiveVDur: ${effectiveVDur}s. Final speed-up factor calculated: ${speed}`);
       
       // Build filter complex
       let vFilters: string[] = [];
       let lastV = "[0:v]";
       
-      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested)
-      let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"].filter(Boolean).join(",");
+      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested) & Copyright Speedup
+      let baseFilters = [
+        ratioFilter, 
+        "hflip", 
+        "eq=contrast=1.15:brightness=-0.05:saturation=1.25", 
+        `setpts=PTS/${copyrightSpeedup}`
+      ].filter(Boolean).join(",");
       if (baseFilters) {
         vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
