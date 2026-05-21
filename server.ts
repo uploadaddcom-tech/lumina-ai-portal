@@ -336,6 +336,7 @@ async function startServer() {
         subtitleFont,
         subtitleBoxColor,
         glowingSweepEnabled,
+        freezeFrameZoomEnabled,
         apiKey: customKey
       } = req.body;
       
@@ -351,6 +352,32 @@ async function startServer() {
         await writeFilePromise(logoPath, logoBuffer);
         hasLogo = true;
       }
+
+      // Get video resolution for scaling
+      const getResolution = async (filePath: string) => {
+        try {
+          const { stdout } = await execPromise(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filePath}"`);
+          const parts = stdout.trim().split('x');
+          if (parts.length === 2) return { w: parseInt(parts[0]), h: parseInt(parts[1]) };
+        } catch (e) {
+          console.error("Resolution Error:", e);
+        }
+        return { w: 1280, h: 720 };
+      };
+
+      // Get audio track details
+      const getAudioDetails = async (filePath: string) => {
+        try {
+          const { stdout } = await execPromise(`ffprobe -v error -select_streams a:0 -show_entries stream=sample_rate,channels -of csv=p=0 "${filePath}"`);
+          const parts = stdout.trim().split(',');
+          if (parts.length === 2) {
+            return { hasAudio: true, sample_rate: parseInt(parts[0]) || 44100, channels: parseInt(parts[1]) || 2 };
+          }
+        } catch (e) {
+          // Fall through
+        }
+        return { hasAudio: false, sample_rate: 44100, channels: 2 };
+      };
 
       // Get Durations to handle speed adjustment
       const getDuration = async (filePath: string) => {
@@ -407,24 +434,130 @@ async function startServer() {
         return 0;
       };
 
+      // Apply Freeze Frame Zoom if enabled
+      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
+        console.log("Applying Freeze Frame Zoom 2s every 6s on video...");
+        const rawVideoPath = path.join(tempDir, `video_raw_${tempId}.mp4`);
+        fs.renameSync(videoPath, rawVideoPath);
+        
+        try {
+          const originalRes = await getResolution(rawVideoPath);
+          const durationRaw = await getDuration(rawVideoPath);
+          const { hasAudio, sample_rate, channels } = await getAudioDetails(rawVideoPath);
+          
+          const freezeInterval = 6;
+          const freezeTimes: number[] = [];
+          for (let t = freezeInterval; t < durationRaw; t += freezeInterval) {
+            freezeTimes.push(t);
+          }
+          
+          if (freezeTimes.length === 0) {
+            // Just normalize and output
+            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":c=" + channels + " -c:a aac -shortest"} -y "${videoPath}"`);
+          } else {
+            const segmentFiles: string[] = [];
+            let prevTime = 0;
+            
+            for (let i = 0; i < freezeTimes.length; i++) {
+              const fTime = freezeTimes[i];
+              
+              // Normal segment
+              const segPath = path.join(tempDir, `part_norm_${tempId}_${i}.mp4`);
+              if (hasAudio) {
+                await execPromise(`ffmpeg -ss ${prevTime} -to ${fTime} -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${segPath}"`);
+              } else {
+                await execPromise(`ffmpeg -ss ${prevTime} -to ${fTime} -i "${rawVideoPath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
+              }
+              segmentFiles.push(segPath);
+              
+              // Extract frame
+              const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
+              await execPromise(`ffmpeg -ss ${fTime} -i "${rawVideoPath}" -vframes 1 -q:v 2 -y "${framePath}"`);
+              
+              // Apply subtitle blur to the frame if enabled, so it zooms dynamically with the zoompan
+              if (blurEnabled === true || blurEnabled === 'true') {
+                try {
+                  const cTop = (cropTop || 0) / 100;
+                  const cBottom = (cropBottom || 0) / 100;
+                  const cLeft = (cropLeft || 0) / 100;
+                  const cRight = (cropRight || 0) / 100;
+
+                  const croppedW = originalRes.w * (1 - cLeft - cRight);
+                  const croppedH = originalRes.h * (1 - cTop - cBottom);
+                  const cropYOffset = originalRes.h * cTop;
+
+                  const bWidthVal = blurWidth !== undefined ? blurWidth : 400;
+                  const bHeightVal = blurHeight !== undefined ? blurHeight : 100;
+                  const bYPercent = blurY !== undefined ? blurY : 800;
+
+                  const bw = croppedW * bWidthVal / 1000;
+                  const bh = croppedH * bHeightVal / 1000;
+                  const cropY = cropYOffset + (croppedH * bYPercent / 1000);
+
+                  const bw_trunc = Math.max(2, Math.floor(bw / 2) * 2);
+                  const bh_trunc = Math.max(2, Math.floor(bh / 2) * 2);
+                  const cy_clip = Math.max(0, Math.min(originalRes.h - bh_trunc, Math.floor(cropY)));
+                  const radius = blurIntensity || 10;
+
+                  const frameBlurPath = path.join(tempDir, `frame_blur_${tempId}_${i}.png`);
+                  await execPromise(`ffmpeg -i "${framePath}" -vf "split[v_main][v_blur]; [v_blur]crop=w=${bw_trunc}:h=${bh_trunc}:x=(iw-out_w)/2:y=${cy_clip},boxblur=${radius}:2[blurred]; [v_main][blurred]overlay=x=(W-w)/2:y=${cy_clip}" -y "${frameBlurPath}"`);
+                  
+                  if (fs.existsSync(frameBlurPath)) {
+                    fs.renameSync(frameBlurPath, framePath);
+                  }
+                } catch (blurFrameError) {
+                  console.error("Failed to apply subtitle blur to raw frame:", blurFrameError);
+                }
+              }
+              
+              // Dynamic zoom 2 seconds stretch frame
+              const zoomPath = path.join(tempDir, `part_zoom_${tempId}_${i}.mp4`);
+              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -vf "zoompan=z='1.00+0.15*on/60':d=60:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -r 30 -y "${zoomPath}"`);
+              
+              segmentFiles.push(zoomPath);
+              prevTime = fTime;
+            }
+            
+            // Last segment
+            const lastSegPath = path.join(tempDir, `part_norm_${tempId}_last.mp4`);
+            if (hasAudio) {
+              await execPromise(`ffmpeg -ss ${prevTime} -to ${durationRaw} -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${lastSegPath}"`);
+            } else {
+              await execPromise(`ffmpeg -ss ${prevTime} -to ${durationRaw} -i "${rawVideoPath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${lastSegPath}"`);
+            }
+            segmentFiles.push(lastSegPath);
+            
+            // Concat segments
+            const concatTxtPath = path.join(tempDir, `concat_${tempId}.txt`);
+            const concatContent = segmentFiles.map(f => `file '${path.resolve(f).replace(/'/g, "'\\''")}'`).join('\n');
+            await writeFilePromise(concatTxtPath, concatContent);
+            
+            await execPromise(`ffmpeg -f concat -safe 0 -i "${concatTxtPath}" -c copy -y "${videoPath}"`);
+            
+            // Clean up files immediately
+            for (const file of segmentFiles) {
+              if (fs.existsSync(file)) await unlinkPromise(file);
+            }
+            for (let i = 0; i < freezeTimes.length; i++) {
+              const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
+              if (fs.existsSync(framePath)) await unlinkPromise(framePath);
+            }
+            if (fs.existsSync(concatTxtPath)) await unlinkPromise(concatTxtPath);
+          }
+        } catch (error) {
+          console.error("Freeze zoom processing failed, falling back to original video:", error);
+          fs.copyFileSync(rawVideoPath, videoPath);
+        } finally {
+          if (fs.existsSync(rawVideoPath)) await unlinkPromise(rawVideoPath);
+        }
+      }
+
       const vDurRaw = await getDuration(videoPath);
       // Speed up video by 5% (1.05x speed). Therefore, the effective video duration becomes:
       const vDur = vDurRaw / 1.05;
       const aDur = await getDuration(audioPath);
       
       console.log(`Duration check -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Audio Duration (aDur): ${aDur}s`);
-      
-      // Get video resolution for scaling
-      const getResolution = async (filePath: string) => {
-        try {
-          const { stdout } = await execPromise(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filePath}"`);
-          const parts = stdout.trim().split('x');
-          if (parts.length === 2) return { w: parseInt(parts[0]), h: parseInt(parts[1]) };
-        } catch (e) {
-          console.error("Resolution Error:", e);
-        }
-        return { w: 1280, h: 720 };
-      };
       
       const vRes = await getResolution(videoPath);
       // Reference width for logo scaling (UI preview container is approx 400px wide)

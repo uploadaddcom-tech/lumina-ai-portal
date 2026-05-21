@@ -38,6 +38,8 @@ export const translations = {
       merging: "Merging Video & Audio...",
       mergeSuccess: "Successfully merged!",
       downloadMerged: "Download Merged Video",
+      freezeFrameZoom: "Freeze Frame Zoom",
+      freezeFrameZoomDesc: "Perform a 2s Zoom Pan at every 6s interval before merging",
       actionsTitle: "ဆောင်ਰွက်ပေးခဲ့သည့် အချက်များ:",
       usageTitle: "အသုံးပြုပုံ",
       actions: [
@@ -183,6 +185,8 @@ export const translations = {
       merging: "ဗီဒီယိုနှင့်အသံ ပေါင်းနေသည်...",
       mergeSuccess: "ပေါင်းစပ်မှု အောင်မြင်သည်!",
       downloadMerged: "ပေါင်းပြီးသားဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်မည်",
+      freezeFrameZoom: "Freeze Frame Zoom function",
+      freezeFrameZoomDesc: "ဗီဒီယိုတွင် ၆ စက္ကန့်လျှင်တစ်ကြိမ်၊ ၂ စက္ကန့်ကြာ Freeze Frame Zoom ប្រုလုပ်ရန်",
       actionsTitle: "ဆောင်ရွက်ပေးခဲ့သည့် အချက်များ:",
       usageTitle: "အသုံးပြုပုံ",
       actions: [
