@@ -531,9 +531,11 @@ async function startServer() {
 
       // Stage 1.2: Freeze Frame Zoom Effect (on demand) - BEFORE speed up
       if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        const zoomFilter = `crop=w='if(gt(t,3.0)*lt(mod(t-3.0,6.0),1.0),iw/1.25,iw)':h='if(gt(t,3.0)*lt(mod(t-3.0,6.0),1.0),ih/1.25,ih)':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${targetW}:h=${targetH}`;
-        const setptsFilter = `setpts='if(gt(T,3.0)*lt(mod(T-3.0,6.0),1.0),(floor((T-3.0)/6.0)*6.0+3.0)/TB,PTS)',fps=fps=30`;
-        vFilters.push(`${lastV}${zoomFilter},${setptsFilter}[ffzv]`);
+        const finalW = Math.max(2, Math.floor(targetW / 2) * 2);
+        const finalH = Math.max(2, Math.floor(targetH / 2) * 2);
+        const zoompanFilter = `zoompan=z='if(gt(t,3.0)*lt(mod(t,6.0),2.0),1.25,1)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${finalW}x${finalH}:fps=30`;
+        const setptsFilter = `setpts='if(gt(T,3.0)*lt(mod(T,6.0),2.0),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
+        vFilters.push(`${lastV}${zoompanFilter},${setptsFilter}[ffzv]`);
         lastV = "[ffzv]";
       }
 
