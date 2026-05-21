@@ -409,15 +409,8 @@ async function startServer() {
       };
 
       const vDurRaw = await getDuration(videoPath);
-      
-      // Calculate total video duration before speed-up
-      let preSpeedupVDur = vDurRaw;
-      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        preSpeedupVDur = vDurRaw * 1.5;
-      }
-      
       // Speed up video by 5% (1.05x speed). Therefore, the effective video duration becomes:
-      const vDur = preSpeedupVDur / 1.05;
+      const vDur = vDurRaw / 1.05;
       const aDur = await getDuration(audioPath);
       
       console.log(`Duration check -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Audio Duration (aDur): ${aDur}s`);
@@ -488,67 +481,23 @@ async function startServer() {
       let vFilters: string[] = [];
       let lastV = "[0:v]";
       
-      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested)
-      let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"].filter(Boolean).join(",");
+      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested) + 5% frame play-rate speed-up (setpts=PTS/1.05)
+      let baseFiltersList = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"];
+      
+      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
+        // Guarantee stable 30fps frames for predictable zoompan timing calculations
+        baseFiltersList.push("fps=30");
+        // Center zoom (1.3x) on freeze-frame every 6.3s of raw video (representing exactly 6 seconds in the final speedup timeline)
+        // Freezing (duplicating) the start frame of each 6.3s interval 18 times (producing 0.6 seconds of static zoom)
+        baseFiltersList.push(`zoompan=z='if(between(mod(it,6.30),0,0.60),1.30,1.00)':d='if(between(mod(it,6.30),0,0.15),18,1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${vRes.w}x${vRes.h}:fps=30`);
+      }
+      
+      baseFiltersList.push("setpts=PTS/1.05");
+      let baseFilters = baseFiltersList.filter(Boolean).join(",");
       if (baseFilters) {
         vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
       }
-
-      // Precise stream resolution after Stage 1
-      const targetW = videoRatio ? Math.max(2, Math.floor(vRes.w / 2) * 2) : vRes.w;
-      const targetH = videoRatio ? (() => {
-        const [rw, rh] = videoRatio.split(':').map(Number);
-        const targetAR = rw / rh;
-        return Math.max(2, Math.floor(Math.round(vRes.w / targetAR) / 2) * 2);
-      })() : vRes.h;
-
-      // Re-calculate effective resolution after ratio/scale
-      const effectiveRes = { w: vRes.w, h: vRes.h };
-      if (videoRatio) {
-        const [rw, rh] = videoRatio.split(':').map(Number);
-        if (effectiveRes.w / rw > effectiveRes.h / rh) {
-           effectiveRes.w = Math.floor(effectiveRes.h * rw / rh);
-        } else {
-           effectiveRes.h = Math.floor(effectiveRes.w * rh / rw);
-        }
-      }
-      const effectiveLogoScale = effectiveRes.w / 400;
-      const effectiveFontScale = effectiveRes.w / 400;
-
-      // Stage 1.1: Blur (MUST be applied BEFORE Freeze/Zoom so they move together)
-      if (blurEnabled) {
-        const bw = `(iw*${blurWidth || 400}/1000)`;
-        const bh = `(ih*${blurHeight || 100}/1000)`;
-        const byValue = blurY !== undefined ? blurY : 800;
-        const radius = blurIntensity || 10;
-        const bhPx = effectiveRes.h * (blurHeight || 100) / 1000;
-        const maxChromaRadius = Math.max(2, Math.floor((bhPx / 2) / 3)); 
-        const safeRadius = Math.min(radius, maxChromaRadius);
-        
-        // Define coordinate tokens for different filters
-        const cropY = `(ih*${byValue}/1000)`;
-        const overlayY = `(H*${byValue}/1000)`;
-        
-        vFilters.push(`${lastV}split[v_main][v_blur]`);
-        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${safeRadius}:2[blurred]`);
-        vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
-        lastV = "[bv]";
-      }
-
-      // Stage 1.2: Freeze Frame Zoom Effect (on demand) - BEFORE speed up
-      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        const finalW = Math.max(2, Math.floor(targetW / 2) * 2);
-        const finalH = Math.max(2, Math.floor(targetH / 2) * 2);
-        const setptsFilter = `setpts='(T+floor(T/4.0)*2.0)/TB',fps=fps=30`;
-        const zoompanFilter = `zoompan=z='if(gt(t-6*floor(t/6),4.0),1.25,1)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${finalW}x${finalH}:fps=30`;
-        vFilters.push(`${lastV}${setptsFilter},${zoompanFilter}[ffzv]`);
-        lastV = "[ffzv]";
-      }
-
-      // Stage 1.3: Speed-up by 5% (1.05x speed-up)
-      vFilters.push(`${lastV}setpts=PTS/1.05,fps=fps=30[spv]`);
-      lastV = "[spv]";
 
       // Stage 1.5: Professional Glowing Light Sweep (geq filter)
       // The user wants a glowing light sweep at equal intervals, avoiding the first 3 seconds and the last 3 seconds.
@@ -594,6 +543,36 @@ async function startServer() {
         
         vFilters.push(`${lastV}${geqFilter}[gsv]`);
         lastV = "[gsv]";
+      }
+
+      // Re-calculate effective resolution after ratio/scale
+      const effectiveRes = { w: vRes.w, h: vRes.h };
+      if (videoRatio) {
+        const [rw, rh] = videoRatio.split(':').map(Number);
+        if (effectiveRes.w / rw > effectiveRes.h / rh) {
+           effectiveRes.w = Math.floor(effectiveRes.h * rw / rh);
+        } else {
+           effectiveRes.h = Math.floor(effectiveRes.w * rh / rw);
+        }
+      }
+      const effectiveLogoScale = effectiveRes.w / 400;
+      const effectiveFontScale = effectiveRes.w / 400;
+
+      // Stage 2: Blur
+      if (blurEnabled) {
+        const bw = `(iw*${blurWidth || 400}/1000)`;
+        const bh = `(ih*${blurHeight || 100}/1000)`;
+        const byValue = blurY !== undefined ? blurY : 800;
+        const radius = blurIntensity || 10;
+        
+        // Define coordinate tokens for different filters
+        const cropY = `(ih*${byValue}/1000)`;
+        const overlayY = `(H*${byValue}/1000)`;
+        
+        vFilters.push(`${lastV}split[v_main][v_blur]`);
+        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
+        vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
+        lastV = "[bv]";
       }
 
       // Stage 3: Sync Subtitles with AI Timestamps

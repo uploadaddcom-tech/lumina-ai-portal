@@ -1143,8 +1143,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   
   // Glow Light Sweep Setting
   const [glowingSweepEnabled, setGlowingSweepEnabled] = useState(false);
-  
-  // Freeze Frame Zoom Setting
   const [freezeFrameZoomEnabled, setFreezeFrameZoomEnabled] = useState(false);
   
     // Subtitle Settings
@@ -1695,16 +1693,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
               <Maximize className="w-4 h-4 text-blue-400" />
             </div>
-            <h2 className="text-xl font-black tracking-tight">
-              {lang === "EN" ? "Freeze Frame Zoom Effect" : "Freeze Frame Zoom Effect"}
-            </h2>
+            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Freeze Frame Zoom" : "Freeze Frame Zoom"}</h2>
           </div>
 
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Freeze Zoom Frame (6s interval)" : "Freeze Zoom ဖွင့်/ပိတ် (၆ စက္ကန့်တစ်ခါ)"}
+                  {lang === "EN" ? "Every 6 Seconds Freeze Frame Zoom" : "၆ စက္ကန့်လျှင် တစ်ကြိမ် Freeze Frame Zoom ဖွင့်/ပိတ်"}
                 </label>
                 <div className="flex items-center gap-3">
                   <button 
@@ -1715,7 +1711,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   >
                     <Maximize className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
-                      {freezeFrameZoomEnabled ? (lang === "EN" ? "Freeze Zoom Enabled" : "Freeze Zoom ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Freeze Zoom" : "Freeze Zoom ဖွင့်ရန်")}
+                      {freezeFrameZoomEnabled ? (lang === "EN" ? "Freeze Frame Zoom Enabled" : "Freeze Frame Zoom ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Freeze Frame Zoom" : "Freeze Frame Zoom ဖွင့်ရန်")}
                     </span>
                   </button>
                 </div>
