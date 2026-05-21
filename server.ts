@@ -481,12 +481,24 @@ async function startServer() {
       let vFilters: string[] = [];
       let lastV = "[0:v]";
       
-      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested) + 5% frame play-rate speed-up (setpts=PTS/1.05)
-      let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25", "setpts=PTS/1.05"].filter(Boolean).join(",");
+      // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested)
+      let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"].filter(Boolean).join(",");
       if (baseFilters) {
         vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
       }
+
+      // Stage 1.2: Freeze Frame Zoom Effect (on demand) - BEFORE speed up
+      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
+        const zoomFilter = `crop=w='if(gt(t,3)*lt(mod(t,6.0),1.2),iw/1.25,iw)':h='if(gt(t,3)*lt(mod(t,6.0),1.2),ih/1.25,ih)':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${vRes.w}:h=${vRes.h}`;
+        const setptsFilter = `setpts='if(gt(T,3)*lt(mod(T,6.0),1.2),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
+        vFilters.push(`${lastV}${zoomFilter},${setptsFilter}[ffzv]`);
+        lastV = "[ffzv]";
+      }
+
+      // Stage 1.3: Speed-up by 5% (1.05x speed-up)
+      vFilters.push(`${lastV}setpts=PTS/1.05,fps=fps=30[spv]`);
+      lastV = "[spv]";
 
       // Stage 1.5: Professional Glowing Light Sweep (geq filter)
       // The user wants a glowing light sweep at equal intervals, avoiding the first 3 seconds and the last 3 seconds.
@@ -532,14 +544,6 @@ async function startServer() {
         
         vFilters.push(`${lastV}${geqFilter}[gsv]`);
         lastV = "[gsv]";
-      }
-
-      // Stage 1.7: Freeze Frame Zoom Effect (on demand)
-      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        const setptsFilter = `setpts='if(gt(T,3)*lt(mod(T,6.0),1.2),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
-        const zoompanFilter = `zoompan=z='if(gt(in_t,3)*lt(mod(in_t,6.0),1.2),1.25,1)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${vRes.w}x${vRes.h}:fps=30`;
-        vFilters.push(`${lastV}${setptsFilter},${zoompanFilter}[ffzv]`);
-        lastV = "[ffzv]";
       }
 
       // Re-calculate effective resolution after ratio/scale
