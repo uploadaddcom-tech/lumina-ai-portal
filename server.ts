@@ -457,7 +457,7 @@ async function startServer() {
           
           if (freezeTimes.length === 0) {
             // Just normalize and output
-            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":c=" + channels + " -c:a aac -shortest"} -y "${videoPath}"`);
+            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":cl=" + (channels === 1 ? "mono" : "stereo") + " -c:a aac -shortest"} -y "${videoPath}"`);
           } else {
             const segmentFiles: string[] = [];
             let prevTime = 0;
@@ -471,7 +471,7 @@ async function startServer() {
               if (hasAudio) {
                 await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${segPath}"`);
               } else {
-                await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
+                await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
               }
               segmentFiles.push(segPath);
               
@@ -517,7 +517,7 @@ async function startServer() {
               
               // Dynamic zoom 2 seconds stretch frame with explicit 30 fps output zoompan
               const zoomPath = path.join(tempDir, `part_zoom_${tempId}_${i}.mp4`);
-              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -vf "zoompan=z='1.00+0.15*on/60':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
+              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
               
               segmentFiles.push(zoomPath);
               prevTime = fTime;
@@ -529,7 +529,7 @@ async function startServer() {
             if (hasAudio) {
               await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${lastSegPath}"`);
             } else {
-              await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${lastSegPath}"`);
+              await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${lastSegPath}"`);
             }
             segmentFiles.push(lastSegPath);
             
