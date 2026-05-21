@@ -409,8 +409,15 @@ async function startServer() {
       };
 
       const vDurRaw = await getDuration(videoPath);
+      
+      // Calculate total video duration before speed-up
+      let preSpeedupVDur = vDurRaw;
+      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
+        preSpeedupVDur = vDurRaw * 1.5;
+      }
+      
       // Speed up video by 5% (1.05x speed). Therefore, the effective video duration becomes:
-      const vDur = vDurRaw / 1.05;
+      const vDur = preSpeedupVDur / 1.05;
       const aDur = await getDuration(audioPath);
       
       console.log(`Duration check -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Audio Duration (aDur): ${aDur}s`);
@@ -533,9 +540,11 @@ async function startServer() {
       if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
         const finalW = Math.max(2, Math.floor(targetW / 2) * 2);
         const finalH = Math.max(2, Math.floor(targetH / 2) * 2);
-        const zoompanFilter = `zoompan=z='if(gt(t,3.0)*lt(mod(t,6.0),2.0),1.25,1)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${finalW}x${finalH}:fps=30`;
-        const setptsFilter = `setpts='if(gt(T,3.0)*lt(mod(T,6.0),2.0),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
-        vFilters.push(`${lastV}${zoompanFilter},${setptsFilter}[ffzv]`);
+        const setptsFilter = `setpts='(T+floor(T/4.0)*2.0)/TB',fps=fps=30`;
+        const cropW = `iw/if(lt(mod(t,6.0),4.0),1.0,1.0+0.125*(mod(t,6.0)-4.0))`;
+        const cropH = `ih/if(lt(mod(t,6.0),4.0),1.0,1.0+0.125*(mod(t,6.0)-4.0))`;
+        const zoomCropFilter = `crop=w='trunc(${cropW}/2)*2':h='trunc(${cropH}/2)*2':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${finalW}:h=${finalH}`;
+        vFilters.push(`${lastV}${setptsFilter},${zoomCropFilter}[ffzv]`);
         lastV = "[ffzv]";
       }
 
