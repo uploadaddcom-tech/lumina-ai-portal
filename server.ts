@@ -441,7 +441,11 @@ async function startServer() {
         fs.renameSync(videoPath, rawVideoPath);
         
         try {
-          const originalRes = await getResolution(rawVideoPath);
+          const originalResRaw = await getResolution(rawVideoPath);
+          const originalRes = {
+            w: Math.max(2, Math.floor(originalResRaw.w / 2) * 2),
+            h: Math.max(2, Math.floor(originalResRaw.h / 2) * 2)
+          };
           const durationRaw = await getDuration(rawVideoPath);
           const { hasAudio, sample_rate, channels } = await getAudioDetails(rawVideoPath);
           
@@ -453,20 +457,21 @@ async function startServer() {
           
           if (freezeTimes.length === 0) {
             // Just normalize and output
-            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":c=" + channels + " -c:a aac -shortest"} -y "${videoPath}"`);
+            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":c=" + channels + " -c:a aac -shortest"} -y "${videoPath}"`);
           } else {
             const segmentFiles: string[] = [];
             let prevTime = 0;
             
             for (let i = 0; i < freezeTimes.length; i++) {
               const fTime = freezeTimes[i];
+              const segDuration = fTime - prevTime;
               
               // Normal segment
               const segPath = path.join(tempDir, `part_norm_${tempId}_${i}.mp4`);
               if (hasAudio) {
-                await execPromise(`ffmpeg -ss ${prevTime} -to ${fTime} -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${segPath}"`);
+                await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${segPath}"`);
               } else {
-                await execPromise(`ffmpeg -ss ${prevTime} -to ${fTime} -i "${rawVideoPath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
+                await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
               }
               segmentFiles.push(segPath);
               
@@ -510,9 +515,9 @@ async function startServer() {
                 }
               }
               
-              // Dynamic zoom 2 seconds stretch frame
+              // Dynamic zoom 2 seconds stretch frame with explicit 30 fps output zoompan
               const zoomPath = path.join(tempDir, `part_zoom_${tempId}_${i}.mp4`);
-              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -vf "zoompan=z='1.00+0.15*on/60':d=60:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -r 30 -y "${zoomPath}"`);
+              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -vf "zoompan=z='1.00+0.15*on/60':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
               
               segmentFiles.push(zoomPath);
               prevTime = fTime;
@@ -520,10 +525,11 @@ async function startServer() {
             
             // Last segment
             const lastSegPath = path.join(tempDir, `part_norm_${tempId}_last.mp4`);
+            const lastSegDuration = durationRaw - prevTime;
             if (hasAudio) {
-              await execPromise(`ffmpeg -ss ${prevTime} -to ${durationRaw} -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${lastSegPath}"`);
+              await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${lastSegPath}"`);
             } else {
-              await execPromise(`ffmpeg -ss ${prevTime} -to ${durationRaw} -i "${rawVideoPath}" -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${lastSegPath}"`);
+              await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:c=${channels} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${lastSegPath}"`);
             }
             segmentFiles.push(lastSegPath);
             
@@ -605,9 +611,28 @@ async function startServer() {
         default: posFilter = `W-w-${padding}:${padding}`; // top-right default
       }
 
-      // If audio is longer than video, speed it up to match video duration exactly
-      const speed = (vDur > 0 && aDur > vDur) ? (aDur / vDur) : 1;
-      console.log(`Speed calculation results -> audio is longer than video? ${aDur > vDur}. Speed-up factor calculated: ${speed}`);
+      // Speed up or slow down the audio to match the effective video duration exactly (they must finish at the same time)
+      const speed = vDur > 0 ? (aDur / vDur) : 1;
+      console.log(`Speed calculation results -> Target video duration: ${vDur}s, Original audio duration: ${aDur}s. Alignment speed factor: ${speed}`);
+
+      // Generate the optimal atempo filter chain to achieve the target speed
+      let atempoChain = "";
+      if (Math.abs(speed - 1.0) > 0.005) {
+        let tempSpeed = speed;
+        const speedFactors: number[] = [];
+        while (tempSpeed > 2.0) {
+          speedFactors.push(2.0);
+          tempSpeed /= 2.0;
+        }
+        while (tempSpeed < 0.5) {
+          speedFactors.push(0.5);
+          tempSpeed /= 0.5;
+        }
+        if (Math.abs(tempSpeed - 1.0) > 0.005) {
+          speedFactors.push(tempSpeed);
+        }
+        atempoChain = speedFactors.map(s => `atempo=${s.toFixed(4)}`).join(',');
+      }
       
       // Build filter complex
       let vFilters: string[] = [];
@@ -726,14 +751,12 @@ async function startServer() {
         
         // CRITICAL SYNC FIX: If audio is speed-adjusted, AI must hear the ADJUSTED audio 
         // to provide accurate timestamps for the final video timeline.
-        if (speed > 1) {
-          console.log(`Pre-adjusting audio for AI sync (speed=${speed.toFixed(2)})...`);
+        if (atempoChain) {
+          console.log(`Pre-adjusting audio for AI sync with filter: ${atempoChain}...`);
           const aiAudioPath = path.join(tempDir, `ai_audio_${tempId}.wav`);
-          let atempo = `atempo=${speed}`;
-          if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
           
           try {
-            await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempo}" -y "${aiAudioPath}"`);
+            await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempoChain}" -y "${aiAudioPath}"`);
             const scaledBuffer = fs.readFileSync(aiAudioPath);
             aiAudioBase64 = scaledBuffer.toString('base64');
             if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
@@ -837,10 +860,8 @@ async function startServer() {
       }
 
       let audioComplexFilters: string[] = [];
-      if (speed > 1) {
-        let atempo = `atempo=${speed}`;
-        if (speed > 2.0) atempo = `atempo=2.0,atempo=${speed/2.0}`;
-        audioComplexFilters.push(`[1:a]${atempo}[aout]`);
+      if (atempoChain) {
+        audioComplexFilters.push(`[1:a]${atempoChain}[aout]`);
       }
 
       // Combine all filters
@@ -852,13 +873,13 @@ async function startServer() {
         await writeFilePromise(filterPath, allFilters);
         // If lastV is still [0:v], it means no video filters were applied to it as labels
         const mapV = (lastV === "[0:v]") ? " -map 0:v:0" : ` -map "${lastV}"`;
-        const mapA = (speed > 1) ? ' -map "[aout]"' : ' -map 1:a:0';
+        const mapA = atempoChain ? ' -map "[aout]"' : ' -map 1:a:0';
         
         ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}"${hasLogo ? ` -i "${logoPath}"` : ""} -filter_complex_script "${filterPath}"${mapV}${mapA} -c:v libx264 -preset ultrafast -c:a aac -b:a 192k -movflags +faststart -shortest -y "${outputPath}"`;
       } else {
         // No filters at all
-        if (speed > 1) {
-          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]atempo=${speed}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast -y "${outputPath}"`;
+        if (atempoChain) {
+          ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -filter_complex "[1:a]${atempoChain}[aout]" -map 0:v:0 -map "[aout]" -c:v libx264 -preset ultrafast -y "${outputPath}"`;
         } else {
           ffmpegCmd = `ffmpeg -i "${videoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y "${outputPath}"`;
         }
