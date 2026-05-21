@@ -536,9 +536,9 @@ async function startServer() {
 
       // Stage 1.7: Freeze Frame Zoom Effect (on demand)
       if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        const setptsFilter = `setpts='if(gt(T,3)*lt(mod(T,6.0),0.6),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
-        const zoomFilter = `crop=w='if(gt(t,3)*lt(mod(t,6.0),0.6),iw/1.25,iw)':h='if(gt(t,3)*lt(mod(t,6.0),0.6),ih/1.25,ih)':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${vRes.w}:h=${vRes.h}`;
-        vFilters.push(`${lastV}${setptsFilter},${zoomFilter}[ffzv]`);
+        const setptsFilter = `setpts='if(gt(T,3)*lt(mod(T,6.0),1.2),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
+        const zoompanFilter = `zoompan=z='if(gt(in_t,3)*lt(mod(in_t,6.0),1.2),1.25,1)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${vRes.w}x${vRes.h}:fps=30`;
+        vFilters.push(`${lastV}${setptsFilter},${zoompanFilter}[ffzv]`);
         lastV = "[ffzv]";
       }
 
