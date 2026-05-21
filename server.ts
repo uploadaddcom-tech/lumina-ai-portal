@@ -541,10 +541,8 @@ async function startServer() {
         const finalW = Math.max(2, Math.floor(targetW / 2) * 2);
         const finalH = Math.max(2, Math.floor(targetH / 2) * 2);
         const setptsFilter = `setpts='(T+floor(T/4.0)*2.0)/TB',fps=fps=30`;
-        const cropW = `iw/if(lt(mod(t,6.0),4.0),1.0,1.0+0.125*(mod(t,6.0)-4.0))`;
-        const cropH = `ih/if(lt(mod(t,6.0),4.0),1.0,1.0+0.125*(mod(t,6.0)-4.0))`;
-        const zoomCropFilter = `crop=w='trunc(${cropW}/2)*2':h='trunc(${cropH}/2)*2':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${finalW}:h=${finalH}`;
-        vFilters.push(`${lastV}${setptsFilter},${zoomCropFilter}[ffzv]`);
+        const zoompanFilter = `zoompan=z='if(gt(t-6*floor(t/6),4.0),1.25,1)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${finalW}x${finalH}:fps=30`;
+        vFilters.push(`${lastV}${setptsFilter},${zoompanFilter}[ffzv]`);
         lastV = "[ffzv]";
       }
 
