@@ -336,6 +336,7 @@ async function startServer() {
         subtitleFont,
         subtitleBoxColor,
         glowingSweepEnabled,
+        freezeFrameZoomEnabled,
         apiKey: customKey
       } = req.body;
       
@@ -531,6 +532,14 @@ async function startServer() {
         
         vFilters.push(`${lastV}${geqFilter}[gsv]`);
         lastV = "[gsv]";
+      }
+
+      // Stage 1.7: Freeze Frame Zoom Effect (on demand)
+      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
+        const setptsFilter = `setpts='if(gt(T,3)*lt(mod(T,6.0),0.6),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
+        const zoomFilter = `crop=w='if(gt(t,3)*lt(mod(t,6.0),0.6),iw/1.25,iw)':h='if(gt(t,3)*lt(mod(t,6.0),0.6),ih/1.25,ih)':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${vRes.w}:h=${vRes.h}`;
+        vFilters.push(`${lastV}${setptsFilter},${zoomFilter}[ffzv]`);
+        lastV = "[ffzv]";
       }
 
       // Re-calculate effective resolution after ratio/scale

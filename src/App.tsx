@@ -99,6 +99,7 @@ const api = {
     subtitleFont?: string,
     subtitleBoxColor?: string,
     glowingSweepEnabled?: boolean,
+    freezeFrameZoomEnabled?: boolean,
     apiKey?: string
   ) {
     const res = await fetch("/api/merge", {
@@ -130,6 +131,7 @@ const api = {
         subtitleFont,
         subtitleBoxColor,
         glowingSweepEnabled,
+        freezeFrameZoomEnabled,
         apiKey
       }),
     });
@@ -1142,6 +1144,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   // Glow Light Sweep Setting
   const [glowingSweepEnabled, setGlowingSweepEnabled] = useState(false);
   
+  // Freeze Frame Zoom Setting
+  const [freezeFrameZoomEnabled, setFreezeFrameZoomEnabled] = useState(false);
+  
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
@@ -1358,6 +1363,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         subtitleFont,
         subtitleBoxColor,
         glowingSweepEnabled,
+        freezeFrameZoomEnabled,
         apiKey
       );
       
@@ -1675,6 +1681,41 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     <Sparkles className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
                       {glowingSweepEnabled ? (lang === "EN" ? "Glow Sweep Enabled" : "အလင်းတန်း ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Glow Sweep" : "အလင်းတန်း ဖွင့်ရန်")}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Freeze Frame Zoom Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Maximize className="w-4 h-4 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-black tracking-tight">
+              {lang === "EN" ? "Freeze Frame Zoom Effect" : "Freeze Frame Zoom Effect"}
+            </h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Freeze Zoom Frame (6s interval)" : "Freeze Zoom ဖွင့်/ပိတ် (၆ စက္ကန့်တစ်ခါ)"}
+                </label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setFreezeFrameZoomEnabled(!freezeFrameZoomEnabled)}
+                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
+                      freezeFrameZoomEnabled ? "bg-blue-600/20 border-blue-500/30 text-blue-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    <Maximize className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {freezeFrameZoomEnabled ? (lang === "EN" ? "Freeze Zoom Enabled" : "Freeze Zoom ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Freeze Zoom" : "Freeze Zoom ဖွင့်ရန်")}
                     </span>
                   </button>
                 </div>
