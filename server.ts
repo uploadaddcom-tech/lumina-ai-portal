@@ -336,7 +336,6 @@ async function startServer() {
         subtitleFont,
         subtitleBoxColor,
         glowingSweepEnabled,
-        freezeFrameZoomEnabled,
         apiKey: customKey
       } = req.body;
       
@@ -482,18 +481,7 @@ async function startServer() {
       let lastV = "[0:v]";
       
       // Stage 1: Ratio & Zoom & Auto Flip & Color Correction (User requested) + 5% frame play-rate speed-up (setpts=PTS/1.05)
-      let baseFiltersList = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25"];
-      
-      if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        // Guarantee stable 30fps frames for predictable zoompan timing calculations
-        baseFiltersList.push("fps=30");
-        // Center zoom (1.3x) on freeze-frame every 6.3s of raw video (representing exactly 6 seconds in the final speedup timeline)
-        // Freezing (duplicating) the start frame of each 6.3s interval 18 times (producing 0.6 seconds of static zoom)
-        baseFiltersList.push(`zoompan=z='if(between(mod(it,6.30),0,0.60),1.30,1.00)':d='if(between(mod(it,6.30),0,0.15),18,1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${vRes.w}x${vRes.h}:fps=30`);
-      }
-      
-      baseFiltersList.push("setpts=PTS/1.05");
-      let baseFilters = baseFiltersList.filter(Boolean).join(",");
+      let baseFilters = [ratioFilter, "hflip", "eq=contrast=1.15:brightness=-0.05:saturation=1.25", "setpts=PTS/1.05"].filter(Boolean).join(",");
       if (baseFilters) {
         vFilters.push(`${lastV}${baseFilters}[rv]`);
         lastV = "[rv]";
