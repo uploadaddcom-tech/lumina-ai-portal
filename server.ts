@@ -490,8 +490,8 @@ async function startServer() {
 
       // Stage 1.2: Freeze Frame Zoom Effect (on demand) - BEFORE speed up
       if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        const zoomFilter = `crop=w='if(gt(t,3)*lt(mod(t,6.0),1.2),iw/1.25,iw)':h='if(gt(t,3)*lt(mod(t,6.0),1.2),ih/1.25,ih)':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${vRes.w}:h=${vRes.h}`;
-        const setptsFilter = `setpts='if(gt(T,3)*lt(mod(T,6.0),1.2),(floor(T/6.0)*6.0)/TB,PTS)',fps=fps=30`;
+        const zoomFilter = `crop=w='if(gt(t,3.0)*lt(mod(t-3.0,6.0),1.0),iw/1.25,iw)':h='if(gt(t,3.0)*lt(mod(t-3.0,6.0),1.0),ih/1.25,ih)':x='(in_w-out_w)/2':y='(in_h-out_h)/2',scale=w=${vRes.w}:h=${vRes.h}`;
+        const setptsFilter = `setpts='if(gt(T,3.0)*lt(mod(T-3.0,6.0),1.0),(floor((T-3.0)/6.0)*6.0+3.0)/TB,PTS)',fps=fps=30`;
         vFilters.push(`${lastV}${zoomFilter},${setptsFilter}[ffzv]`);
         lastV = "[ffzv]";
       }
@@ -565,13 +565,16 @@ async function startServer() {
         const bh = `(ih*${blurHeight || 100}/1000)`;
         const byValue = blurY !== undefined ? blurY : 800;
         const radius = blurIntensity || 10;
+        const bhPx = effectiveRes.h * (blurHeight || 100) / 1000;
+        const maxChromaRadius = Math.max(2, Math.floor((bhPx / 2) / 3)); 
+        const safeRadius = Math.min(radius, maxChromaRadius);
         
         // Define coordinate tokens for different filters
         const cropY = `(ih*${byValue}/1000)`;
         const overlayY = `(H*${byValue}/1000)`;
         
         vFilters.push(`${lastV}split[v_main][v_blur]`);
-        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
+        vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${safeRadius}:2[blurred]`);
         vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
         lastV = "[bv]";
       }
