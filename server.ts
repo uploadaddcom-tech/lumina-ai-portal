@@ -122,6 +122,9 @@ async function startServer() {
           "real-time-narration": lang === "EN"
             ? "Provide a chronological, real-time narration script for this video. DO NOT include timestamps."
             : "ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေကို အခြေခံပြီး အချိန်နဲ့တပြေးညီ နောက်ခံစကားပြော script တစ်ခု ရေးသားပေးပါ။ အချိန်မှတ်တမ်းတွေ မထည့်ပါနဲ့။",
+          "fairytale-humor": lang === "EN"
+            ? "Tell a highly dramatic, fairytale-like narrative story of this video, but pack it with tons of clever jokes, funny observations, and lots of humor to make it extremely funny."
+            : "ဒီဗီဒီယိုကို ပုံပြင်ဆန်ဆန် ဇာတ်လမ်းတစ်ပုဒ်လို ပြန်ပြောပြပေးပါ၊ ဒါပေမယ့် ရယ်စရာကောင်းတဲ့ ဟာသတွေ၊ ဟာသဥာဏ်ရွှင်တဲ့ သရော်ချက်တွေနဲ့ ဟာသများများ ပေါင်းစပ်ပြီး အလွန်ရယ်ရမယ့် ပုံစံမျိုးဖြင့် ရေးပေးပါ။",
         };
 
         const wordCount = duration ? Math.floor((duration / 60) * 150) : 150;

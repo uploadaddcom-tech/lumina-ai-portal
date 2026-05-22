@@ -117,6 +117,10 @@ export const translations = {
         title: "Real-Time Narration",
         desc: "A chronological narrative following the exact timeline and actions of the video.",
       },
+      fairytaleHumor: {
+        title: "Humorous Fairytale",
+        desc: "A fairytale-style story with lots of jokes and humor.",
+      },
     },
     tools: {
       videoRecapper: {
@@ -263,6 +267,10 @@ export const translations = {
       realTimeNarration: {
         title: "ဗီဒီယိုအတိုင်းလိုက်ပြောပြချက်",
         desc: "ဗီဒီယိုထဲက အချိန်အပိုင်းအခြားနဲ့ လုပ်ဆောင်ချက်တွေအတိုင်း တဆင့်ချင်းစီ လိုက်လံပြောပြပေးမည်။",
+      },
+      fairytaleHumor: {
+        title: "ဟာသနှောသော ပုံပြင်ဆန်ဆန်",
+        desc: "ဗီဒီယိုကို ပုံပြင်အရမ်းဆန်ပြီး ဟာသများများပြောပြသော ပုံစံဖြင့် Recap ထုတ်ပေးမည်။",
       },
     },
     tools: {

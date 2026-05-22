@@ -273,6 +273,14 @@ const getRecapStyles = (lang: Language) => [
     icon: Play,
     color: "bg-blue-500/10",
     iconColor: "text-blue-400"
+  },
+  {
+    id: "fairytale-humor",
+    title: translations[lang].styles.fairytaleHumor.title,
+    description: translations[lang].styles.fairytaleHumor.desc,
+    icon: Sparkles,
+    color: "bg-slate-100",
+    iconColor: "text-slate-400"
   }
 ];
 
