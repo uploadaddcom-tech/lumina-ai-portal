@@ -177,27 +177,6 @@ const getTools = (lang: Language) => [
     shadowColor: "shadow-red-500/20",
   },
   {
-    id: "videorecapper",
-    title: translations[lang].tools.videoRecapper.title,
-    description: translations[lang].tools.videoRecapper.desc,
-    icon: Play,
-    color: "bg-blue-500",
-    iconColor: "text-white",
-    borderColor: "border-blue-500/20 hover:border-blue-500/50",
-    shadowColor: "shadow-blue-500/20",
-    badge: "NEW"
-  },
-  {
-    id: "video-recap",
-    title: translations[lang].tools.videoRecap.title,
-    description: translations[lang].tools.videoRecap.desc,
-    icon: Camera,
-    color: "bg-purple-500",
-    iconColor: "text-white",
-    borderColor: "border-purple-500/20 hover:border-purple-500/50",
-    shadowColor: "shadow-purple-500/20"
-  },
-  {
     id: "subtitle-editor",
     title: translations[lang].tools.subtitleEditor.title,
     description: translations[lang].tools.subtitleEditor.desc,
@@ -206,17 +185,6 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
     shadowColor: "shadow-cyan-500/20",
-  },
-  {
-    id: "auto-recap",
-    title: translations[lang].tools.autoRecap.title,
-    description: translations[lang].tools.autoRecap.desc,
-    icon: Star,
-    color: "bg-indigo-500",
-    iconColor: "text-white",
-    borderColor: "border-indigo-500/20 hover:border-indigo-500/50",
-    shadowColor: "shadow-indigo-500/20",
-    badge: "NEW"
   },
   {
     id: "videotranscribe",
