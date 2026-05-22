@@ -129,7 +129,7 @@ export const translations = {
       },
       subtitleEditor: {
         title: "Subtitle Editor",
-        desc: "ဗီဒီယိုဖိုင်များတွင် မြန်မာစာတန်းထိုးများကို စက္ကန့်ပိုင်းအတွင်း အလိုအလျောက်ထည့်သွင်းပေးပြီး စိတ်ကြိုက်ပြင်ဆင်နိုင်မည်...",
+        desc: " Video များကို  One Click ဖြင့် မြန်မာဘာသာပြန် စာတန်းထိုးပေးနိုင်သည် ",
       },
       autoRecap: {
         title: "Auto Recap",
@@ -185,7 +185,7 @@ export const translations = {
       merging: "ဗီဒီယိုနှင့်အသံ ပေါင်းနေသည်...",
       mergeSuccess: "ပေါင်းစပ်မှု အောင်မြင်သည်!",
       downloadMerged: "ပေါင်းပြီးသားဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်မည်",
-      freezeFrameZoom: "Freeze Frame Zoom function",
+      freezeFrameZoom: "Freeze Frame Zoom",
       freezeFrameZoomDesc: "ဗီဒီယိုတွင် ၆ စက္ကန့်လျှင်တစ်ကြိမ်၊ ၂ စက္ကန့်ကြာ Freeze Frame Zoom ប្រုလုပ်ရန်",
       actionsTitle: "ဆောင်ရွက်ပေးခဲ့သည့် အချက်များ:",
       usageTitle: "အသုံးပြုပုံ",
@@ -276,7 +276,7 @@ export const translations = {
       },
       subtitleEditor: {
         title: "Subtitle Editor",
-        desc: "ဗီဒီယိုဖိုင်များတွင် မြန်မာစာတန်းထိုးများကို စက္ကန့်ပိုင်းအတွင်း အလိုအလျောက်ထည့်သွင်းပေးပြီး စိတ်ကြိုက်ပြင်ဆင်နိုင်မည်...",
+        desc: " Video များကို  One Click ဖြင့် မြန်မာဘာသာပြန် စာတန်းထိုးပေးနိုင်သည် ",
       },
       autoRecap: {
         title: "Auto Recap",
@@ -292,7 +292,7 @@ export const translations = {
       },
       recapMaster: {
         title: "Recap Master",
-        desc: "လုပ်ငန်းသုံးအဆင့် မီဒီယာလုပ်ဆောင်ချက် အင်ဂျင်ဖြစ်ပြီး Recap များ ထုတ်လုပ်ရန်အတွက် ဖြစ်သည်။",
+        desc: " မည်သည့် Video အမျိုးအစားကိုမဆို One Click Recap ထုတ်လုပ်နိုင်သည်",
       }
     }
   },
