@@ -2420,7 +2420,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             style={{
                               backgroundColor: `${subtitleBoxColor}99`, // Approx 0.6 opacity
                               color: subtitleColor,
-                              fontSize: `${Math.max(8, subtitleFontSize * 0.4) * Math.max(previewSize.w / 400, previewSize.h / 225)}px`,
+                              fontSize: `${Math.max(1, subtitleFontSize * 0.4) * Math.max(previewSize.w / 400, previewSize.h / 225)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.5'
                             }}

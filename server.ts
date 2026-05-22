@@ -830,7 +830,7 @@ async function startServer() {
       // Stage 3: Sync Subtitles with AI Timestamps
       if (subtitleEnabled && subtitleText) {
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
-        const previewFontSizeInPx = Math.max(8, (subtitleFontSize || 24) * 0.4);
+        const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 24) * 0.4);
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
         const fontPaths = [
