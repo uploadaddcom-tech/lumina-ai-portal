@@ -2529,7 +2529,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                               className="w-full px-4 py-4 rounded-xl border bg-white/5 border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 appearance-none cursor-pointer transition-all font-medium text-sm"
                               style={{ fontFamily: subtitleFont }}
                             >
-                              {["Padauk", "Inter", "Arial", "Roboto", "Georgia", "Courier New"].map((f) => (
+                              {["Padauk", "TU01 PannYeat", "SM04 Moon", "Aka07", "M01 PuPu", "Inter", "Arial", "Roboto", "Georgia", "Courier New"].map((f) => (
                                 <option key={f} value={f} style={{ fontFamily: f }} className="bg-slate-900 text-white">
                                   {f}
                                 </option>

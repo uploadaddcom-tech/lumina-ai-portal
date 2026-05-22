@@ -8,6 +8,34 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'TU01 PannYeat';
+  src: url('/TU01_PannYeat-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SM04 Moon';
+  src: url('/SM04_Moon-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aka07';
+  src: url('/Aka07-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'M01 PuPu';
+  src: url('/M01_PuPu-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;

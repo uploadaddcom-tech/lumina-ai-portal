@@ -833,9 +833,22 @@ async function startServer() {
         const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 24) * 0.4);
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
+        let targetFontFile = "Padauk-Bold.ttf";
+        if (subtitleFont === "TU01 PannYeat") {
+          targetFontFile = "TU01_PannYeat-Regular.ttf";
+        } else if (subtitleFont === "SM04 Moon") {
+          targetFontFile = "SM04_Moon-Bold.ttf";
+        } else if (subtitleFont === "Aka07") {
+          targetFontFile = "Aka07-Bold.ttf";
+        } else if (subtitleFont === "M01 PuPu") {
+          targetFontFile = "M01_PuPu-Regular.ttf";
+        }
+
         const fontPaths = [
-          path.join(__dirname, "Padauk-Bold.ttf"),
+          path.join(process.cwd(), targetFontFile),
+          path.join(__dirname, targetFontFile),
           path.join(process.cwd(), "Padauk-Bold.ttf"),
+          path.join(__dirname, "Padauk-Bold.ttf"),
           "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
           "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
         ];
