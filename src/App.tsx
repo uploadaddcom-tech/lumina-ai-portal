@@ -1101,7 +1101,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [showLogoSettings, setShowLogoSettings] = useState(false);
   
   // Video Ratio Settings
-  const [videoRatio, setVideoRatio] = useState("16:9");
+  const [videoRatio, setVideoRatio] = useState("9:16");
   const [videoScale, setVideoScale] = useState(100);
   const [cropTop, setCropTop] = useState(0);
   const [cropBottom, setCropBottom] = useState(0);
