@@ -520,7 +520,7 @@ async function startServer() {
               
               // Dynamic zoom 2 seconds stretch frame with explicit 30 fps output zoompan, centered
               const zoomPath = path.join(tempDir, `part_zoom_${tempId}_${i}.mp4`);
-              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':x='(iw-ow)/2':y='(ih-oh)/2':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
+              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
               
               segmentFiles.push(zoomPath);
               zoomIntervals.push({ start: currentConcatTime, end: currentConcatTime + 2.0 });
