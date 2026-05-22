@@ -437,7 +437,6 @@ async function startServer() {
       // Apply Freeze Frame Zoom if enabled
       const zoomIntervals: { start: number; end: number }[] = [];
       if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
-        console.log("Applying Freeze Frame Zoom 2s every 6s on video...");
         const rawVideoPath = path.join(tempDir, `video_raw_${tempId}.mp4`);
         fs.renameSync(videoPath, rawVideoPath);
         
@@ -450,95 +449,161 @@ async function startServer() {
           const durationRaw = await getDuration(rawVideoPath);
           const { hasAudio, sample_rate, channels } = await getAudioDetails(rawVideoPath);
           
+          // Fixed freeze interval of 6 seconds, as explicitly requested by the user
           const freezeInterval = 6;
+          console.log(`Applying Freeze Frame Zoom 2s every ${freezeInterval}s on video of duration ${durationRaw}s...`);
+          
           const freezeTimes: number[] = [];
-          for (let t = freezeInterval; t < durationRaw; t += freezeInterval) {
+          for (let t = freezeInterval; t < durationRaw - 2; t += freezeInterval) {
             freezeTimes.push(t);
           }
           
           if (freezeTimes.length === 0) {
             // Just normalize and output
-            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":cl=" + (channels === 1 ? "mono" : "stereo") + " -c:a aac -shortest"} -y "${videoPath}"`);
+            await execPromise(`ffmpeg -i "${rawVideoPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} ${hasAudio ? "-c:a aac" : "-f lavfi -i anullsrc=r=" + sample_rate + ":cl=" + (channels === 1 ? "mono" : "stereo") + " -c:a aac -shortest"} -y "${videoPath}"`);
           } else {
-            const segmentFiles: string[] = [];
+            // Define concurrency pool helper to limit parallel executions safely
+            const runWithConcurrencyLimit = async <T>(
+              tasks: (() => Promise<T>)[],
+              limit: number
+            ): Promise<T[]> => {
+              const results: T[] = new Array(tasks.length);
+              let currentIndex = 0;
+
+              const worker = async () => {
+                while (currentIndex < tasks.length) {
+                  const index = currentIndex++;
+                  results[index] = await tasks[index]();
+                }
+              };
+
+              const workers = Array.from(
+                { length: Math.min(limit, tasks.length) },
+                () => worker()
+              );
+              await Promise.all(workers);
+              return results;
+            };
+
+            interface SegmentTask {
+              type: 'normal' | 'zoom';
+              index: number;
+              filePath: string;
+              prevTime?: number;
+              segDuration?: number;
+              fTime?: number;
+            }
+
+            const segmentTasks: SegmentTask[] = [];
             let prevTime = 0;
             let currentConcatTime = 0;
-            
+
             for (let i = 0; i < freezeTimes.length; i++) {
               const fTime = freezeTimes[i];
               const segDuration = fTime - prevTime;
               
-              // Normal segment
               const segPath = path.join(tempDir, `part_norm_${tempId}_${i}.mp4`);
-              if (hasAudio) {
-                await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${segPath}"`);
-              } else {
-                await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
-              }
-              segmentFiles.push(segPath);
+              segmentTasks.push({
+                type: 'normal',
+                index: i,
+                filePath: segPath,
+                prevTime,
+                segDuration
+              });
               currentConcatTime += segDuration;
-              
-              // Extract frame
-              const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
-              await execPromise(`ffmpeg -ss ${fTime} -i "${rawVideoPath}" -vframes 1 -q:v 2 -y "${framePath}"`);
-              
-              // Apply subtitle blur to the frame if enabled, so it zooms dynamically with the zoompan
-              if (blurEnabled === true || blurEnabled === 'true') {
-                try {
-                  const cTop = (cropTop || 0) / 100;
-                  const cBottom = (cropBottom || 0) / 100;
-                  const cLeft = (cropLeft || 0) / 100;
-                  const cRight = (cropRight || 0) / 100;
 
-                  const croppedW = originalRes.w * (1 - cLeft - cRight);
-                  const croppedH = originalRes.h * (1 - cTop - cBottom);
-                  const cropYOffset = originalRes.h * cTop;
-
-                  const bWidthVal = blurWidth !== undefined ? blurWidth : 400;
-                  const bHeightVal = blurHeight !== undefined ? blurHeight : 100;
-                  const bYPercent = blurY !== undefined ? blurY : 800;
-
-                  const bw = croppedW * bWidthVal / 1000;
-                  const bh = croppedH * bHeightVal / 1000;
-                  const cropY = cropYOffset + (croppedH * bYPercent / 1000);
-
-                  const bw_trunc = Math.max(2, Math.floor(bw / 2) * 2);
-                  const bh_trunc = Math.max(2, Math.floor(bh / 2) * 2);
-                  const cy_clip = Math.max(0, Math.min(originalRes.h - bh_trunc, Math.floor(cropY)));
-                  const radius = blurIntensity || 10;
-
-                  const frameBlurPath = path.join(tempDir, `frame_blur_${tempId}_${i}.png`);
-                  await execPromise(`ffmpeg -i "${framePath}" -vf "split[v_main][v_blur]; [v_blur]crop=w=${bw_trunc}:h=${bh_trunc}:x=(iw-out_w)/2:y=${cy_clip},boxblur=${radius}:2[blurred]; [v_main][blurred]overlay=x=(W-w)/2:y=${cy_clip}" -y "${frameBlurPath}"`);
-                  
-                  if (fs.existsSync(frameBlurPath)) {
-                    fs.renameSync(frameBlurPath, framePath);
-                  }
-                } catch (blurFrameError) {
-                  console.error("Failed to apply subtitle blur to raw frame:", blurFrameError);
-                }
-              }
-              
-              // Dynamic zoom 2 seconds stretch frame with explicit 30 fps output zoompan, centered
               const zoomPath = path.join(tempDir, `part_zoom_${tempId}_${i}.mp4`);
-              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':x='(iw-iw/max(1,zoom))/2':y='(ih-ih/max(1,zoom))/2':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
-              
-              segmentFiles.push(zoomPath);
+              segmentTasks.push({
+                type: 'zoom',
+                index: i,
+                filePath: zoomPath,
+                fTime
+              });
               zoomIntervals.push({ start: currentConcatTime, end: currentConcatTime + 2.0 });
               currentConcatTime += 2.0;
-              
+
               prevTime = fTime;
             }
-            
-            // Last segment
+
             const lastSegPath = path.join(tempDir, `part_norm_${tempId}_last.mp4`);
             const lastSegDuration = durationRaw - prevTime;
-            if (hasAudio) {
-              await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${lastSegPath}"`);
-            } else {
-              await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${lastSegDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${lastSegPath}"`);
-            }
-            segmentFiles.push(lastSegPath);
-            
+            segmentTasks.push({
+              type: 'normal',
+              index: -1,
+              filePath: lastSegPath,
+              prevTime,
+              segDuration: lastSegDuration
+            });
+
+            // Translate into parallel tasks
+            const tasks = segmentTasks.map(task => {
+              return async () => {
+                if (task.type === 'normal') {
+                  const segPath = task.filePath;
+                  const prevTimeVal = task.prevTime!;
+                  const segDurationVal = task.segDuration!;
+                  if (hasAudio) {
+                    await execPromise(`ffmpeg -ss ${prevTimeVal} -t ${segDurationVal.toFixed(3)} -i "${rawVideoPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -y "${segPath}"`);
+                  } else {
+                    await execPromise(`ffmpeg -ss ${prevTimeVal} -t ${segDurationVal.toFixed(3)} -i "${rawVideoPath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
+                  }
+                } else {
+                  const i = task.index;
+                  const fTimeVal = task.fTime!;
+                  const zoomPath = task.filePath;
+                  
+                  const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
+                  await execPromise(`ffmpeg -ss ${fTimeVal} -i "${rawVideoPath}" -vframes 1 -q:v 2 -vf "scale=${originalRes.w}:${originalRes.h}" -y "${framePath}"`);
+                  
+                  if (blurEnabled === true || blurEnabled === 'true') {
+                    try {
+                      const cTop = Math.min(45, (cropTop || 0)) / 100;
+                      const cBottom = Math.min(45, (cropBottom || 0)) / 100;
+                      const cLeft = Math.min(45, (cropLeft || 0)) / 100;
+                      const cRight = Math.min(45, (cropRight || 0)) / 100;
+
+                      const croppedW = originalRes.w * (1 - cLeft - cRight);
+                      const croppedH = originalRes.h * (1 - cTop - cBottom);
+                      const cropYOffset = originalRes.h * cTop;
+
+                      const bWidthVal = blurWidth !== undefined ? blurWidth : 400;
+                      const bHeightVal = blurHeight !== undefined ? blurHeight : 100;
+                      const bYPercent = blurY !== undefined ? blurY : 800;
+
+                      const bw = croppedW * bWidthVal / 1000;
+                      const bh = croppedH * bHeightVal / 1000;
+                      const cropY = cropYOffset + (croppedH * bYPercent / 1000);
+
+                      const bw_trunc = Math.max(2, Math.min(originalRes.w - 4, Math.floor(bw / 2) * 2));
+                      const bh_trunc = Math.max(2, Math.min(originalRes.h - 4, Math.floor(bh / 2) * 2));
+                      const cy_clip = Math.max(0, Math.min(originalRes.h - bh_trunc - 4, Math.floor(cropY)));
+                      const radius = blurIntensity || 10;
+
+                      const frameBlurPath = path.join(tempDir, `frame_blur_${tempId}_${i}.png`);
+                      await execPromise(`ffmpeg -i "${framePath}" -vf "split[v_main][v_blur]; [v_blur]crop=w=${bw_trunc}:h=${bh_trunc}:x=(iw-${bw_trunc})/2:y=${cy_clip},boxblur=${radius}:2[blurred]; [v_main][blurred]overlay=x=(W-${bw_trunc})/2:y=${cy_clip}" -y "${frameBlurPath}"`);
+                      
+                      if (fs.existsSync(frameBlurPath)) {
+                        fs.renameSync(frameBlurPath, framePath);
+                      }
+                    } catch (blurFrameError) {
+                      console.error(`Failed to apply subtitle blur to frame ${i}:`, blurFrameError);
+                    }
+                  }
+                  
+                  await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':x='(iw-iw/max(1,zoom))/2':y='(ih-ih/max(1,zoom))/2':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
+                  
+                  if (fs.existsSync(framePath)) {
+                    await unlinkPromise(framePath);
+                  }
+                }
+              };
+            });
+
+            // Limit processing concurrency to 3 to optimize CPU utilization without throttling
+            await runWithConcurrencyLimit(tasks, 3);
+
+            const segmentFiles = segmentTasks.map(t => t.filePath);
+
             // Concat segments
             const concatTxtPath = path.join(tempDir, `concat_${tempId}.txt`);
             const concatContent = segmentFiles.map(f => `file '${path.resolve(f).replace(/'/g, "'\\''")}'`).join('\n');
@@ -550,17 +615,28 @@ async function startServer() {
             for (const file of segmentFiles) {
               if (fs.existsSync(file)) await unlinkPromise(file);
             }
-            for (let i = 0; i < freezeTimes.length; i++) {
-              const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
-              if (fs.existsSync(framePath)) await unlinkPromise(framePath);
-            }
             if (fs.existsSync(concatTxtPath)) await unlinkPromise(concatTxtPath);
           }
         } catch (error) {
           console.error("Freeze zoom processing failed, falling back to original video:", error);
           fs.copyFileSync(rawVideoPath, videoPath);
+          zoomIntervals.length = 0; // Reset zoom intervals so static blur works normally on the original fallback video
         } finally {
           if (fs.existsSync(rawVideoPath)) await unlinkPromise(rawVideoPath);
+          // Complete cleanup of any stray segment files to prevent disk usage overflow and memory pressure
+          try {
+            const files = fs.readdirSync(tempDir);
+            for (const file of files) {
+              if (file.includes(`_${tempId}_`) || file.includes(`_${tempId}.txt`)) {
+                const fullP = path.join(tempDir, file);
+                if (fs.existsSync(fullP)) {
+                  fs.unlinkSync(fullP);
+                }
+              }
+            }
+          } catch (cleanE) {
+            console.error("Stray files cleanup failed:", cleanE);
+          }
         }
       }
 
