@@ -1623,7 +1623,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center border border-red-500/20">
               <Sparkles className="w-4 h-4 text-red-400" />
             </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Subtitle Blur" : "စာတန်းထိုး Blur အုပ်ရန်"}</h2>
+            <h2 className="text-lg font-black tracking-tight">{lang === "EN" ? "Blur" : "Blur"}</h2>
           </div>
 
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
@@ -1674,9 +1674,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {translations[lang].recapMaster.freezeFrameZoomDesc}
-                </label>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setFreezeFrameZoomEnabled(!freezeFrameZoomEnabled)}
@@ -1734,7 +1731,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
               <Subtitles className="w-4 h-4 text-cyan-400" />
             </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Subtitle Customization" : "စာတန်းထိုး စိတ်ကြိုက်ပြင်ဆင်ခြင်း"}</h2>
+            <h2 className="text-lg font-black tracking-tight">{lang === "EN" ? "Subtitle" : "Subtitle"}</h2>
           </div>
 
           <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
