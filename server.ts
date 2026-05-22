@@ -535,6 +535,13 @@ async function startServer() {
               segDuration: lastSegDuration
             });
 
+            // Define safeNum helper specifically for number parsing robustly
+            const safeNum = (val: any, fallback: number): number => {
+              if (val === undefined || val === null || val === "") return fallback;
+              const parsed = Number(val);
+              return isNaN(parsed) ? fallback : parsed;
+            };
+
             // Translate into parallel tasks
             const tasks = segmentTasks.map(task => {
               return async () => {
@@ -553,22 +560,21 @@ async function startServer() {
                   const zoomPath = task.filePath;
                   
                   const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
-                  await execPromise(`ffmpeg -ss ${fTimeVal} -i "${rawVideoPath}" -vframes 1 -q:v 2 -vf "scale=${originalRes.w}:${originalRes.h}" -y "${framePath}"`);
                   
                   if (blurEnabled === true || blurEnabled === 'true') {
                     try {
-                      const cTop = Math.min(45, (cropTop || 0)) / 100;
-                      const cBottom = Math.min(45, (cropBottom || 0)) / 100;
-                      const cLeft = Math.min(45, (cropLeft || 0)) / 100;
-                      const cRight = Math.min(45, (cropRight || 0)) / 100;
+                      const cTop = Math.min(45, safeNum(cropTop, 0)) / 100;
+                      const cBottom = Math.min(45, safeNum(cropBottom, 0)) / 100;
+                      const cLeft = Math.min(45, safeNum(cropLeft, 0)) / 100;
+                      const cRight = Math.min(45, safeNum(cropRight, 0)) / 100;
 
                       const croppedW = originalRes.w * (1 - cLeft - cRight);
                       const croppedH = originalRes.h * (1 - cTop - cBottom);
                       const cropYOffset = originalRes.h * cTop;
 
-                      const bWidthVal = blurWidth !== undefined ? blurWidth : 400;
-                      const bHeightVal = blurHeight !== undefined ? blurHeight : 100;
-                      const bYPercent = blurY !== undefined ? blurY : 800;
+                      const bWidthVal = safeNum(blurWidth, 400);
+                      const bHeightVal = safeNum(blurHeight, 100);
+                      const bYPercent = safeNum(blurY, 800);
 
                       const bw = croppedW * bWidthVal / 1000;
                       const bh = croppedH * bHeightVal / 1000;
@@ -579,17 +585,19 @@ async function startServer() {
                       const cy_clip = Math.max(0, Math.min(originalRes.h - bh_trunc - 4, Math.floor(cropY)));
                       const radius = blurIntensity || 10;
 
-                      const frameBlurPath = path.join(tempDir, `frame_blur_${tempId}_${i}.png`);
-                      await execPromise(`ffmpeg -i "${framePath}" -vf "split[v_main][v_blur]; [v_blur]crop=w=${bw_trunc}:h=${bh_trunc}:x=(iw-${bw_trunc})/2:y=${cy_clip},boxblur=${radius}:2[blurred]; [v_main][blurred]overlay=x=(W-${bw_trunc})/2:y=${cy_clip}" -y "${frameBlurPath}"`);
-                      
-                      if (fs.existsSync(frameBlurPath)) {
-                        fs.renameSync(frameBlurPath, framePath);
-                      }
+                      // Combined extract + scale + blur in a single high-performance ffmpeg command
+                      await execPromise(`ffmpeg -ss ${fTimeVal} -i "${rawVideoPath}" -vframes 1 -q:v 2 -vf "scale=${originalRes.w}:${originalRes.h},split[v_main][v_blur]; [v_blur]crop=w=${bw_trunc}:h=${bh_trunc}:x=(iw-${bw_trunc})/2:y=${cy_clip},boxblur=${radius}:2[blurred]; [v_main][blurred]overlay=x=(W-${bw_trunc})/2:y=${cy_clip}" -y "${framePath}"`);
                     } catch (blurFrameError) {
                       console.error(`Failed to apply subtitle blur to frame ${i}:`, blurFrameError);
+                      // Fallback: extract and scale without blur if combined execution failed
+                      await execPromise(`ffmpeg -ss ${fTimeVal} -i "${rawVideoPath}" -vframes 1 -q:v 2 -vf "scale=${originalRes.w}:${originalRes.h}" -y "${framePath}"`);
                     }
+                  } else {
+                    // Extract and scale without blur
+                    await execPromise(`ffmpeg -ss ${fTimeVal} -i "${rawVideoPath}" -vframes 1 -q:v 2 -vf "scale=${originalRes.w}:${originalRes.h}" -y "${framePath}"`);
                   }
                   
+                  // Zoom pan to generate 2s segment video
                   await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':x='(iw-iw/max(1,zoom))/2':y='(ih-ih/max(1,zoom))/2':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
                   
                   if (fs.existsSync(framePath)) {
