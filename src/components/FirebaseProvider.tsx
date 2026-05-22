@@ -12,6 +12,7 @@ interface FirebaseContextType {
   diamonds: number;
   incrementUsage: () => Promise<void>;
   deductDiamonds: (amount: number) => Promise<boolean>;
+  refundDiamonds: (amount: number) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -110,8 +111,22 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refundDiamonds = async (amount: number) => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    try {
+      await updateDoc(userRef, {
+        diamonds: increment(amount),
+        lastUsed: serverTimestamp()
+      });
+      setDiamonds(prev => prev + amount);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
   return (
-    <FirebaseContext.Provider value={{ user, loading, usageCount, role, diamonds, incrementUsage, deductDiamonds, logout }}>
+    <FirebaseContext.Provider value={{ user, loading, usageCount, role, diamonds, incrementUsage, deductDiamonds, refundDiamonds, logout }}>
       {children}
     </FirebaseContext.Provider>
   );

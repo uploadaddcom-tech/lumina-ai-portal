@@ -933,7 +933,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   );
 }
 
-function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClose: () => void, lang: Language }) {
+function OutOfDiamondsModal({ isOpen, onClose, lang, requiredCost = 10 }: { isOpen: boolean, onClose: () => void, lang: Language, requiredCost?: number }) {
   if (!isOpen) return null;
   return (
     <AnimatePresence>
@@ -958,8 +958,8 @@ function OutOfDiamondsModal({ isOpen, onClose, lang }: { isOpen: boolean, onClos
             </h2>
             <p className="text-slate-400 text-xs font-bold tracking-widest leading-relaxed">
               {lang === "EN" 
-                ? "You need at least 10 diamonds to generate a recap. Please contact us to buy more." 
-                : "Recap ထုတ်လုပ်ရန် Diamond ၁၀ ခု လိုအပ်ပါသည်။ Diamond ထပ်ဝယ်ရန် ကျွန်ုပ်တို့ကို ဆက်သွယ်ပါ။"}
+                ? `You need at least ${requiredCost} diamonds to generate a recap. Please contact us to buy more.` 
+                : `Recap ထုတ်လုပ်ရန် Diamond ${requiredCost} ခု လိုအပ်ပါသည်။ Diamond ထပ်ဝယ်ရန် ကျွန်ုပ်တို့ကို ဆက်သွယ်ပါ။`}
             </p>
           </div>
           <div className="space-y-3">
@@ -1099,7 +1099,7 @@ function AdminSecondaryLoginView({ onSuccess, onBack, lang }: { onSuccess: () =>
 }
 
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
-  const { user, incrementUsage, deductDiamonds, diamonds } = useFirebase();
+  const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -1202,10 +1202,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     });
   };
 
+  const requiredCost = file ? Math.max(1, Math.ceil((duration || 0) / 10)) : 10;
+
   const handleGenerate = async () => {
     if (!file) return;
 
-    if (diamonds < 10) {
+    if (diamonds < requiredCost) {
       setShowDiamondModal(true);
       return;
     }
@@ -1214,16 +1216,19 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     setError(null);
     setResult(null);
     setVoiceoverAudioUrl(null);
+    setMergedVideoUrl(null);
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+    let deducted = false;
 
     try {
-      const success = await deductDiamonds(10);
+      const success = await deductDiamonds(requiredCost);
       if (!success) {
         setShowDiamondModal(true);
         setIsGenerating(false);
         return;
       }
+      deducted = true;
 
       const base64 = await fileToBase64(file);
       const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
@@ -1252,18 +1257,29 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
 
-            // Auto trigger merge
-            performMerge(file, url, recapValue);
+            // Auto trigger merge and await its completion so any errors are caught here
+            await performMerge(file, url, recapValue);
+          } else {
+            throw new Error("No voiceover audio data returned from api");
           }
         } catch (vErr) {
-          console.error("Auto voiceover failed:", vErr);
+          console.error("Auto voiceover / merge failed:", vErr);
+          throw vErr;
         } finally {
           setIsVoiceoverGenerating(false);
         }
+      } else {
+        throw new Error("No recap script returned from api");
       }
     } catch (err) {
       console.error(err);
       setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      
+      // Auto-refund immediately if we managed to deduct but failed to produce final video
+      if (deducted) {
+        console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
+        await refundDiamonds(requiredCost);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -1374,11 +1390,17 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       if (jobId) {
         // Use generic helper
         const job = await pollForCompletion(jobId);
+        if (!job.downloadUrl) {
+          throw new Error("No download url was returned for the merged video");
+        }
         setMergedVideoUrl(job.downloadUrl);
+      } else {
+        throw new Error("No Merge job ID returned");
       }
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Something went wrong during merging");
+      throw err;
     } finally {
       setIsMerging(false);
     }
@@ -1392,7 +1414,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   return (
     <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
-      <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} />
+      <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -2554,7 +2576,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 ) : (
                   <DiamondIcon className="w-6 h-6 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
                 )}
-                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : `${t.generate} (10 Dia)`}
+                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : `${t.generate} (${requiredCost} Dia)`}
                </div>
             </button>
           </div>
