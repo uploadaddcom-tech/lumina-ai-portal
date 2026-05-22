@@ -1682,6 +1682,49 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           </div>
         </section>
 
+        {/* Subtitle Customization Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+              <Subtitles className="w-4 h-4 text-cyan-400" />
+            </div>
+            <h2 className="text-lg font-black tracking-tight">{lang === "EN" ? "Subtitle" : "Subtitle"}</h2>
+          </div>
+
+          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
+                  {lang === "EN" ? "Subtitle" : "စာတန်းထိုး"}
+                </label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setSubtitleEnabled(!subtitleEnabled)}
+                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
+                      subtitleEnabled ? "bg-cyan-600/20 border-cyan-500/30 text-cyan-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    <Subtitles className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {subtitleEnabled ? (lang === "EN" ? "Subtitle Enabled" : "စာတန်းထိုး ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Subtitle" : "စာတန်းထိုး ဖွင့်ရန်")}
+                    </span>
+                  </button>
+
+                  {subtitleEnabled && (
+                    <button 
+                      onClick={() => setShowSubtitleSettings(true)}
+                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                    >
+                      <Star className="w-4 h-4" />
+                      {lang === "EN" ? "Settings" : "Setting ချိန်ရန်"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Freeze Frame Zoom Section */}
         <section className="space-y-4">
           <div className="flex items-center gap-3 text-white">
@@ -1741,49 +1784,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       {glowingSweepEnabled ? (lang === "EN" ? "Glow Sweep Enabled" : "အလင်းတန်း ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Glow Sweep" : "အလင်းတန်း ဖွင့်ရန်")}
                     </span>
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Subtitle Customization Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-              <Subtitles className="w-4 h-4 text-cyan-400" />
-            </div>
-            <h2 className="text-lg font-black tracking-tight">{lang === "EN" ? "Subtitle" : "Subtitle"}</h2>
-          </div>
-
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Subtitle" : "စာတန်းထိုး"}
-                </label>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setSubtitleEnabled(!subtitleEnabled)}
-                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                      subtitleEnabled ? "bg-cyan-600/20 border-cyan-500/30 text-cyan-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
-                    }`}
-                  >
-                    <Subtitles className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">
-                      {subtitleEnabled ? (lang === "EN" ? "Subtitle Enabled" : "စာတန်းထိုး ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Subtitle" : "စာတန်းထိုး ဖွင့်ရန်")}
-                    </span>
-                  </button>
-
-                  {subtitleEnabled && (
-                    <button 
-                      onClick={() => setShowSubtitleSettings(true)}
-                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
-                    >
-                      <Star className="w-4 h-4" />
-                      {lang === "EN" ? "Settings" : "Setting ချိန်ရန်"}
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
