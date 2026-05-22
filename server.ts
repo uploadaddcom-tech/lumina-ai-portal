@@ -435,6 +435,7 @@ async function startServer() {
       };
 
       // Apply Freeze Frame Zoom if enabled
+      const zoomIntervals: { start: number; end: number }[] = [];
       if (freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === 'true') {
         console.log("Applying Freeze Frame Zoom 2s every 6s on video...");
         const rawVideoPath = path.join(tempDir, `video_raw_${tempId}.mp4`);
@@ -461,6 +462,7 @@ async function startServer() {
           } else {
             const segmentFiles: string[] = [];
             let prevTime = 0;
+            let currentConcatTime = 0;
             
             for (let i = 0; i < freezeTimes.length; i++) {
               const fTime = freezeTimes[i];
@@ -474,6 +476,7 @@ async function startServer() {
                 await execPromise(`ffmpeg -i "${rawVideoPath}" -ss ${prevTime} -t ${segDuration.toFixed(3)} -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -s ${originalRes.w}x${originalRes.h} -c:a aac -ar ${sample_rate} -ac ${channels} -shortest -y "${segPath}"`);
               }
               segmentFiles.push(segPath);
+              currentConcatTime += segDuration;
               
               // Extract frame
               const framePath = path.join(tempDir, `frame_${tempId}_${i}.png`);
@@ -515,11 +518,14 @@ async function startServer() {
                 }
               }
               
-              // Dynamic zoom 2 seconds stretch frame with explicit 30 fps output zoompan
+              // Dynamic zoom 2 seconds stretch frame with explicit 30 fps output zoompan, centered
               const zoomPath = path.join(tempDir, `part_zoom_${tempId}_${i}.mp4`);
-              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
+              await execPromise(`ffmpeg -loop 1 -i "${framePath}" -f lavfi -i anullsrc=r=${sample_rate}:cl=${channels === 1 ? 'mono' : 'stereo'} -vf "zoompan=z='1.00+0.15*on/60':x='(iw-ow)/2':y='(ih-oh)/2':d=60:fps=30:s=${originalRes.w}x${originalRes.h},format=yuv420p" -c:v libx264 -pix_fmt yuv420p -r 30 -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -ar ${sample_rate} -ac ${channels} -t 2 -y "${zoomPath}"`);
               
               segmentFiles.push(zoomPath);
+              zoomIntervals.push({ start: currentConcatTime, end: currentConcatTime + 2.0 });
+              currentConcatTime += 2.0;
+              
               prevTime = fTime;
             }
             
@@ -715,9 +721,21 @@ async function startServer() {
         const cropY = `(ih*${byValue}/1000)`;
         const overlayY = `(H*${byValue}/1000)`;
         
+        // Disable the global static blur overlay during freeze-frame zooms since those are already blurred dynamically.
+        // Account for 1.05x speed-up timeline compression in Stage 1.
+        let enableExpr = "";
+        if (zoomIntervals && zoomIntervals.length > 0) {
+          const parts = zoomIntervals.map(interval => {
+            const startScaled = interval.start / 1.05;
+            const endScaled = interval.end / 1.05;
+            return `not(between(t,${startScaled.toFixed(3)},${endScaled.toFixed(3)}))`;
+          });
+          enableExpr = `:enable='${parts.join("*")}'`;
+        }
+        
         vFilters.push(`${lastV}split[v_main][v_blur]`);
         vFilters.push(`[v_blur]crop=w='trunc(min(iw,${bw})/2)*2':h='trunc(min(ih,${bh})/2)*2':x='(iw-out_w)/2':y='clip(${cropY},0,ih-out_h)',boxblur=${radius}:2[blurred]`);
-        vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'[bv]`);
+        vFilters.push(`[v_main][blurred]overlay=x=(W-w)/2:y='clip(${overlayY},0,H-h)'${enableExpr}[bv]`);
         lastV = "[bv]";
       }
 
