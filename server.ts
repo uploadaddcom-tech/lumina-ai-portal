@@ -796,7 +796,7 @@ async function startServer() {
         }
       }
       const effectiveLogoScale = effectiveRes.w / 400;
-      const effectiveFontScale = effectiveRes.w / 400;
+      const effectiveFontScale = Math.max(effectiveRes.w / 400, effectiveRes.h / 225);
 
       // Stage 2: Blur
       if (blurEnabled) {

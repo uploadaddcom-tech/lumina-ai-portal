@@ -2341,6 +2341,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                           aspectRatio: videoRatio.replace(':', '/'),
                           maxHeight: '100%',
                           maxWidth: '100%',
+                          containerType: 'inline-size'
                         }}
                       >
                         <div 
@@ -2399,7 +2400,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             style={{
                               backgroundColor: `${subtitleBoxColor}99`, // Approx 0.6 opacity
                               color: subtitleColor,
-                              fontSize: `${Math.max(8, subtitleFontSize * 0.4)}px`,
+                              fontSize: (() => {
+                                const [rw, rh] = videoRatio.split(':').map(Number);
+                                const cqwFactor = Math.max(0.25, (rh / rw) / 2.25);
+                                return `${Math.max(8, subtitleFontSize * 0.4) * cqwFactor}cqw`;
+                              })(),
                               fontFamily: subtitleFont,
                               lineHeight: '1.5'
                             }}
