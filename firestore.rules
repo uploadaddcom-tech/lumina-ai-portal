@@ -72,16 +72,15 @@ service cloud.firestore {
                           incoming().role == existing().role &&
                           incoming().diamonds == existing().diamonds
                         ) ||
-                        // Action: Diamond Deduction (Owner only)
+                        // Action: Diamond Update (Owner only - handles dynamic deduction and refunds)
                         (
                           isOwner(userId) &&
                           incoming().diff(existing()).affectedKeys().hasOnly(['diamonds', 'lastUsed']) &&
-                          incoming().diamonds == existing().diamonds - 10 &&
-                          incoming().lastUsed == request.time &&
                           incoming().uid == existing().uid &&
                           incoming().email == existing().email &&
                           incoming().role == existing().role &&
-                          incoming().usageCount == existing().usageCount
+                          incoming().usageCount == existing().usageCount &&
+                          incoming().lastUsed == request.time
                         ) ||
                         // Action: Profile Sync (Owner only)
                         (
