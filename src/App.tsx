@@ -1133,6 +1133,26 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const [subtitleBoxColor, setSubtitleBoxColor] = useState("#000000");
     const [subtitleY, setSubtitleY] = useState(90);
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+
+    // Dynamic Live Preview Tracking
+    const previewRef = useRef<HTMLDivElement>(null);
+    const [previewSize, setPreviewSize] = useState({ w: 400, h: 225 });
+
+    useEffect(() => {
+      if (!previewRef.current) return;
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            setPreviewSize({
+              w: entry.contentRect.width,
+              h: entry.contentRect.height
+            });
+          }
+        }
+      });
+      observer.observe(previewRef.current);
+      return () => observer.disconnect();
+    }, [showSubtitleSettings, videoRatio]);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   
@@ -2334,14 +2354,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     {/* Visual Preview Side */}
                     <div className="relative flex-none h-[220px] md:h-auto md:flex-1 bg-black flex items-center justify-center overflow-hidden p-4 md:p-12">
                       <motion.div 
+                        ref={previewRef}
                         layout
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="relative shadow-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-white/10"
                         style={{
                           aspectRatio: videoRatio.replace(':', '/'),
                           maxHeight: '100%',
-                          maxWidth: '100%',
-                          containerType: 'inline-size'
+                          maxWidth: '100%'
                         }}
                       >
                         <div 
@@ -2400,11 +2420,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             style={{
                               backgroundColor: `${subtitleBoxColor}99`, // Approx 0.6 opacity
                               color: subtitleColor,
-                              fontSize: (() => {
-                                const [rw, rh] = videoRatio.split(':').map(Number);
-                                const cqwFactor = Math.max(0.25, (rh / rw) / 2.25);
-                                return `${Math.max(8, subtitleFontSize * 0.4) * cqwFactor}cqw`;
-                              })(),
+                              fontSize: `${Math.max(8, subtitleFontSize * 0.4) * Math.max(previewSize.w / 400, previewSize.h / 225)}px`,
                               fontFamily: subtitleFont,
                               lineHeight: '1.5'
                             }}
