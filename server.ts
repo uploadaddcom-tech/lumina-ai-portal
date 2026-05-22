@@ -335,6 +335,7 @@ async function startServer() {
         subtitleFontSize,
         subtitleFont,
         subtitleBoxColor,
+        subtitleY,
         glowingSweepEnabled,
         freezeFrameZoomEnabled,
         apiKey: customKey
@@ -945,8 +946,10 @@ async function startServer() {
           
           const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
           const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
+          const subYPercent = typeof subtitleY === "number" ? subtitleY : 90;
+          const subYFact = (subYPercent / 100).toFixed(3);
           // Use the provided box color with 0.6 opacity
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*0.9:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*${subYFact}:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           svIndex++;

@@ -98,6 +98,7 @@ const api = {
     subtitleFontSize?: number,
     subtitleFont?: string,
     subtitleBoxColor?: string,
+    subtitleY?: number,
     glowingSweepEnabled?: boolean,
     freezeFrameZoomEnabled?: boolean,
     apiKey?: string
@@ -130,6 +131,7 @@ const api = {
         subtitleFontSize,
         subtitleFont,
         subtitleBoxColor,
+        subtitleY,
         glowingSweepEnabled,
         freezeFrameZoomEnabled,
         apiKey
@@ -1153,6 +1155,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const [subtitleFontSize, setSubtitleFontSize] = useState(24);
     const [subtitleFont, setSubtitleFont] = useState("Padauk");
     const [subtitleBoxColor, setSubtitleBoxColor] = useState("#000000");
+    const [subtitleY, setSubtitleY] = useState(90);
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -1362,6 +1365,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         subtitleFontSize,
         subtitleFont,
         subtitleBoxColor,
+        subtitleY,
         glowingSweepEnabled,
         freezeFrameZoomEnabled,
         apiKey
@@ -2382,9 +2386,21 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         </div>
                         
                         {/* Subtitle Preview Overlay */}
-                        <div className="absolute bottom-6 md:bottom-12 left-0 right-0 px-2 md:px-8 flex flex-col items-center gap-2 pointer-events-none">
+                        <div 
+                          className="absolute px-2 pointer-events-none"
+                          style={{
+                            top: `${subtitleY}%`,
+                            left: '50%',
+                            transform: `translate(-50%, -${subtitleY}%)`,
+                            width: '90%',
+                            zIndex: 10,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center'
+                          }}
+                        >
                           <div 
-                            className="backdrop-blur-md px-6 py-2 rounded-xl border border-white/10 text-center max-w-[90%]"
+                            className="backdrop-blur-md px-6 py-2 rounded-xl border border-white/10 text-center max-w-full"
                             style={{
                               backgroundColor: `${subtitleBoxColor}99`, // Approx 0.6 opacity
                               color: subtitleColor,
@@ -2465,6 +2481,23 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                             max="100" 
                             value={subtitleFontSize} 
                             onChange={(e) => setSubtitleFontSize(parseInt(e.target.value))}
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                              {lang === "EN" ? "Vertical Position" : "စာတန်းထိုး အပေါ်အောက် နေရာ"}
+                            </label>
+                            <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">{subtitleY}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="5" 
+                            max="95" 
+                            value={subtitleY} 
+                            onChange={(e) => setSubtitleY(parseInt(e.target.value))}
                             className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                           />
                         </div>
