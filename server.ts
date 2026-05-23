@@ -842,6 +842,8 @@ async function startServer() {
           targetFontFile = "Aka07-Bold.ttf";
         } else if (subtitleFont === "M01 PuPu") {
           targetFontFile = "M01_PuPu-Regular.ttf";
+        } else if (subtitleFont === "Tharlon") {
+          targetFontFile = "Tharlon-Regular.ttf";
         }
 
         const fontPaths = [

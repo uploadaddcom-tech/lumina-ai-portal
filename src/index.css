@@ -36,6 +36,13 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Tharlon';
+  src: url('/Tharlon-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
