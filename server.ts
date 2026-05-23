@@ -130,6 +130,10 @@ async function startServer() {
         const wpm = freezeFrameZoomEnabled ? 225 : 175;
         const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
         
+        // Compensate for Myanmar script under-generation by requesting higher syllable density and detailed narration
+        const myanmarWpm = Math.floor(wpm * 1.3);
+        const myanmarWordCount = duration ? Math.floor((duration / 60) * myanmarWpm) : myanmarWpm;
+        
         const constraintPrompt = lang === "EN"
           ? `Constraints:
              - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds).
@@ -139,13 +143,14 @@ async function startServer() {
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
+             - Script အရှည် - စကားလုံးရေ/အသံထွက် (syllables) အနည်းဆုံး ${myanmarWordCount} လုံး တိကျစွာ ရေးသားပေးရမည်။ (ဗီဒီယို ၁ မိနစ်လျှင် အသံထွက် ၈ စက္ကန့်စာ သို့မဟုတ် စကားလုံး ${wpm} လုံး နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားရာ၊ စုစုပေါင်း အသံထွက် ${myanmarWordCount} ခု ခန့် ထွက်ရှိအောင် အသေးစိတ် ချဲ့ထွင်ရေးပေးရန် သတိပြုပါ)။
+             - အရေးကြီးသည် - စာသားတိုလွန်းပါက အသံဖတ်ရာတွင် စောစီးစွာ ပြီးသွားပါလိမ့်မည်။ ထို့ကြောင့် ဗီဒီယိုထဲမှ အကြောင်းအရာများ၊ လုပ်ဆောင်ချက်များ၊ မြင်ကွင်းများနှင့် ဇာတ်ကောင်များ၏ အမူအရာများကို အလွန်အသေးစိတ်ကျကျ ပုံပြင်ပြောသလို စိတ်ဝင်စားဖွယ် ချဲ့ထွင်ပြီး လုံလောက်သော အရှည်ပမာဏ ရရှိအောင် ရှည်ရှည်လျားလျား ရေးသားပေးပါ။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
              - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
              - Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
-             - Voiceover အنهဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+             - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
 
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
