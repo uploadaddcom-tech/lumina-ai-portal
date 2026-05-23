@@ -71,7 +71,71 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
+async function registerFonts() {
+  console.log("Registering custom Myanmar fonts in system Fontconfig...");
+  const fontsToRegister = [
+    "Padauk-Bold.ttf",
+    "TU01_PannYeat-Regular.ttf",
+    "SM04_Moon-Bold.ttf",
+    "Aka07-Bold.ttf",
+    "M01_PuPu-Regular.ttf"
+  ];
+
+  const targetDirs = [
+    "/usr/share/fonts/truetype/lumina",
+    path.join(process.env.HOME || "/root", ".local/share/fonts"),
+    path.join(process.env.HOME || "/root", ".fonts")
+  ];
+
+  let selectedDir = "";
+  for (const dir of targetDirs) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      // test write permission
+      const testFile = path.join(dir, ".test_write");
+      fs.writeFileSync(testFile, "test");
+      fs.unlinkSync(testFile);
+      selectedDir = dir;
+      console.log(`Using writable font directory: ${selectedDir}`);
+      break;
+    } catch (e) {
+      console.warn(`Directory ${dir} not writable, trying next...`);
+    }
+  }
+
+  if (!selectedDir) {
+    console.warn("No writable standard font directories found! Fonts might not register correctly.");
+    return;
+  }
+
+  for (const font of fontsToRegister) {
+    const srcPath = path.join(process.cwd(), font);
+    if (fs.existsSync(srcPath)) {
+      const destPath = path.join(selectedDir, font);
+      try {
+        fs.copyFileSync(srcPath, destPath);
+        console.log(`Copied ${font} to ${destPath}`);
+      } catch (err) {
+        console.error(`Failed to copy font ${font}:`, err);
+      }
+    } else {
+      console.warn(`Font file not found in build directory: ${srcPath}`);
+    }
+  }
+
+  try {
+    console.log("Executing fc-cache to rebuild font cache...");
+    const { stdout, stderr } = await execPromise("fc-cache -fv");
+    console.log("fc-cache command execution output:", stdout || stderr);
+  } catch (err: any) {
+    console.warn("fc-cache failed (might be headless system or fc-cache is missing):", err.message);
+  }
+}
+
 async function startServer() {
+  // Register Myanmar fonts on startup to enable correct Harfbuzz Unicode text shaping
+  await registerFonts();
+
   const app = express();
   const PORT = 3000;
 
@@ -829,38 +893,20 @@ async function startServer() {
 
       // Stage 3: Sync Subtitles with AI Timestamps
       if (subtitleEnabled && subtitleText) {
-        let targetFontFile = "Padauk-Bold.ttf";
-        let assFontFamily = "Padauk";
+        let fontFamily = "Padauk";
         if (subtitleFont === "TU01 PannYeat") {
-          targetFontFile = "TU01_PannYeat-Regular.ttf";
-          assFontFamily = "TU01 PannYeat";
+          fontFamily = "TU01 PannYeat";
         } else if (subtitleFont === "SM04 Moon") {
-          targetFontFile = "SM04_Moon-Bold.ttf";
-          assFontFamily = "SM04 Moon";
+          fontFamily = "SM04 Moon";
         } else if (subtitleFont === "Aka07") {
-          targetFontFile = "Aka07-Bold.ttf";
-          assFontFamily = "Aka07";
+          fontFamily = "Aka07";
         } else if (subtitleFont === "M01 PuPu") {
-          targetFontFile = "M01_PuPu-Regular.ttf";
-          assFontFamily = "M01 PuPu";
+          fontFamily = "M01 PuPu";
         }
 
-        const fontPaths = [
-          path.join(process.cwd(), targetFontFile),
-          path.join(__dirname, targetFontFile),
-          path.join(process.cwd(), "Padauk-Bold.ttf"),
-          path.join(__dirname, "Padauk-Bold.ttf"),
-          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
-          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
-        ];
-
-        let hasFontFile = false;
-        for (const fp of fontPaths) {
-          if (fs.existsSync(fp)) {
-            hasFontFile = true;
-            break;
-          }
-        }
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 24) * 0.4);
+        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
 
         let svChunks: { text: string; start_time: number; end_time: number }[] = [];
 
@@ -921,87 +967,59 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // Now, let's write an ASS file
-        const hexToAssColor = (hex: string) => {
-          let cleanHex = hex.replace('#', '');
-          if (cleanHex.length === 3) {
-            cleanHex = cleanHex[0] + cleanHex[0] + cleanHex[1] + cleanHex[1] + cleanHex[2] + cleanHex[2];
-          }
-          if (cleanHex.length !== 6) {
-            return "FFFFFF";
-          }
-          const r = cleanHex.substring(0, 2);
-          const g = cleanHex.substring(2, 4);
-          const b = cleanHex.substring(4, 6);
-          return `${b}${g}${r}`;
-        };
-
-        const formatSrtTime = (seconds: number): string => {
-          const hrs = Math.floor(seconds / 3600);
-          const mins = Math.floor((seconds % 3600) / 60);
-          const secs = Math.floor(seconds % 60);
-          const ms = Math.min(99, Math.floor((seconds % 1) * 100));
-          
-          const pad = (num: number, sz: number = 2) => String(num).padStart(sz, '0');
-          return `${hrs}:${pad(mins)}:${pad(secs)}.${pad(ms, 2)}`;
-        };
-
-        const resW = effectiveRes.w;
-        const resH = effectiveRes.h;
-        
-        // Font sizing calculations
-        const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 24) * 0.4);
-        const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
-
-        const primaryColorBGR = hexToAssColor(subtitleColor || "#ffffff");
-        const backColorBGR = hexToAssColor(subtitleBoxColor || "#000000");
-        
-        const primaryAlpha = "00"; // fully opaque text
-        const backAlpha = "66";    // 60% opaque (40% transparent) background box
-        
-        const subYPercent = typeof subtitleY === "number" ? subtitleY : 90;
-        const marginV = Math.max(5, Math.floor(resH * (1 - subYPercent / 100)));
-
-        const assHeader = `[Script Info]
-Title: Lumina AI Generated Subtitles
-ScriptType: v4.00+
-WrapStyle: 0
-PlayResX: ${resW}
-PlayResY: ${resH}
-ScaledBorderAndShadow: yes
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${assFontFamily},${fSize},&H${primaryAlpha}${primaryColorBGR},&H000000FF,&H00000000,&H${backAlpha}${backColorBGR},1,0,0,0,100,100,0,0,3,0,0,2,15,15,${marginV},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-`;
-
-        let assDialogues = "";
+        let svIndex = 0;
         for (const chunk of svChunks) {
           if (!chunk.text.trim()) continue;
           
-          const startStr = formatSrtTime(chunk.start_time);
-          const endStr = formatSrtTime(chunk.end_time);
+          const wrapText = (text: string, maxLen: number) => {
+            const words = text.split(/\s+/);
+            let lines = [];
+            let currentLine = "";
+            words.forEach(word => {
+              if ((currentLine + word).length > maxLen) {
+                lines.push(currentLine.trim());
+                currentLine = word + " ";
+              } else {
+                currentLine += word + " ";
+              }
+            });
+            if (currentLine) lines.push(currentLine.trim());
+            return lines;
+          };
+
+          const getVisualLength = (str: string) => {
+            // Myanmar combining marks heuristic: ignore non-spacing marks for visual width estimation
+            return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
+          };
+
+          const lines = wrapText(chunk.text.trim(), 40);
+          const visualLengths = lines.map(getVisualLength);
+          const maxWidth = Math.max(...visualLengths);
           
-          const textEscaped = chunk.text.trim()
-            .replace(/\r?\n/g, '\\N')
-            .replace(/[{}]/g, ''); // prevent injection
-            
-          assDialogues += `Dialogue: 0,${startStr},${endStr},Default,,0,0,0,,${textEscaped}\n`;
+          const centeredLines = lines.map((l, idx) => {
+            const padSize = Math.max(0, Math.floor((maxWidth - visualLengths[idx]) / 2));
+            const pad = " ".repeat(padSize);
+            return `${pad}${l}${pad}`;
+          });
+          // Add tighter horizontal padding to the lines
+          const wrapped = centeredLines.map(l => ` ${l} `).join('\n');
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
+          await writeFilePromise(chunkPath, wrapped);
+          
+          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
+          const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
+          const subYPercent = typeof subtitleY === "number" ? subtitleY : 90;
+          const subYFact = (subYPercent / 100).toFixed(3);
+          
+          // Use Fontconfig registered name for correct Harfbuzz Unicode text shaping
+          const fontArg = `:font='${fontFamily}':text_shaping=1`;
+
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*${subYFact}:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
+          lastV = `[sv${svIndex}]`;
+          svIndex++;
         }
-
-        const assContent = assHeader + assDialogues;
-        const assPath = path.join(tempDir, `subtitles_${tempId}.ass`);
-        await writeFilePromise(assPath, assContent);
-
-        // Add subtitles filter
-        const escapedAssPath = assPath.replace(/\\/g, "/").replace(/'/g, "'\\\\''").replace(/:/g, '\\:');
-        const escapedFontsDir = process.cwd().replace(/\\/g, "/").replace(/'/g, "'\\\\''").replace(/:/g, '\\:');
-        
-        vFilters.push(`${lastV}subtitles=filename='${escapedAssPath}':fontsdir='${escapedFontsDir}'[vout_sub]`);
-        lastV = "[vout_sub]";
       }
 
       // Stage 4: Logo
