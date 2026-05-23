@@ -8,10 +8,6 @@ import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
-// @ts-ignore
-import RabbitModule from "rabbit-node";
-
-const Rabbit = (RabbitModule as any).default || RabbitModule;
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -75,71 +71,7 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
-async function registerFonts() {
-  console.log("Registering custom Myanmar fonts in system Fontconfig...");
-  const fontsToRegister = [
-    "Padauk-Bold.ttf",
-    "TU01_PannYeat-Regular.ttf",
-    "SM04_Moon-Bold.ttf",
-    "Aka07-Bold.ttf",
-    "M01_PuPu-Regular.ttf"
-  ];
-
-  const targetDirs = [
-    "/usr/share/fonts/truetype/lumina",
-    path.join(process.env.HOME || "/root", ".local/share/fonts"),
-    path.join(process.env.HOME || "/root", ".fonts")
-  ];
-
-  let selectedDir = "";
-  for (const dir of targetDirs) {
-    try {
-      fs.mkdirSync(dir, { recursive: true });
-      // test write permission
-      const testFile = path.join(dir, ".test_write");
-      fs.writeFileSync(testFile, "test");
-      fs.unlinkSync(testFile);
-      selectedDir = dir;
-      console.log(`Using writable font directory: ${selectedDir}`);
-      break;
-    } catch (e) {
-      console.warn(`Directory ${dir} not writable, trying next...`);
-    }
-  }
-
-  if (!selectedDir) {
-    console.warn("No writable standard font directories found! Fonts might not register correctly.");
-    return;
-  }
-
-  for (const font of fontsToRegister) {
-    const srcPath = path.join(process.cwd(), font);
-    if (fs.existsSync(srcPath)) {
-      const destPath = path.join(selectedDir, font);
-      try {
-        fs.copyFileSync(srcPath, destPath);
-        console.log(`Copied ${font} to ${destPath}`);
-      } catch (err) {
-        console.error(`Failed to copy font ${font}:`, err);
-      }
-    } else {
-      console.warn(`Font file not found in build directory: ${srcPath}`);
-    }
-  }
-
-  try {
-    console.log("Executing fc-cache to rebuild font cache...");
-    const { stdout, stderr } = await execPromise("fc-cache -fv");
-    console.log("fc-cache command execution output:", stdout || stderr);
-  } catch (err: any) {
-    console.warn("fc-cache failed (might be headless system or fc-cache is missing):", err.message);
-  }
-}
-
 async function startServer() {
-  // Register Myanmar fonts on startup to enable correct Harfbuzz Unicode text shaping
-  await registerFonts();
-
   const app = express();
   const PORT = 3000;
 
@@ -897,24 +829,37 @@ async function startServer() {
 
       // Stage 3: Sync Subtitles with AI Timestamps
       if (subtitleEnabled && subtitleText) {
-        let fontFamily = "Padauk";
-        let isZawgyi = false;
-        if (subtitleFont === "TU01 PannYeat") {
-          fontFamily = "TU01_Pann Yeat";
-          isZawgyi = true;
-        } else if (subtitleFont === "SM04 Moon") {
-          fontFamily = "SM04_Moon";
-          isZawgyi = true;
-        } else if (subtitleFont === "Aka07") {
-          fontFamily = "A ka 07";
-        } else if (subtitleFont === "M01 PuPu") {
-          fontFamily = "M01_PuPu";
-          isZawgyi = true;
-        }
-
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
         const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 24) * 0.4);
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
+        
+        let targetFontFile = "Padauk-Bold.ttf";
+        if (subtitleFont === "TU01 PannYeat") {
+          targetFontFile = "TU01_PannYeat-Regular.ttf";
+        } else if (subtitleFont === "SM04 Moon") {
+          targetFontFile = "SM04_Moon-Bold.ttf";
+        } else if (subtitleFont === "Aka07") {
+          targetFontFile = "Aka07-Bold.ttf";
+        } else if (subtitleFont === "M01 PuPu") {
+          targetFontFile = "M01_PuPu-Regular.ttf";
+        }
+
+        const fontPaths = [
+          path.join(process.cwd(), targetFontFile),
+          path.join(__dirname, targetFontFile),
+          path.join(process.cwd(), "Padauk-Bold.ttf"),
+          path.join(__dirname, "Padauk-Bold.ttf"),
+          "/usr/share/fonts/truetype/noto/NotoSansMyanmar-Regular.ttf",
+          "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
+        ];
+
+        let fontArg = "";
+        for (const fp of fontPaths) {
+          if (fs.existsSync(fp)) {
+            fontArg = `:fontfile='${fp}'`;
+            break;
+          }
+        }
 
         let svChunks: { text: string; start_time: number; end_time: number }[] = [];
 
@@ -979,15 +924,6 @@ async function startServer() {
         for (const chunk of svChunks) {
           if (!chunk.text.trim()) continue;
           
-          let rawText = chunk.text.trim();
-          if (isZawgyi) {
-            try {
-              rawText = Rabbit.uni2zg(rawText);
-            } catch (err) {
-              console.warn("Failed to convert uni2zg:", err);
-            }
-          }
-          
           const wrapText = (text: string, maxLen: number) => {
             const words = text.split(/\s+/);
             let lines = [];
@@ -1009,7 +945,7 @@ async function startServer() {
             return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
           };
 
-          const lines = wrapText(rawText, 40);
+          const lines = wrapText(chunk.text.trim(), 40);
           const visualLengths = lines.map(getVisualLength);
           const maxWidth = Math.max(...visualLengths);
           
@@ -1028,11 +964,8 @@ async function startServer() {
           const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
           const subYPercent = typeof subtitleY === "number" ? subtitleY : 90;
           const subYFact = (subYPercent / 100).toFixed(3);
-          
-          // Use Fontconfig registered name for correct Harfbuzz Unicode text shaping
-          const fontArg = `:font='${fontFamily}':text_shaping=1`;
-
-          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*${subYFact}:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          // Use the provided box color with 0.6 opacity
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*${subYFact}:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:text_shaping=1:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
           
           lastV = `[sv${svIndex}]`;
           svIndex++;
@@ -1099,8 +1032,6 @@ async function startServer() {
         if (fs.existsSync(fPath)) await unlinkPromise(fPath);
         const subPath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
         if (fs.existsSync(subPath)) await unlinkPromise(subPath);
-        const assPath = path.join(tempDir, `subtitles_${tempId}.ass`);
-        if (fs.existsSync(assPath)) await unlinkPromise(assPath);
         
         // Cleanup chunks
         const files = fs.readdirSync(tempDir);
