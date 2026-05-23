@@ -834,9 +834,7 @@ async function startServer() {
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
         let targetFontFile = "Padauk-Bold.ttf";
-        if (subtitleFont === "Aka07") {
-          targetFontFile = "Aka07-Bold.ttf";
-        } else if (subtitleFont === "Tharlon") {
+        if (subtitleFont === "Tharlon") {
           targetFontFile = "Tharlon-Regular.ttf";
         } else if (subtitleFont === "Myanmar Sagar") {
           targetFontFile = "MyanmarSagar.ttf";
@@ -848,8 +846,6 @@ async function startServer() {
           targetFontFile = "MyanmarKhway.ttf";
         } else if (subtitleFont === "Myanmar Pauklay") {
           targetFontFile = "MyanmarPauklay.ttf";
-        } else if (subtitleFont === "Padauk Sagar") {
-          targetFontFile = "PadaukSagar.ttf";
         } else if (subtitleFont === "Yunghkio") {
           targetFontFile = "Yunghkio.ttf";
         }
