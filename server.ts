@@ -93,7 +93,7 @@ async function startServer() {
 
     (async () => {
       try {
-        const { videoBase64, mimeType, style, lang, duration, apiKey: customKey } = req.body;
+        const { videoBase64, mimeType, style, lang, duration, apiKey: customKey, freezeFrameZoomEnabled } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-2.5-flash";
         
@@ -127,24 +127,25 @@ async function startServer() {
             : "ဒီဗီဒီယိုကို ပုံပြင်ဆန်ဆန် ဇာတ်လမ်းတစ်ပုဒ်လို ပြန်ပြောပြပေးပါ၊ ဒါပေမယ့် ရယ်စရာကောင်းတဲ့ ဟာသတွေ၊ ဟာသဥာဏ်ရွှင်တဲ့ သရော်ချက်တွေနဲ့ ဟာသများများ ပေါင်းစပ်ပြီး အလွန်ရယ်ရမယ့် ပုံစံမျိုးဖြင့် ရေးပေးပါ။",
         };
 
-        const wordCount = duration ? Math.floor((duration / 60) * 150) : 150;
+        const wpm = freezeFrameZoomEnabled ? 225 : 175;
+        const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
         
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target 150 words per 60 seconds).
+             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds).
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ၁၅၀ နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
+             - Script အရှည် - စကားလုံးရေ ${wordCount} ခန့် (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားသည်)။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
              - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
              - Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
-             - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+             - Voiceover အنهဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
 
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;

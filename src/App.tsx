@@ -46,11 +46,11 @@ import { AdminDashboard } from "./components/AdminDashboard";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
-  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number, apiKey?: string) {
+  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number, apiKey?: string, freezeFrameZoomEnabled?: boolean) {
     const res = await fetch("/api/recap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration, apiKey }),
+      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration, apiKey, freezeFrameZoomEnabled }),
     });
     if (!res.ok) throw new Error("Recap request failed");
     return (await res.json()).jobId;
@@ -1227,7 +1227,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       deducted = true;
 
       const base64 = await fileToBase64(file);
-      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey);
+      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey, freezeFrameZoomEnabled);
       const jobResult = await pollForCompletion(jobId);
       const recapValue = jobResult.text;
       
