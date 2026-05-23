@@ -127,24 +127,25 @@ async function startServer() {
             : "ဒီဗီဒီယိုကို ပုံပြင်ဆန်ဆန် ဇာတ်လမ်းတစ်ပုဒ်လို ပြန်ပြောပြပေးပါ၊ ဒါပေမယ့် ရယ်စရာကောင်းတဲ့ ဟာသတွေ၊ ဟာသဥာဏ်ရွှင်တဲ့ သရော်ချက်တွေနဲ့ ဟာသများများ ပေါင်းစပ်ပြီး အလွန်ရယ်ရမယ့် ပုံစံမျိုးဖြင့် ရေးပေးပါ။",
         };
 
-        const wpm = freezeFrameZoomEnabled ? 225 : 175;
-        const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
-        
-        // Compensate for Myanmar script under-generation by requesting higher syllable density and detailed narration
-        const myanmarWpm = Math.floor(wpm * 1.3);
-        const myanmarWordCount = duration ? Math.floor((duration / 60) * myanmarWpm) : myanmarWpm;
+        const wpmMin = freezeFrameZoomEnabled ? 220 : 170;
+        const wpmMax = freezeFrameZoomEnabled ? 230 : 180;
+        const minTarget = duration ? Math.floor((duration / 60) * wpmMin) : wpmMin;
+        const maxTarget = duration ? Math.ceil((duration / 60) * wpmMax) : wpmMax;
+        const avgTarget = Math.round((minTarget + maxTarget) / 2);
         
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds).
+             - Script length: Strictly between ${minTarget} and ${maxTarget} words (Targeting ${avgTarget} words for this ${duration ? duration : '60'}-second video).
+             - MUST NOT exceed ${maxTarget} words. MUST NOT be under ${minTarget} words.
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ/အသံထွက် (syllables) အနည်းဆုံး ${myanmarWordCount} လုံး တိကျစွာ ရေးသားပေးရမည်။ (ဗီဒီယို ၁ မိနစ်လျှင် အသံထွက် ၈ စက္ကန့်စာ သို့မဟုတ် စကားလုံး ${wpm} လုံး နှုန်းဖြင့် တိကျစွာ တွက်ချက်ထားရာ၊ စုစုပေါင်း အသံထွက် ${myanmarWordCount} ခု ခန့် ထွက်ရှိအောင် အသေးစိတ် ချဲ့ထွင်ရေးပေးရန် သတိပြုပါ)။
-             - အရေးကြီးသည် - စာသားတိုလွန်းပါက အသံဖတ်ရာတွင် စောစီးစွာ ပြီးသွားပါလိမ့်မည်။ ထို့ကြောင့် ဗီဒီယိုထဲမှ အကြောင်းအရာများ၊ လုပ်ဆောင်ချက်များ၊ မြင်ကွင်းများနှင့် ဇာတ်ကောင်များ၏ အမူအရာများကို အလွန်အသေးစိတ်ကျကျ ပုံပြင်ပြောသလို စိတ်ဝင်စားဖွယ် ချဲ့ထွင်ပြီး လုံလောက်သော အရှည်ပမာဏ ရရှိအောင် ရှည်ရှည်လျားလျား ရေးသားပေးပါ။
+             - Script ၏ အရှည် (အသံထွက်/Syllables စုစုပေါင်း အရေအတွက်) သည် အနည်းဆုံး ${minTarget} လုံး မှ အများဆုံး ${maxTarget} လုံး ကြားတွင်သာ တိကျစွာ ရှိရမည်။ (ဤဗီဒီယို ကြာချိန် ${duration ? duration : '၆၀'} စက္ကန့်အတွက် စုစုပေါင်း အသံထွက် ${minTarget} မှ ${maxTarget} ကြားသာ ရေးသားပေးပါ။)
+             - အလွန်အရေးကြီးသည် - အသံထွက် (syllables) စုစုပေါင်းသည် ${maxTarget} လုံးထက် လုံးဝ လုံးဝ မကျော်လွန်စေရ၊ ${minTarget} လုံးထက်လည်း လုံးဝ မနည်းစေရ။ စာသားရှည်လွတ်သွားပါက ဗီဒီယိုနှင့် အသံကိုက်ညီမည် မဟုတ်ပါ။
+             - မြန်မာစာတွက်ချက်မှုညွှန်ကြားချက် - စကားလုံးရေတွက်ရာတွင် space ခြားပြီး မတွက်ပါနှင့်၊ "အသံထွက်" (syllables) စုစုပေါင်းကိုသာ စကားလုံးအရေအတွက်အဖြစ် တိကျစွာ တွက်ပါ။ ဥပမာ - "မင်္ဂလာပါ" တွင် အသံထွက် ၄ လုံး ရှိပြီး "ရဟတ်ယာဉ်" တွင် အသံထွက် ၃ လုံး ရှိသည်။ ဤနည်းအတိုင်း တွက်ချက်ပြီး စုစုပေါင်း အသံထွက်ကို ${minTarget} နှင့် ${maxTarget} ကြားတွင်သာ တိတိကျကျ ကွက်တိထားပေးပါ။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
