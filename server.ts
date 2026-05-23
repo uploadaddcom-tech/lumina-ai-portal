@@ -895,13 +895,13 @@ async function startServer() {
       if (subtitleEnabled && subtitleText) {
         let fontFamily = "Padauk";
         if (subtitleFont === "TU01 PannYeat") {
-          fontFamily = "TU01 PannYeat";
+          fontFamily = "TU01_Pann Yeat";
         } else if (subtitleFont === "SM04 Moon") {
-          fontFamily = "SM04 Moon";
+          fontFamily = "SM04_Moon";
         } else if (subtitleFont === "Aka07") {
-          fontFamily = "Aka07";
+          fontFamily = "A ka 07";
         } else if (subtitleFont === "M01 PuPu") {
-          fontFamily = "M01 PuPu";
+          fontFamily = "M01_PuPu";
         }
 
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
