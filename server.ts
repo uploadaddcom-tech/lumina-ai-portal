@@ -846,6 +846,10 @@ async function startServer() {
           targetFontFile = "Tharlon-Regular.ttf";
         } else if (subtitleFont === "Pyidaungsu") {
           targetFontFile = "Pyidaungsu-1.8.3_Bold.ttf";
+        } else if (subtitleFont === "Noto Serif Myanmar") {
+          targetFontFile = "NotoSerifMyanmar-SemiBold.ttf";
+        } else if (subtitleFont === "Noto Sans Myanmar") {
+          targetFontFile = "NotoSansMyanmar-SemiBold.ttf";
         }
 
         const fontPaths = [

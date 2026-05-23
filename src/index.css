@@ -50,6 +50,20 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Noto Serif Myanmar';
+  src: url('/NotoSerifMyanmar-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Noto Sans Myanmar';
+  src: url('/NotoSansMyanmar-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
