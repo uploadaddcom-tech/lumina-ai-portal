@@ -8,6 +8,10 @@ import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
+// @ts-ignore
+import RabbitModule from "rabbit-node";
+
+const Rabbit = (RabbitModule as any).default || RabbitModule;
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -894,14 +898,18 @@ async function startServer() {
       // Stage 3: Sync Subtitles with AI Timestamps
       if (subtitleEnabled && subtitleText) {
         let fontFamily = "Padauk";
+        let isZawgyi = false;
         if (subtitleFont === "TU01 PannYeat") {
           fontFamily = "TU01_Pann Yeat";
+          isZawgyi = true;
         } else if (subtitleFont === "SM04 Moon") {
           fontFamily = "SM04_Moon";
+          isZawgyi = true;
         } else if (subtitleFont === "Aka07") {
           fontFamily = "A ka 07";
         } else if (subtitleFont === "M01 PuPu") {
           fontFamily = "M01_PuPu";
+          isZawgyi = true;
         }
 
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
@@ -971,6 +979,15 @@ async function startServer() {
         for (const chunk of svChunks) {
           if (!chunk.text.trim()) continue;
           
+          let rawText = chunk.text.trim();
+          if (isZawgyi) {
+            try {
+              rawText = Rabbit.uni2zg(rawText);
+            } catch (err) {
+              console.warn("Failed to convert uni2zg:", err);
+            }
+          }
+          
           const wrapText = (text: string, maxLen: number) => {
             const words = text.split(/\s+/);
             let lines = [];
@@ -992,7 +1009,7 @@ async function startServer() {
             return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
           };
 
-          const lines = wrapText(chunk.text.trim(), 40);
+          const lines = wrapText(rawText, 40);
           const visualLengths = lines.map(getVisualLength);
           const maxWidth = Math.max(...visualLengths);
           
