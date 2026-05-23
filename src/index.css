@@ -36,6 +36,41 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Myanmar Gant Gaw';
+  src: url('/MyanmarGantGaw.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Myanmar Khway';
+  src: url('/MyanmarKhway.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Myanmar Pauklay';
+  src: url('/MyanmarPauklay.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Padauk Sagar';
+  src: url('/PadaukSagar.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Yunghkio';
+  src: url('/Yunghkio.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;

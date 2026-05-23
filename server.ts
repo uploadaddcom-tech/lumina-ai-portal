@@ -842,6 +842,16 @@ async function startServer() {
           targetFontFile = "MyanmarSagar.ttf";
         } else if (subtitleFont === "YoeYar-One Bold") {
           targetFontFile = "YoeYar-One Bold.ttf";
+        } else if (subtitleFont === "Myanmar Gant Gaw") {
+          targetFontFile = "MyanmarGantGaw.ttf";
+        } else if (subtitleFont === "Myanmar Khway") {
+          targetFontFile = "MyanmarKhway.ttf";
+        } else if (subtitleFont === "Myanmar Pauklay") {
+          targetFontFile = "MyanmarPauklay.ttf";
+        } else if (subtitleFont === "Padauk Sagar") {
+          targetFontFile = "PadaukSagar.ttf";
+        } else if (subtitleFont === "Yunghkio") {
+          targetFontFile = "Yunghkio.ttf";
         }
 
         const fontPaths = [
