@@ -834,20 +834,12 @@ async function startServer() {
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
         let targetFontFile = "Padauk-Bold.ttf";
-        if (subtitleFont === "TU01 PannYeat") {
-          targetFontFile = "TU01_PannYeat-Regular.ttf";
-        } else if (subtitleFont === "SM04 Moon") {
-          targetFontFile = "SM04_Moon-Bold.ttf";
-        } else if (subtitleFont === "Aka07") {
+        if (subtitleFont === "Aka07") {
           targetFontFile = "Aka07-Bold.ttf";
-        } else if (subtitleFont === "M01 PuPu") {
-          targetFontFile = "M01_PuPu-Regular.ttf";
         } else if (subtitleFont === "Tharlon") {
           targetFontFile = "Tharlon-Regular.ttf";
         } else if (subtitleFont === "Myanmar Sagar") {
           targetFontFile = "MyanmarSagar.ttf";
-        } else if (subtitleFont === "Myanmar Taungyi") {
-          targetFontFile = "MyanmarTaungyi.ttf";
         } else if (subtitleFont === "YoeYar-One Bold") {
           targetFontFile = "YoeYar-One Bold.ttf";
         }

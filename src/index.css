@@ -9,30 +9,9 @@
 }
 
 @font-face {
-  font-family: 'TU01 PannYeat';
-  src: url('/TU01_PannYeat-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'SM04 Moon';
-  src: url('/SM04_Moon-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
-
-@font-face {
   font-family: 'Aka07';
   src: url('/Aka07-Bold.ttf') format('truetype');
   font-weight: bold;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'M01 PuPu';
-  src: url('/M01_PuPu-Regular.ttf') format('truetype');
-  font-weight: normal;
   font-style: normal;
 }
 
@@ -46,13 +25,6 @@
 @font-face {
   font-family: 'Myanmar Sagar';
   src: url('/MyanmarSagar.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Myanmar Taungyi';
-  src: url('/MyanmarTaungyi.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
