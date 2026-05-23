@@ -44,23 +44,23 @@
 }
 
 @font-face {
-  font-family: 'Pyidaungsu';
-  src: url('/Pyidaungsu-1.8.3_Bold.ttf') format('truetype');
+  font-family: 'Myanmar Sagar';
+  src: url('/MyanmarSagar.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Myanmar Taungyi';
+  src: url('/MyanmarTaungyi.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'YoeYar-One Bold';
+  src: url('/YoeYar-One Bold.ttf') format('truetype');
   font-weight: bold;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Noto Serif Myanmar';
-  src: url('/NotoSerifMyanmar-SemiBold.ttf') format('truetype');
-  font-weight: 600;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Noto Sans Myanmar';
-  src: url('/NotoSansMyanmar-SemiBold.ttf') format('truetype');
-  font-weight: 600;
   font-style: normal;
 }
 

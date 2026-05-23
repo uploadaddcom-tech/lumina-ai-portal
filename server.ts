@@ -844,12 +844,12 @@ async function startServer() {
           targetFontFile = "M01_PuPu-Regular.ttf";
         } else if (subtitleFont === "Tharlon") {
           targetFontFile = "Tharlon-Regular.ttf";
-        } else if (subtitleFont === "Pyidaungsu") {
-          targetFontFile = "Pyidaungsu-1.8.3_Bold.ttf";
-        } else if (subtitleFont === "Noto Serif Myanmar") {
-          targetFontFile = "NotoSerifMyanmar-SemiBold.ttf";
-        } else if (subtitleFont === "Noto Sans Myanmar") {
-          targetFontFile = "NotoSansMyanmar-SemiBold.ttf";
+        } else if (subtitleFont === "Myanmar Sagar") {
+          targetFontFile = "MyanmarSagar.ttf";
+        } else if (subtitleFont === "Myanmar Taungyi") {
+          targetFontFile = "MyanmarTaungyi.ttf";
+        } else if (subtitleFont === "YoeYar-One Bold") {
+          targetFontFile = "YoeYar-One Bold.ttf";
         }
 
         const fontPaths = [
