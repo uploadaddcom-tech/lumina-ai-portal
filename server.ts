@@ -844,6 +844,8 @@ async function startServer() {
           targetFontFile = "M01_PuPu-Regular.ttf";
         } else if (subtitleFont === "Tharlon") {
           targetFontFile = "Tharlon-Regular.ttf";
+        } else if (subtitleFont === "Pyidaungsu") {
+          targetFontFile = "Pyidaungsu-1.8.3_Bold.ttf";
         }
 
         const fontPaths = [

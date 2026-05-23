@@ -43,6 +43,13 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Pyidaungsu';
+  src: url('/Pyidaungsu-1.8.3_Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
