@@ -1501,9 +1501,16 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       } else {
         throw new Error("No recap script returned from api");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      const errMsg = err?.message || "";
+      if (errMsg.includes("empty recap") || errMsg.includes("safety") || errMsg.includes("filtering") || errMsg.includes("blocked")) {
+        setError(lang === "EN" 
+          ? `Generation failed: ${errMsg}` 
+          : `ထုတ်လုပ်မှု အဆင်မပြေပါ- ${errMsg}`);
+      } else {
+        setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      }
       setGenerationStage("idle");
       
       // Auto-refund immediately if we managed to deduct but failed to produce final video
