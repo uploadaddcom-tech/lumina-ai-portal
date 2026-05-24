@@ -3342,13 +3342,8 @@ function AppContent() {
               <div className="fixed bottom-1/4 -right-20 w-96 h-96 bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none" />
 
               {/* Footer / Meta Data */}
-              <footer className="fixed bottom-0 left-0 right-0 h-16 border-t border-white/[0.03] bg-page-bg/40 backdrop-blur-xl z-50 flex items-center justify-between px-8 pointer-events-none md:pointer-events-auto">
-                 <div className="flex items-center gap-6">
-                 </div>
-                 
-                 <div className="flex items-center gap-6">
-                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 MM RECAP</span>
-                 </div>
+              <footer className="fixed bottom-0 left-0 right-0 h-16 border-t border-white/[0.03] bg-page-bg/40 backdrop-blur-xl z-50 flex items-center justify-center pointer-events-none md:pointer-events-auto">
+                <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 MM RECAP</span>
               </footer>
             </motion.div>
           } />
