@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Bell, 
   Camera, 
+  Clapperboard,
   Cpu, 
   Library, 
   Music, 
@@ -2743,7 +2744,7 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
         className="relative z-10 w-full max-w-md bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] p-12 text-center shadow-3xl"
       >
         <div className="w-20 h-20 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 mx-auto mb-8 animate-pulse">
-          <Cpu className="w-10 h-10 text-white" />
+          <Clapperboard className="w-10 h-10 text-white" />
         </div>
         
         <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">MM RECAP</h1>
@@ -3041,11 +3042,11 @@ function AppContent() {
                   <div className="flex items-center gap-12">
                     <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80" onClick={() => navigate('/')}>
                       <div className="w-10 h-10 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
-                        <Cpu className="w-5 h-5 text-white" />
+                        <Clapperboard className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex flex-col -gap-1">
                         <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">MM RECAP</span>
-                        <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
+                        <span className="text-[7.5px] font-tech font-black tracking-[0.25em] text-blue-500/80 uppercase ml-1 block mt-0.5">One Click Ai Tool</span>
                       </div>
                     </div>
                   </div>
