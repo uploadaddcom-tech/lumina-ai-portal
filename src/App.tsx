@@ -35,9 +35,12 @@ import {
   Settings,
   Lock,
   User,
-  Menu
+  Menu,
+  Home,
+  X
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { translations, Language } from "./translations";
@@ -381,6 +384,8 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
     }
   };
 
+  const navigate = useNavigate();
+
   const handleAdminAction = () => {
     setIsOpen(false);
     if (onAdminClick) onAdminClick();
@@ -439,15 +444,15 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
         )}
       </div>
 
-      {/* 2. Mobile Layout */}
+      {/* 2. Mobile Layout with High Fidelity Full-height Slide-drawer (Sophia Rose mockup) */}
       <div className="flex md:hidden items-center">
         {/* Toggle Trigger */}
         <button 
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setIsOpen(true)}
           className="flex items-center gap-2 p-1.5 rounded-xl bg-white/5 active:scale-95 border border-white/10 transition-all shadow-md"
         >
           {user ? (
-            <div className="w-8 h-8 rounded-lg overflow-hidden">
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/10">
               <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
             </div>
           ) : (
@@ -455,86 +460,142 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
               <User className="w-4 h-4" />
             </div>
           )}
-          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 mr-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+          <Menu className="w-4 h-4 text-slate-300 mr-0.5" />
         </button>
 
-        {/* Dropdown Backdrop helper */}
-        {isOpen && (
-          <div className="fixed inset-0 z-40 pointer-events-auto bg-black/10" onClick={() => setIsOpen(false)} />
-        )}
-
-        {/* Dropdown Overlay Option */}
+        {/* Full screen Drawer Overlay using createPortal to bypass parent backdrop filter containing block constraints */}
         <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="absolute right-0 top-12 z-50 w-60 bg-[#0f172a] dark:bg-slate-950 backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-4 shadow-2xl flex flex-col gap-3.5 text-left pointer-events-auto"
-            >
-              {user ? (
-                <>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-black tracking-wider text-white uppercase truncate mb-0.5">{user.displayName || 'Neural User'}</span>
-                    <span className="text-[9px] text-slate-400 truncate">{user.email}</span>
-                  </div>
-                  <div className="border-b border-white/5" />
-                  
-                  {/* Balance / Diamonds */}
-                  <div className="flex items-center justify-between bg-blue-500/10 px-3 py-2 rounded-xl border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                    <div className="flex items-center gap-1.5">
-                      <DiamondIcon className="w-4.5 h-4.5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
-                      <span className="text-[11px] font-tech font-black text-blue-500 tracking-tighter">Balance</span>
-                    </div>
-                    <span className="text-[12px] font-tech font-black text-blue-400 tracking-tighter">{diamonds} Diamond</span>
-                  </div>
+          {isOpen && typeof document !== "undefined" && createPortal(
+            <>
+              {/* Opaque dark background blurring list */}
+              <motion.div
+                key="mobile-drawer-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-md cursor-pointer pointer-events-auto"
+                onClick={() => setIsOpen(false)}
+              />
 
-                  {/* ADMIN PANEL */}
-                  {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
-                    <button 
-                      onClick={handleAdminAction}
-                      className="w-full h-9 rounded-xl bg-emerald-500 text-[10px] font-tech font-black text-white uppercase tracking-widest hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-1.5"
-                    >
-                      ADMIN-PNL
-                    </button>
-                  )}
-
-                  {/* Log Out */}
+              {/* Sidebar Menu matching Sophia Rose mockup format exactly */}
+              <motion.div
+                key="mobile-drawer-content"
+                initial={{ x: "100%", opacity: 0.5 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: "100%", opacity: 0.5 }}
+                transition={{ type: "spring", damping: 25, stiffness: 180 }}
+                className="fixed right-0 top-0 bottom-0 z-40 w-[85%] max-w-[340px] bg-[#0c111e] border-l border-white/[0.08] p-8 flex flex-col justify-between shadow-2xl rounded-l-[2rem] text-left pointer-events-auto"
+              >
+                {/* 1. Header controls (Close button) */}
+                <div className="absolute top-6 right-6">
                   <button 
-                    onClick={handleLogoutAction}
-                    className="w-full h-9 rounded-xl bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 text-red-400 font-tech font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
+                    onClick={() => setIsOpen(false)}
+                    className="p-2.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 active:scale-95 text-slate-400 hover:text-white transition-all shadow-md"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Sign Out
+                    <X className="w-4.5 h-4.5" />
                   </button>
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-black tracking-wider text-slate-300 uppercase mb-0.5">Guest User</span>
-                    <span className="text-[9px] text-slate-500">Sign in to sync your tools</span>
-                  </div>
-                  <div className="border-b border-white/5" />
+                </div>
 
-                  {/* Log In */}
+                {/* 2. Top Profile Details with Large Avatar (aligned with mockup) */}
+                <div className="flex flex-col items-start mt-6 w-full">
+                  <div className="w-20 h-20 rounded-full p-[3px] bg-linear-to-tr from-cyan-400 to-blue-600 shadow-2xl mb-5">
+                    <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center overflow-hidden border-2 border-slate-950">
+                      <img 
+                        src={user?.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+                        alt="avatar" 
+                        className="w-full h-full object-cover" 
+                      />
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-xl font-bold tracking-tight text-white mb-1 truncate max-w-full">
+                    {user ? (user.displayName || 'Neural Member') : 'Guest Member'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono tracking-wide truncate max-w-full">
+                    {user ? (user.email || 'One Click Creator') : 'Sign in to access tools'}
+                  </p>
+                </div>
+
+                {/* Divider Line */}
+                <div className="w-full h-[1px] bg-white/[0.06] my-6" />
+
+                {/* 3. Dropdown Menu List items with large hit targets (like mockup) */}
+                <div className="flex-1 flex flex-col gap-2 mt-2">
+                  {/* Home Option */}
                   <button 
                     onClick={() => {
                       setIsOpen(false);
-                      handleLogin();
+                      navigate('/');
                     }}
-                    className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+                    className="w-full flex items-center gap-4 px-4 h-14 rounded-2xl text-slate-300 hover:bg-white/5 active:bg-white/10 transition-all font-sans font-medium text-[15px] tracking-wide"
                   >
-                    {isLoggingIn ? (
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <LogIn className="w-3.5 h-3.5" />
-                    )}
-                    Sign In with Google
+                    <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-400">
+                      <Home className="w-4.5 h-4.5" />
+                    </div>
+                    <span>Home</span>
                   </button>
-                </>
-              )}
-            </motion.div>
+
+                  {/* Diamond Balance Segment */}
+                  <div className="w-full flex items-center justify-between px-4 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)] font-sans font-medium text-[15px] tracking-wide">
+                    <div className="flex items-center gap-4">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-400">
+                        <DiamondIcon className="w-5 h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
+                      </div>
+                      <span className="text-slate-300">Diamonds</span>
+                    </div>
+                    <span className="font-tech font-black text-blue-400 text-[14px]">{diamonds}</span>
+                  </div>
+
+                  {/* Admin dashboard action (guarded) */}
+                  {(role === 'admin' || user?.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
+                    <button 
+                      onClick={handleAdminAction}
+                      className="w-full flex items-center gap-4 px-4 h-14 rounded-2xl text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 transition-all font-sans font-medium text-[15px] tracking-wide"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <Lock className="w-4.5 h-4.5" />
+                      </div>
+                      <span className="font-tech font-black text-[11px] tracking-wider uppercase">ADMIN PANEL</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* 4. Footer Segment (Sign out or Sign In toggle) */}
+                <div className="mt-auto pt-6 border-t border-white/[0.06] w-full">
+                  {user ? (
+                    <button 
+                      onClick={handleLogoutAction}
+                      className="w-full flex items-center gap-4 px-4 h-14 rounded-2xl text-red-400 hover:bg-red-500/5 active:bg-red-500/10 transition-all font-sans font-medium text-[15px] tracking-wide"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/15 flex items-center justify-center text-red-400">
+                        <LogOut className="w-4.5 h-4.5" />
+                      </div>
+                      <span className="font-black text-xs uppercase tracking-wider">Sign Out</span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        setIsOpen(false);
+                        handleLogin();
+                      }}
+                      disabled={isLoggingIn}
+                      className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/10 flex items-center justify-center gap-3"
+                    >
+                      {isLoggingIn ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <LogIn className="w-4.5 h-4.5" />
+                          <span>Sign In with Google</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+              </motion.div>
+            </>,
+            document.body
           )}
         </AnimatePresence>
       </div>
