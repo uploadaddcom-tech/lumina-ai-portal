@@ -2787,23 +2787,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="p-8 bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl flex flex-col sm:flex-row gap-6 items-center sm:justify-between"
+                  className="flex justify-center pt-4"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
-                      <Play className="w-6 h-6 text-slate-400 animate-pulse" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-white uppercase tracking-[0.2em] block">RECAP_FINAL.MP4</span>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 block">System Bound Master Output</span>
-                    </div>
-                  </div>
                   <a 
                     href={mergedVideoUrl} 
                     download="recap_master_final.mp4"
-                    className="w-full sm:w-auto h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
+                    className="w-full sm:w-auto h-14 px-10 bg-green-600 hover:bg-green-700 text-white rounded-2xl flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95 cursor-pointer"
                   >
-                    <CloudUpload className="w-4 h-4" />
+                    <CloudUpload className="w-5 h-5" />
                     {t.downloadMerged}
                   </a>
                 </motion.div>
@@ -2811,19 +2802,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
 
 
-              {/* Regeneration Section */}
-              <div className="pt-8 border-t border-white/5 flex flex-col gap-4">
-                <button 
-                  onClick={handleGenerateVoiceover}
-                  disabled={isVoiceoverGenerating || !result}
-                  className={`h-12 px-10 self-start rounded-full font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 ${
-                    isVoiceoverGenerating || !result ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
-                  }`}
-                >
-                  {isVoiceoverGenerating ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap className="w-4 h-4 text-blue-500" />}
-                  {isVoiceoverGenerating ? (lang === "EN" ? "Regenerating..." : "ပြန်လည်ထုတ်လုပ်နေသည်...") : (lang === "EN" ? "Regenerate Neural Voice" : "အသံပြန်ထုတ်မည်")}
-                </button>
-              </div>
+
             </motion.section>
           )}
         </AnimatePresence>
