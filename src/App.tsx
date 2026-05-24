@@ -33,7 +33,9 @@ import {
   LogOut,
   LogIn,
   Settings,
-  Lock
+  Lock,
+  User,
+  Menu
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -366,6 +368,7 @@ function ApiKeySelector({ config, setConfig, lang }: {
 function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
   const { user, logout, usageCount, role, diamonds } = useFirebase();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -378,49 +381,162 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
     }
   };
 
-  if (!user) {
-    return (
-      <button 
-        onClick={handleLogin}
-        disabled={isLoggingIn}
-        className="flex items-center gap-2 px-4 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-      >
-        {isLoggingIn ? (
-          <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        ) : (
-          <LogIn className="w-3.5 h-3.5" />
-        )}
-        Sign In
-      </button>
-    );
-  }
+  const handleAdminAction = () => {
+    setIsOpen(false);
+    if (onAdminClick) onAdminClick();
+  };
+
+  const handleLogoutAction = () => {
+    setIsOpen(false);
+    logout();
+  };
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex flex-col items-end text-right">
-        <span className="hidden md:block text-[10px] font-black text-text-primary dark:text-white tracking-widest uppercase mb-0.5">{user.displayName || 'Neural User'}</span>
-        <div className="flex items-center gap-2">
-          {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
-            <button 
-              onClick={onAdminClick}
-              className="px-2 py-0.5 rounded-md bg-emerald-500 text-[9px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
-            >
-              ADMIN-PNL
+    <div className="relative">
+      {/* 1. Desktop Layout */}
+      <div className="hidden md:flex items-center gap-4">
+        {!user ? (
+          <button 
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="flex items-center gap-2 px-4 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+          >
+            {isLoggingIn ? (
+              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <LogIn className="w-3.5 h-3.5" />
+            )}
+            Sign In
+          </button>
+        ) : (
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[10px] font-black text-text-primary dark:text-white tracking-widest uppercase mb-0.5">{user.displayName || 'Neural User'}</span>
+              <div className="flex items-center gap-2">
+                {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
+                  <button 
+                    onClick={onAdminClick}
+                    className="px-2 py-0.5 rounded-md bg-emerald-500 text-[9px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
+                  >
+                    ADMIN-PNL
+                  </button>
+                )}
+                <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 md:px-3 py-1 rounded-lg border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                  <DiamondIcon className="w-4 h-4 md:w-5 md:h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
+                  <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 tracking-tighter">{diamonds} Diamond</span>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
+              <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
             </button>
-          )}
-          <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 md:px-3 py-1 rounded-lg border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-            <DiamondIcon className="w-4 h-4 md:w-5 md:h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
-            <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 tracking-tighter">{diamonds} Diamond</span>
+            <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-lg">
+              <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center overflow-hidden">
+                <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
-      <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
-        <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
-      </button>
-      <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-lg">
-        <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center overflow-hidden">
-          <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
-        </div>
+
+      {/* 2. Mobile Layout */}
+      <div className="flex md:hidden items-center">
+        {/* Toggle Trigger */}
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-2 p-1.5 rounded-xl bg-white/5 active:scale-95 border border-white/10 transition-all shadow-md"
+        >
+          {user ? (
+            <div className="w-8 h-8 rounded-lg overflow-hidden">
+              <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
+              <User className="w-4 h-4" />
+            </div>
+          )}
+          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 mr-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Dropdown Backdrop helper */}
+        {isOpen && (
+          <div className="fixed inset-0 z-40 pointer-events-auto bg-black/10" onClick={() => setIsOpen(false)} />
+        )}
+
+        {/* Dropdown Overlay Option */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="absolute right-0 top-12 z-50 w-60 bg-[#0f172a] dark:bg-slate-950 backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-4 shadow-2xl flex flex-col gap-3.5 text-left pointer-events-auto"
+            >
+              {user ? (
+                <>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black tracking-wider text-white uppercase truncate mb-0.5">{user.displayName || 'Neural User'}</span>
+                    <span className="text-[9px] text-slate-400 truncate">{user.email}</span>
+                  </div>
+                  <div className="border-b border-white/5" />
+                  
+                  {/* Balance / Diamonds */}
+                  <div className="flex items-center justify-between bg-blue-500/10 px-3 py-2 rounded-xl border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                    <div className="flex items-center gap-1.5">
+                      <DiamondIcon className="w-4.5 h-4.5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
+                      <span className="text-[11px] font-tech font-black text-blue-500 tracking-tighter">Balance</span>
+                    </div>
+                    <span className="text-[12px] font-tech font-black text-blue-400 tracking-tighter">{diamonds} Diamond</span>
+                  </div>
+
+                  {/* ADMIN PANEL */}
+                  {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
+                    <button 
+                      onClick={handleAdminAction}
+                      className="w-full h-9 rounded-xl bg-emerald-500 text-[10px] font-tech font-black text-white uppercase tracking-widest hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-1.5"
+                    >
+                      ADMIN-PNL
+                    </button>
+                  )}
+
+                  {/* Log Out */}
+                  <button 
+                    onClick={handleLogoutAction}
+                    className="w-full h-9 rounded-xl bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 text-red-400 font-tech font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black tracking-wider text-slate-300 uppercase mb-0.5">Guest User</span>
+                    <span className="text-[9px] text-slate-500">Sign in to sync your tools</span>
+                  </div>
+                  <div className="border-b border-white/5" />
+
+                  {/* Log In */}
+                  <button 
+                    onClick={() => {
+                      setIsOpen(false);
+                      handleLogin();
+                    }}
+                    className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+                  >
+                    {isLoggingIn ? (
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <LogIn className="w-3.5 h-3.5" />
+                    )}
+                    Sign In with Google
+                  </button>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -1752,38 +1868,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           </div>
         </section>
 
-        {/* Glow Light Sweep Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight">{lang === "EN" ? "Glow Effect" : "Glow Effect"}</h2>
-          </div>
 
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Light Sweep Accent" : "အလင်းတန်း Effect ဖွင့်/ပိတ်"}
-                </label>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setGlowingSweepEnabled(!glowingSweepEnabled)}
-                    className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                      glowingSweepEnabled ? "bg-amber-600/20 border-amber-500/30 text-amber-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
-                    }`}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">
-                      {glowingSweepEnabled ? (lang === "EN" ? "Glow Sweep Enabled" : "အလင်းတန်း ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Glow Sweep" : "အလင်းတန်း ဖွင့်ရန်")}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
             {/* Video Ratio Modal */}
             <AnimatePresence>
