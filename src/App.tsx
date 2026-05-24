@@ -3274,13 +3274,10 @@ function AppContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                   {tools.map((tool, index) => {
                     const glowClass = 
-                      tool.id === 'recap-master' ? 'card-glow-red' :
-                      tool.id === 'video-recapper' ? 'card-glow-blue' :
-                      tool.id === 'video-recap' ? 'card-glow-purple' :
+                      tool.id === 'recapmaster' ? 'card-glow-red' :
                       tool.id === 'subtitle-editor' ? 'card-glow-blue' :
-                      tool.id === 'auto-recap' ? 'card-glow-indigo' :
-                      tool.id === 'video-transcribe' ? 'card-glow-teal' :
-                      tool.id === 'ai-voiceover' ? 'card-glow-orange' : 'card-glow-blue';
+                      tool.id === 'videotranscribe' ? 'card-glow-teal' :
+                      tool.id === 'aivoiceover' ? 'card-glow-orange' : 'card-glow-blue';
 
                     return (
                       <motion.div
@@ -3288,7 +3285,7 @@ function AppContent() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.5, delay: index * 0.05 }}
-                        className={`group relative bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-card-bg/60 dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
+                        className={`group relative bg-white dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-white dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
                         onClick={() => handleToolClick(tool.id)}
                       >
                         {/* Background Glow */}
