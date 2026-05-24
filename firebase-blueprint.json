@@ -12,7 +12,8 @@
         "usageCount": { "type": "integer" },
         "lastUsed": { "type": "string", "format": "date-time" },
         "role": { "type": "string", "enum": ["user", "admin"] },
-        "diamonds": { "type": "integer" }
+        "diamonds": { "type": "integer" },
+        "pendingRefund": { "type": "integer" }
       },
       "required": ["uid", "email", "role"]
     }

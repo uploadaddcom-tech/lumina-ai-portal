@@ -58,6 +58,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           usageCount: 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
           diamonds: 10,
+          pendingRefund: 0,
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         };
@@ -101,6 +102,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
       await updateDoc(userRef, {
         diamonds: increment(-amount),
+        pendingRefund: amount,
         lastUsed: serverTimestamp()
       });
       setDiamonds(prev => Math.max(0, prev - amount));
@@ -115,11 +117,18 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const userRef = doc(db, 'users', user.uid);
     try {
-      await updateDoc(userRef, {
-        diamonds: increment(amount),
-        lastUsed: serverTimestamp()
-      });
-      setDiamonds(prev => prev + amount);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) return;
+      const data = userSnap.data();
+      const pending = data.pendingRefund || 0;
+      if (pending > 0) {
+        await updateDoc(userRef, {
+          diamonds: increment(pending),
+          pendingRefund: 0,
+          lastUsed: serverTimestamp()
+        });
+        setDiamonds(prev => prev + pending);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }
