@@ -2888,7 +2888,19 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
 
 
-
+              {/* Regeneration Section */}
+              <div className="pt-8 border-t border-white/5 flex flex-col gap-4">
+                <button 
+                  onClick={handleGenerateVoiceover}
+                  disabled={isVoiceoverGenerating || !result}
+                  className={`h-12 px-10 self-start rounded-full font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 ${
+                    isVoiceoverGenerating || !result ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                  }`}
+                >
+                  {isVoiceoverGenerating ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap className="w-4 h-4 text-blue-500" />}
+                  {isVoiceoverGenerating ? (lang === "EN" ? "Regenerating..." : "ပြန်လည်ထုတ်လုပ်နေသည်...") : (lang === "EN" ? "Regenerate Neural Voice" : "အသံပြန်ထုတ်မည်")}
+                </button>
+              </div>
             </motion.section>
           )}
         </AnimatePresence>
