@@ -55,7 +55,7 @@ service cloud.firestore {
                       incoming().uid == request.auth.uid &&
                       incoming().role == 'user' &&
                       incoming().usageCount == 0 &&
-                      incoming().diamonds == 10 &&
+                      incoming().diamonds == 0 &&
                       incoming().pendingRefund == 0 &&
                       incoming().createdAt == request.time &&
                       incoming().lastUsed == request.time;

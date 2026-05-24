@@ -57,14 +57,14 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           photoURL: user.photoURL || null,
           usageCount: 0,
           role: user.email?.toLowerCase() === 'uploadadd.com@gmail.com' ? 'admin' : 'user',
-          diamonds: 10,
+          diamonds: 0,
           pendingRefund: 0,
           createdAt: serverTimestamp(),
           lastUsed: serverTimestamp()
         };
         await setDoc(userRef, newUser);
         setRole(newUser.role);
-        setDiamonds(10);
+        setDiamonds(0);
       } else {
         const data = userSnap.data();
         setUsageCount(data.usageCount || 0);
