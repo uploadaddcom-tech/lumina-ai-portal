@@ -141,7 +141,7 @@ export const translations = {
       },
       videoTranscribe: {
         title: "Video Transcribe",
-        desc: "Neural abstraction engine that surgically extracts text and translates it into Myanmar script with...",
+        desc: "Videoထဲကပြောစကားများကို မြန်မာဘာသာဖြင့်စာပြန်ထည်ထုတ်ပေးမည်",
       },
       aiVoiceover: {
         title: "Ai Voiceover",
@@ -292,7 +292,7 @@ export const translations = {
       },
       videoTranscribe: {
         title: "Video Transcribe",
-        desc: "Neural abstraction engine that surgically extracts text and translates it into Myanmar script with...",
+        desc: "Videoထဲကပြောစကားများကို မြန်မာဘာသာဖြင့်စာပြန်ထည်ထုတ်ပေးမည်",
       },
       aiVoiceover: {
         title: "Ai Voiceover",
