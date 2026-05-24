@@ -1321,6 +1321,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   const [isMerging, setIsMerging] = useState(false);
   const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
+  const [generationStage, setGenerationStage] = useState<"idle" | "script" | "voiceover" | "merging" | "completed">("idle");
   
   // Logo Settings
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -1437,6 +1438,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     }
     
     setIsGenerating(true);
+    setGenerationStage("script");
     setError(null);
     setResult(null);
     setVoiceoverAudioUrl(null);
@@ -1450,6 +1452,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       if (!success) {
         setShowDiamondModal(true);
         setIsGenerating(false);
+        setGenerationStage("idle");
         return;
       }
       deducted = true;
@@ -1464,6 +1467,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
       // Auto-trigger voiceover generation
       if (recapValue) {
+        setGenerationStage("voiceover");
         setIsVoiceoverGenerating(true);
         try {
           const cleanText = recapValue.replace(/[#*`_~]/g, '');
@@ -1481,8 +1485,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
 
+            setGenerationStage("merging");
             // Auto trigger merge and await its completion so any errors are caught here
             await performMerge(file, url, recapValue);
+            setGenerationStage("completed");
           } else {
             throw new Error("No voiceover audio data returned from api");
           }
@@ -1498,6 +1504,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     } catch (err) {
       console.error(err);
       setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      setGenerationStage("idle");
       
       // Auto-refund immediately if we managed to deduct but failed to produce final video
       if (deducted) {
@@ -2768,7 +2775,15 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 ) : (
                   <DiamondIcon className="w-6 h-6 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
                 )}
-                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : `${t.generate} (${requiredCost} Dia)`}
+                {isGenerating ? (
+                  generationStage === "script" 
+                    ? (lang === "EN" ? "GENERATING SCRIPT..." : "စာထုတ်နေသည်...")
+                    : generationStage === "voiceover"
+                    ? (lang === "EN" ? "GENERATING VOICE..." : "အသံထုတ်နေသည်...")
+                    : generationStage === "merging"
+                    ? (lang === "EN" ? "MERGING VIDEO..." : "မူရင်းvideoနဲ့ပေါင်းနေသည်...")
+                    : (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...")
+                ) : `${t.generate} (${requiredCost} Dia)`}
                </div>
             </button>
           </div>
@@ -2782,125 +2797,32 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-8 pt-8"
             >
-              <div className="flex items-center gap-3 text-white">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Zap className="w-5 h-5 text-blue-400" />
-                </div>
-                <h2 className="text-2xl font-black tracking-tight">{lang === "EN" ? "Generated Recap" : "ထုတ်လုပ်ထားသော Recap"}</h2>
-              </div>
-              
-              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8">
-                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
-                    <Sparkles className="w-6 h-6 text-blue-400/50" />
-                  </div>
-                </div>
-                
-                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
-                  <Markdown>{result}</Markdown>
-                </div>
-              </div>
-
-              {/* Audio result if ready */}
-              {voiceoverAudioUrl && (
-                <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-3xl p-8 border border-white/5 shadow-2xl space-y-8">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
-                        <Music className="w-7 h-7 text-blue-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-white uppercase tracking-widest">{t.voiceoverTitle}</h3>
-                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded inline-block mt-1">Audio Ready for Deployment</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={playVoiceover}
-                        className="w-14 h-14 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 flex items-center justify-center transition-all active:scale-90"
-                      >
-                        <Play className="w-6 h-6 text-white fill-white/20" />
-                      </button>
-                      <a 
-                        href={voiceoverAudioUrl} 
-                        download="recap_voiceover.wav"
-                        className="w-14 h-14 bg-blue-600/20 hover:bg-blue-600/30 rounded-2xl border border-blue-500/20 flex items-center justify-center transition-all active:scale-90"
-                      >
-                        <CloudUpload className="w-6 h-6 text-blue-400" />
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-white/5 flex flex-col gap-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <button 
-                        onClick={handleMerge}
-                        disabled={isMerging}
-                        className={`w-full sm:w-auto h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 transition-all active:scale-95 ${
-                          isMerging ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-purple-600 hover:bg-purple-700 text-white shadow-2xl shadow-purple-500/30"
-                        }`}
-                      >
-                        {isMerging ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        {isMerging ? t.merging : t.mergeWithVideo}
-                      </button>
-
-                      {mergedVideoUrl && (
-                        <motion.div 
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-xl"
-                        >
-                          <Check className="w-5 h-5 text-green-500" />
-                          <span className="text-[11px] font-black text-green-500 uppercase tracking-widest">{t.mergeSuccess}</span>
-                        </motion.div>
-                      )}
-                    </div>
-
-                    {mergedVideoUrl && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="p-6 bg-white/[0.03] rounded-2xl border border-white/10 flex flex-col sm:flex-row gap-6 items-center sm:justify-between"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center">
-                            <Play className="w-6 h-6 text-slate-400" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-black text-white uppercase tracking-[0.2em] block">RECAP_FINAL.MP4</span>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">System Bound Master Output</span>
-                          </div>
-                        </div>
-                        <a 
-                          href={mergedVideoUrl} 
-                          download="recap_master_final.mp4"
-                          className="w-full sm:w-auto h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
-                        >
-                          <CloudUpload className="w-4 h-4" />
-                          {t.downloadMerged}
-                        </a>
-                      </motion.div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-
-
-              {/* Regeneration Section */}
-              <div className="pt-8 border-t border-white/5 flex flex-col gap-4">
-                <button 
-                  onClick={handleGenerateVoiceover}
-                  disabled={isVoiceoverGenerating || !result}
-                  className={`h-12 px-10 self-start rounded-full font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all active:scale-95 ${
-                    isVoiceoverGenerating || !result ? "bg-white/5 cursor-not-allowed text-slate-600" : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
-                  }`}
+              {/* Only show merged output download card directly when completed */}
+              {mergedVideoUrl && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-6 bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl border border-white/10 flex flex-col sm:flex-row gap-6 items-center sm:justify-between"
                 >
-                  {isVoiceoverGenerating ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap className="w-4 h-4 text-blue-500" />}
-                  {isVoiceoverGenerating ? (lang === "EN" ? "Regenerating..." : "ပြန်လည်ထုတ်လုပ်နေသည်...") : (lang === "EN" ? "Regenerate Neural Voice" : "အသံပြန်ထုတ်မည်")}
-                </button>
-              </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/20">
+                      <Play className="w-6 h-6 text-green-400 fill-green-400" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-white uppercase tracking-[0.2em] block">RECAP_FINAL.MP4</span>
+                      <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">{lang === "EN" ? "Merge Completed successfully!" : "ပေါင်းစပ်မှု အောင်မြင်သည်!"}</span>
+                    </div>
+                  </div>
+                  <a 
+                    href={mergedVideoUrl} 
+                    download="recap_master_final.mp4"
+                    className="w-full sm:w-auto h-12 px-10 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-green-500/30 active:scale-95"
+                  >
+                    <CloudUpload className="w-4 h-4" />
+                    {t.downloadMerged}
+                  </a>
+                </motion.div>
+              )}
             </motion.section>
           )}
         </AnimatePresence>
