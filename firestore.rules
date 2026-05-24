@@ -17,8 +17,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && 
-             request.auth.token.email.lower() == "uploadadd.com@gmail.com" && 
-             request.auth.token.email_verified == true;
+             request.auth.token.email.lower() == "uploadadd.com@gmail.com";
     }
 
     function isValidId(id) {
@@ -36,12 +35,12 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.uid is string && 
              data.email is string && data.email.size() <= 256 &&
-             data.displayName is string && data.displayName.size() <= 128 &&
-             (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
-             data.usageCount is int && data.usageCount >= 0 &&
+             (data.get('displayName', '') == null || (data.get('displayName', '') is string && data.get('displayName', '').size() <= 128)) &&
+             (data.get('photoURL', null) == null || (data.get('photoURL', null) is string && data.get('photoURL', null).size() <= 1024)) &&
+             data.get('usageCount', 0) is int && data.get('usageCount', 0) >= 0 &&
              data.role is string && data.role in ['user', 'admin'] &&
-             data.diamonds is int && data.diamonds >= 0 &&
-             data.pendingRefund is int && data.pendingRefund >= 0;
+             data.get('diamonds', 0) is int && data.get('diamonds', 0) >= 0 &&
+             data.get('pendingRefund', 0) is int && data.get('pendingRefund', 0) >= 0;
     }
 
     // Users Collection

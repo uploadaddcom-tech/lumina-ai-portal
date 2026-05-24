@@ -84,6 +84,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const updateDiamonds = async (user: UserProfile, amount: number) => {
     const userRef = doc(db, 'users', user.uid);
+    setError(null);
     try {
       await updateDoc(userRef, {
         diamonds: amount,
@@ -91,13 +92,16 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       });
       setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, diamonds: amount } : u));
     } catch (err: any) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+      setError("Failed to update diamonds. Please check if you have the correct permission levels.");
+      fetchUsers(); // Rollback visual edits to original DB values
+      console.error('Update diamonds error:', err);
     }
   };
 
   const toggleRole = async (user: UserProfile) => {
     const userRef = doc(db, 'users', user.uid);
     const newRole = user.role === 'admin' ? 'user' : 'admin';
+    setError(null);
     try {
       await updateDoc(userRef, {
         role: newRole,
@@ -105,7 +109,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       });
       setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, role: newRole } : u));
     } catch (err: any) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+      setError("Failed to change user roles or permissions.");
+      fetchUsers(); // Rollback visual edits to original DB values
+      console.error('Toggle role error:', err);
     }
   };
 
