@@ -2782,25 +2782,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-8 pt-8"
             >
-              <div className="flex items-center gap-3 text-white">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Zap className="w-5 h-5 text-blue-400" />
-                </div>
-                <h2 className="text-2xl font-black tracking-tight">{lang === "EN" ? "Generated Recap" : "ထုတ်လုပ်ထားသော Recap"}</h2>
-              </div>
-              
-              <div className="bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-white/5 shadow-3xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8">
-                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
-                    <Sparkles className="w-6 h-6 text-blue-400/50" />
-                  </div>
-                </div>
-                
-                <div className="prose prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
-                  <Markdown>{result}</Markdown>
-                </div>
-              </div>
-
               {/* Audio result if ready */}
               {voiceoverAudioUrl && (
                 <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-3xl p-8 border border-white/5 shadow-2xl space-y-8">
