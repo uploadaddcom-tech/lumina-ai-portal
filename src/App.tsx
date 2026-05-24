@@ -2746,7 +2746,7 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
           <Cpu className="w-10 h-10 text-white" />
         </div>
         
-        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">LUMINA</h1>
+        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">MM RECAP</h1>
         <p className="text-[10px] font-tech font-black tracking-[0.4em] text-blue-500 uppercase mb-8">{t.authRequired}</p>
         
         <div className="space-y-3">
@@ -3044,7 +3044,7 @@ function AppContent() {
                         <Cpu className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex flex-col -gap-1">
-                        <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">LUMINA</span>
+                        <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">MM RECAP</span>
                         <span className="text-[9px] font-tech font-black tracking-[0.4em] text-blue-500/80 uppercase ml-1">NEURAL OS</span>
                       </div>
                     </div>
@@ -3138,7 +3138,7 @@ function AppContent() {
                  </div>
                  
                  <div className="flex items-center gap-6">
-                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 Lumina Neural Systems</span>
+                   <span className="text-[10px] font-tech font-black text-text-primary dark:text-slate-600 tracking-[0.3em] uppercase">© 2026 MM RECAP</span>
                  </div>
               </footer>
             </motion.div>
