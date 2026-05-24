@@ -1433,8 +1433,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
-        <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
-        
         {/* Upload Section */}
         <section className="space-y-4">
           <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
