@@ -151,23 +151,17 @@ async function startServer() {
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
-        const response = await retryWithBackoff(async () => {
-          const res = await aiClient.models.generateContent({
-            model: model,
-            contents: [
-              {
-                parts: [
-                  { text: finalPrompt },
-                  { inlineData: { data: videoBase64, mimeType } }
-                ]
-              }
-            ]
-          });
-          if (!res.text || !res.text.trim()) {
-            throw new Error("The AI model returned empty recap script. This might be a temporary issue or due to video safety filtering. Retrying...");
-          }
-          return res;
-        });
+        const response = await retryWithBackoff(() => aiClient.models.generateContent({
+          model: model,
+          contents: [
+            {
+              parts: [
+                { text: finalPrompt },
+                { inlineData: { data: videoBase64, mimeType } }
+              ]
+            }
+          ]
+        }));
         
         let text = response.text || "";
         if (lang === "MY") {
