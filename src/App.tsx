@@ -1673,11 +1673,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div 
               onClick={() => fileInputRef.current?.click()}
               className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
-                file ? "border-blue-500/50 bg-blue-500/5" : "border-white/10 hover:border-blue-500/30 hover:bg-white/5"
+                file ? "border-blue-500/50 bg-blue-500/5" : "border-border dark:border-white/10 hover:border-blue-500/30 hover:bg-slate-100 dark:hover:bg-white/5"
               }`}
             >
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-white/5 group-hover:bg-blue-500/10"
+                file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-blue-500/10"
               }`}>
                 {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
               </div>
@@ -1698,7 +1698,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Style Selection */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex items-center gap-3 text-text-primary dark:text-white">
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
               <Sparkles className="w-4 h-4 text-blue-400" />
             </div>
@@ -1713,11 +1713,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 className={`group flex items-start gap-4 p-4 rounded-2xl border text-left transition-all relative ${
                   selectedStyle === style.id 
                     ? "bg-blue-600 border-blue-500 text-white shadow-2xl shadow-blue-500/10 -translate-y-1" 
-                    : "bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-sm border-border dark:border-white/[0.05] text-text-secondary hover:border-slate-300 dark:hover:border-white/10 hover:text-text-primary dark:hover:text-slate-300"
+                    : "bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-sm border border-border dark:border-white/[0.05] text-text-secondary hover:border-slate-300 dark:hover:border-white/10 hover:text-text-primary dark:hover:text-slate-300"
                 }`}
               >
                 <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
-                  selectedStyle === style.id ? "bg-white/20" : "bg-white/5 group-hover:bg-white/10"
+                  selectedStyle === style.id ? "bg-white/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-slate-200 dark:group-hover:bg-white/10"
                 }`}>
                   <style.icon className={`w-4 h-4 ${
                     selectedStyle === style.id ? "text-white" : "text-slate-400 transition-colors group-hover:text-slate-300"
@@ -1745,14 +1745,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Voiceover Settings */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex items-center gap-3 text-text-primary dark:text-white">
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
               <Music className="w-4 h-4 text-purple-400" />
             </div>
             <h2 className="text-xl font-black tracking-tight">{vt.headline}</h2>
           </div>
 
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl flex flex-wrap gap-8">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl flex flex-wrap gap-8">
             <div className="flex-1 space-y-3 min-w-[200px]">
               <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.2em]">{vt.selectVoice}</label>
               <div className="flex flex-wrap gap-2">
@@ -1763,7 +1763,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
                       selectedVoice === key 
                         ? "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-500/20" 
-                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                        : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:text-slate-800 dark:hover:text-slate-300"
                     }`}
                   >
                     {(label as string).split(' ')[0]}
@@ -1782,7 +1782,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
                       selectedMood === key 
                         ? "bg-purple-600 border-purple-500 text-white shadow-xl shadow-purple-500/20" 
-                        : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300"
+                        : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:text-slate-800 dark:hover:text-slate-300"
                     }`}
                   >
                     {label as string}
@@ -1795,7 +1795,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Ratio Selection Section */}
         <section className="space-y-4">
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
@@ -1803,7 +1803,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 </label>
                 <button 
                   onClick={() => setShowRatioSettings(true)}
-                  className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black"
+                  className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black"
                 >
                   <Maximize className="w-4 h-4" />
                   <span className="text-[10px] uppercase tracking-widest">{videoRatio} Setting</span>
@@ -1815,7 +1815,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Logo Customization Section */}
         <section className="space-y-4">
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               {/* Upload Button */}
               <div className="space-y-2">
@@ -1832,7 +1832,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 <button 
                   onClick={() => logoInputRef.current?.click()}
                   className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                    logoFile ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                    logoFile ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-500 dark:text-emerald-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10"
                   }`}
                 >
                   <CloudUpload className="w-4 h-4" />
@@ -1850,7 +1850,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   </label>
                   <button 
                     onClick={() => setShowLogoSettings(true)}
-                    className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                    className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                   >
                     <Star className="w-4 h-4" />
                     {lang === "EN" ? "Logo Settings" : "Logo Setting"}
@@ -1863,14 +1863,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Blur Subtitle Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex items-center gap-3 text-text-primary dark:text-white">
             <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center border border-red-500/20">
               <Sparkles className="w-4 h-4 text-red-400" />
             </div>
             <h2 className="text-lg font-black tracking-tight">{lang === "EN" ? "Blur" : "Blur"}</h2>
           </div>
 
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
@@ -1880,7 +1880,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   <button 
                     onClick={() => setBlurEnabled(!blurEnabled)}
                     className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                      blurEnabled ? "bg-red-600/20 border-red-500/30 text-red-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                      blurEnabled ? "bg-red-600/20 border-red-500/30 text-red-500 dark:text-red-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10"
                     }`}
                   >
                     <Sparkles className="w-4 h-4" />
@@ -1892,7 +1892,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   {blurEnabled && (
                     <button 
                       onClick={() => setShowBlurSettings(true)}
-                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                     >
                       <Star className="w-4 h-4" />
                       {lang === "EN" ? "Blur Settings" : "နေရာညှိရန်"}
@@ -1906,14 +1906,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Subtitle Customization Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex items-center gap-3 text-text-primary dark:text-white">
             <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
               <Subtitles className="w-4 h-4 text-cyan-400" />
             </div>
             <h2 className="text-lg font-black tracking-tight">{lang === "EN" ? "Subtitle" : "Subtitle"}</h2>
           </div>
 
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
@@ -1923,7 +1923,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   <button 
                     onClick={() => setSubtitleEnabled(!subtitleEnabled)}
                     className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                      subtitleEnabled ? "bg-cyan-600/20 border-cyan-500/30 text-cyan-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                      subtitleEnabled ? "bg-cyan-600/20 border-cyan-500/30 text-cyan-500 dark:text-cyan-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10"
                     }`}
                   >
                     <Subtitles className="w-4 h-4" />
@@ -1935,7 +1935,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   {subtitleEnabled && (
                     <button 
                       onClick={() => setShowSubtitleSettings(true)}
-                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                      className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                     >
                       <Star className="w-4 h-4" />
                       {lang === "EN" ? "Settings" : "Setting ချိန်ရန်"}
@@ -1949,7 +1949,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
         {/* Freeze Frame Zoom Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex items-center gap-3 text-text-primary dark:text-white">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
               <Maximize className="w-4 h-4 text-emerald-400" />
             </div>
@@ -1958,14 +1958,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </h2>
           </div>
 
-          <div className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-white/5 shadow-2xl space-y-6">
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setFreezeFrameZoomEnabled(!freezeFrameZoomEnabled)}
                     className={`flex items-center gap-3 px-6 h-12 rounded-xl border transition-all ${
-                      freezeFrameZoomEnabled ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                      freezeFrameZoomEnabled ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-500 dark:text-emerald-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10"
                     }`}
                   >
                     <Maximize className="w-4 h-4" />
