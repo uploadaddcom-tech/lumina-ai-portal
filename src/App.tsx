@@ -373,6 +373,34 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
+  const [localDark, setLocalDark] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    const handler = () => {
+      setLocalDark(document.documentElement.classList.contains('dark'));
+    };
+    window.addEventListener('theme-changed', handler);
+    return () => window.removeEventListener('theme-changed', handler);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextDark = !localDark;
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+    setLocalDark(nextDark);
+    window.dispatchEvent(new Event('theme-changed'));
+  };
+
   const handleLogin = async () => {
     setIsLoggingIn(true);
     try {
@@ -400,6 +428,15 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
     <div className="relative">
       {/* 1. Desktop Layout */}
       <div className="hidden md:flex items-center gap-4">
+        {/* Modern high-contrast Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-white/10 transition-all active:scale-95 shadow-sm hover:scale-105"
+          title={localDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {localDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+
         {!user ? (
           <button 
             onClick={handleLogin}
@@ -445,7 +482,16 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
       </div>
 
       {/* 2. Mobile Layout with High Fidelity Full-height Slide-drawer (Sophia Rose mockup) */}
-      <div className="flex md:hidden items-center">
+      <div className="flex md:hidden items-center gap-2">
+        {/* Modern Mobile Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-white/10 transition-all active:scale-95 shadow-sm"
+          title={localDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {localDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+
         {/* Toggle Trigger */}
         <button 
           onClick={() => setIsOpen(true)}
@@ -3005,7 +3051,13 @@ function AppContent() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [intendedToolId, setIntendedToolId] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("MY");
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      return saved !== 'light';
+    }
+    return true;
+  });
   const [isAdminVerified, setIsAdminVerified] = useState(false);
 
   useEffect(() => {
@@ -3014,6 +3066,17 @@ function AppContent() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+  }, [darkMode]);
+
+  useEffect(() => {
+    const handler = () => {
+      const currentDark = document.documentElement.classList.contains('dark');
+      if (currentDark !== darkMode) {
+        setDarkMode(currentDark);
+      }
+    };
+    window.addEventListener('theme-changed', handler);
+    return () => window.removeEventListener('theme-changed', handler);
   }, [darkMode]);
 
   const TOOL_PATHS: Record<string, string> = {

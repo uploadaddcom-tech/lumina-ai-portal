@@ -80,10 +80,10 @@
 
 @layer base {
   :root {
-    --page-bg: #f8fafc;
+    --page-bg: #ffffff;
     --card-bg: #ffffff;
-    --text-primary: #000000;
-    --text-secondary: #334155;
+    --text-primary: #020617;
+    --text-secondary: #475569;
     --border-color: #e2e8f0;
   }
 
