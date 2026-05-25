@@ -174,36 +174,20 @@ async function startServer() {
             : "ဒီဗီဒီယိုကို ပုံပြင်ဆန်ဆန် ဇာတ်လမ်းတစ်ပုဒ်လို ပြန်ပြောပြပေးပါ၊ ဒါပေမယ့် ရယ်စရာကောင်းတဲ့ ဟာသတွေ၊ ဟာသဥာဏ်ရွှင်တဲ့ သရော်ချက်တွေနဲ့ ဟာသများများ ပေါင်းစပ်ပြီး အလွန်ရယ်ရမယ့် ပုံစံမျိုးဖြင့် ရေးပေးပါ။",
         };
 
-        const expected_wpm = lang === "EN" ? 160 : 190;
-        const targetAtempo = 1.3;
-        
-        let originalDuration = duration ? duration : 60;
         const isFreezeEnabled = freezeFrameZoomEnabled === true || freezeFrameZoomEnabled === "true";
-        if (isFreezeEnabled && duration) {
-          const freezeInterval = 6;
-          const freezeTimes: number[] = [];
-          for (let t = freezeInterval; t < duration - 2; t += freezeInterval) {
-            freezeTimes.push(t);
-          }
-          const addedDuration = freezeTimes.length * 2.0;
-          originalDuration = duration + addedDuration;
-        }
-
-        const effectiveDuration = originalDuration / 1.05;
-        const targetAudioDuration = effectiveDuration * targetAtempo;
-        const wordCount = Math.floor((targetAudioDuration / 60) * expected_wpm);
-        const displayDuration = Math.round(originalDuration);
+        const wpm = isFreezeEnabled ? 220 : 170;
+        const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
         
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target around ${wordCount} words for the overall duration of ${displayDuration} seconds to achieve a natural 1.3x speed ratio. DO NOT write a short description; write a fully detailed script matching this length).
+             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds. DO NOT exceed this word count).
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ / စာသားအရှည်သည် စကားစုပေါင်း ${wordCount} ကျော် (ဗီဒီယိုအရှည် ${displayDuration} စက္ကန့်အတွက် atempo = 1.3 တိတိ ရရှိစေရန် တွက်ချက်ထားသော စာလုံးရေးထုံးဖြစ်သဖြင့် စာလုံးရေ ယခုသတ်မှတ်ချက်အတိုင်း အပြည့်အစုံ ရေးပေးပါ၊ အတိုချုံ့ခြင်း သို့မဟုတ် တိုတိုလေးရေးခြင်း လုံးဝ မလုပ်ပါနှင့်)။
+             - Script အရှည် - စကားလုံးရေ ${wordCount} တိတိ (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် စာလုံးရေ မပိုစေဘဲ တိကျစွာ တွက်ချက်ထားသည်)။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
@@ -381,7 +365,6 @@ async function startServer() {
         const { 
         videoBase64, 
         audioBase64, 
-        mimeType = "video/mp4",
         logoBase64, 
         logoSize, 
         logoPosition, 
@@ -718,112 +701,12 @@ async function startServer() {
         }
       }
 
-      let vDurRaw = await getDuration(videoPath);
+      const vDurRaw = await getDuration(videoPath);
       // Speed up video by 5% (1.05x speed). Therefore, the effective video duration becomes:
-      let vDur = vDurRaw / 1.05;
+      const vDur = vDurRaw / 1.05;
       const aDur = await getDuration(audioPath);
       
-      let speed = vDur > 0 ? (aDur / vDur) : 1;
-      console.log(`Initial Duration check -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Audio Duration (aDur): ${aDur}s, Initial Speed: ${speed}`);
-
-      // If atempo speed factor is under 1.2, cut unnecessary scenes using Gemini to achieve exactly atempo = 1.3
-      if (speed < 1.2 && vDurRaw > 5) {
-        console.log(`Speed ${speed} is below 1.2. Initiating Gemini scene estimation to target atempo = 1.3...`);
-        const targetVDisp = aDur / 1.3;
-        const targetVDurRaw = targetVDisp * 1.05;
-        const cutSeconds = vDurRaw - targetVDurRaw;
-
-        if (cutSeconds > 0.5 && cutSeconds < vDurRaw - 2) {
-          console.log(`We need to cut exactly ${cutSeconds.toFixed(2)} seconds from the video to achieve atempo = 1.3.`);
-          
-          const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-          const cutPrompt = `
-            Analyze this video carefully. We need to cut out exactly ${cutSeconds.toFixed(2)} seconds of unnecessary, silent, static, or repetitive scenes to make it more compact.
-            Please identify a single continuous segment of exactly ${cutSeconds.toFixed(2)} seconds to remove from the video.
-            Your response must be strictly in JSON format matching this schema:
-            {
-              "start_cut": number (in seconds from the beginning of the video, e.g. 5.25),
-              "end_cut": number (in seconds, must be start_cut + ${cutSeconds.toFixed(2)})
-            }
-            Do not include any markup, text or explanations, just raw JSON.
-          `;
-
-          try {
-            const cutResponse = await retryWithBackoff(async (client) => {
-              return await client.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: [
-                  {
-                    parts: [
-                      { text: cutPrompt },
-                      { inlineData: { data: videoBase64, mimeType } }
-                    ]
-                  }
-                ],
-                config: {
-                  responseMimeType: "application/json"
-                }
-              });
-            }, customKey);
-
-            const cutText = cutResponse.text?.trim() || "{}";
-            const cutData = JSON.parse(cutText);
-            let start_cut = parseFloat(cutData.start_cut);
-            let end_cut = parseFloat(cutData.end_cut);
-
-            if (!isNaN(start_cut) && !isNaN(end_cut) && start_cut >= 0 && end_cut > start_cut) {
-              const diff = end_cut - start_cut;
-              if (Math.abs(diff - cutSeconds) > 0.1) {
-                end_cut = start_cut + cutSeconds;
-              }
-              if (end_cut > vDurRaw) {
-                end_cut = vDurRaw;
-                start_cut = Math.max(0, end_cut - cutSeconds);
-              }
-
-              console.log(`Gemini selected scene to cut: [${start_cut.toFixed(2)}s to ${end_cut.toFixed(2)}s]`);
-
-              const cutVideoPath = path.join(tempDir, `cut_video_${tempId}.mp4`);
-              const segment1 = path.join(tempDir, `cut_seg1_${tempId}.mp4`);
-              const segment2 = path.join(tempDir, `cut_seg2_${tempId}.mp4`);
-              const concatFile = path.join(tempDir, `cut_concat_${tempId}.txt`);
-
-              const dur1 = start_cut;
-              const dur2 = vDurRaw - end_cut;
-
-              if (dur1 > 0.1 && dur2 > 0.1) {
-                await execPromise(`ffmpeg -ss 0 -t ${dur1.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${segment1}"`);
-                await execPromise(`ffmpeg -ss ${end_cut.toFixed(3)} -t ${dur2.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${segment2}"`);
-
-                const content = `file '${path.resolve(segment1).replace(/'/g, "'\\''")}'\nfile '${path.resolve(segment2).replace(/'/g, "'\\''")}'`;
-                await writeFilePromise(concatFile, content);
-
-                await execPromise(`ffmpeg -f concat -safe 0 -i "${concatFile}" -c copy -y "${cutVideoPath}"`);
-
-                if (fs.existsSync(segment1)) await unlinkPromise(segment1);
-                if (fs.existsSync(segment2)) await unlinkPromise(segment2);
-                if (fs.existsSync(concatFile)) await unlinkPromise(concatFile);
-
-                fs.renameSync(cutVideoPath, videoPath);
-              } else if (dur1 <= 0.1 && dur2 > 0.1) {
-                await execPromise(`ffmpeg -ss ${end_cut.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${cutVideoPath}"`);
-                fs.renameSync(cutVideoPath, videoPath);
-              } else if (dur1 > 0.1 && dur2 <= 0.1) {
-                await execPromise(`ffmpeg -ss 0 -t ${dur1.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${cutVideoPath}"`);
-                fs.renameSync(cutVideoPath, videoPath);
-              }
-
-              // Recalculate duration and speed after successfully cutting
-              vDurRaw = await getDuration(videoPath);
-              vDur = vDurRaw / 1.05;
-              speed = vDur > 0 ? (aDur / vDur) : 1;
-              console.log(`Duration check after cutting -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Speed: ${speed}`);
-            }
-          } catch (cutErr) {
-            console.error("Failed to perform Gemini-guided scene-cut:", cutErr);
-          }
-        }
-      }
+      console.log(`Duration check -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Audio Duration (aDur): ${aDur}s`);
       
       const vRes = await getResolution(videoPath);
       // Reference width for logo scaling (UI preview container is approx 400px wide)
@@ -872,7 +755,7 @@ async function startServer() {
       }
 
       // Speed up or slow down the audio to match the effective video duration exactly (they must finish at the same time)
-      speed = vDur > 0 ? (aDur / vDur) : 1;
+      const speed = vDur > 0 ? (aDur / vDur) : 1;
       console.log(`Speed calculation results -> Target video duration: ${vDur}s, Original audio duration: ${aDur}s. Alignment speed factor: ${speed}`);
 
       // Generate the optimal atempo filter chain to achieve the target speed
