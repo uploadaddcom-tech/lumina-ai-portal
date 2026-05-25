@@ -188,7 +188,7 @@ export const translations = {
       mergeWithVideo: "မူရင်းဗီဒီယိုနှင့်ပေါင်းမည်",
       merging: "ဗီဒီယိုနှင့်အသံ ပေါင်းနေသည်...",
       mergeSuccess: "ပေါင်းစပ်မှု အောင်မြင်သည်!",
-      downloadMerged: "ပေါင်းပြီးသားဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်မည်",
+      downloadMerged: "Final Video ဒေါင်းလုဒ်လုပ်မည်",
       freezeFrameZoom: "Freeze Frame Zoom",
       freezeFrameZoomDesc: "ဗီဒီယိုတွင် ၆ စက္ကန့်လျှင်တစ်ကြိမ်၊ ၂ စက္ကန့်ကြာ Freeze Frame Zoom ប្រုလုပ်ရန်",
       actionsTitle: "ဆောင်ရွက်ပေးခဲ့သည့် အချက်များ:",

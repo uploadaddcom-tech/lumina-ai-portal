@@ -1308,6 +1308,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationPhase, setGenerationPhase] = useState<"recap" | "voiceover" | "merge" | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
@@ -1437,6 +1438,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     }
     
     setIsGenerating(true);
+    setGenerationPhase("recap");
     setError(null);
     setResult(null);
     setVoiceoverAudioUrl(null);
@@ -1450,6 +1452,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       if (!success) {
         setShowDiamondModal(true);
         setIsGenerating(false);
+        setGenerationPhase(null);
         return;
       }
       deducted = true;
@@ -1465,6 +1468,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       // Auto-trigger voiceover generation
       if (recapValue) {
         setIsVoiceoverGenerating(true);
+        setGenerationPhase("voiceover");
         try {
           const cleanText = recapValue.replace(/[#*`_~]/g, '');
           const vJobId = await api.voiceover(cleanText, selectedVoice, apiKey);
@@ -1506,12 +1510,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       }
     } finally {
       setIsGenerating(false);
+      setGenerationPhase(null);
     }
   };
 
   const handleGenerateVoiceover = async () => {
     if (!result || !file) return;
     setIsVoiceoverGenerating(true);
+    setGenerationPhase("voiceover");
     setVoiceoverAudioUrl(null);
 
     try {
@@ -1541,6 +1547,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       console.error(err);
     } finally {
       setIsVoiceoverGenerating(false);
+      setGenerationPhase(null);
     }
   };
 
@@ -1552,6 +1559,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   const performMerge = async (videoFile: File, audioUrl: string, subtitleTextOverride?: string) => {
     setIsMerging(true);
+    setGenerationPhase("merge");
     setMergedVideoUrl(null);
 
     try {
@@ -1627,6 +1635,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       throw err;
     } finally {
       setIsMerging(false);
+      setGenerationPhase(null);
     }
   };
 
@@ -2751,28 +2760,49 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
 
         {/* Action Button */}
-        {!showLogoSettings && !showRatioSettings && !showBlurSettings && (
-          <div className="flex justify-center pt-4">
-            <button 
-              onClick={handleGenerate}
-              disabled={!file || isGenerating}
-              className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
-                !file || isGenerating 
-                  ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
-                  : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white"
-              }`}
-            >
-               <div className="flex items-center gap-3">
-                {isGenerating ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <DiamondIcon className="w-6 h-6 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
-                )}
-                {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : `${t.generate} (${requiredCost} Dia)`}
-               </div>
-            </button>
-          </div>
-        )}
+        {!showLogoSettings && !showRatioSettings && !showBlurSettings && (() => {
+          const isAnyGenerating = isGenerating || isVoiceoverGenerating || isMerging;
+          const getButtonText = () => {
+            if (generationPhase === "recap") {
+              return lang === "EN" ? "Generating Recap Script..." : "Recap စာသားထုတ်နေသည်...";
+            }
+            if (generationPhase === "voiceover" || isVoiceoverGenerating) {
+              return lang === "EN" ? "Generating Neural Voice..." : "အသံထုတ်နေသည်...";
+            }
+            if (generationPhase === "merge" || isMerging) {
+              return lang === "EN" ? "Generating Final Video..." : "Final Videoထုတ်နေသည်...";
+            }
+            if (isGenerating) {
+              return lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...";
+            }
+            return `${t.generate} (${requiredCost} Dia)`;
+          };
+          
+          return (
+            <div className="flex justify-center pt-4">
+              <button 
+                onClick={handleGenerate}
+                disabled={!file || isAnyGenerating}
+                className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+                  !file 
+                    ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                    : isAnyGenerating
+                      ? "bg-blue-600 text-white shadow-xl shadow-blue-500/30 cursor-not-allowed animate-pulse"
+                      : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white cursor-pointer"
+                }`}
+              >
+                 <div className="flex items-center gap-3">
+                  {isAnyGenerating ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <DiamondIcon className="w-6 h-6 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
+                  )}
+                  {getButtonText()}
+                 </div>
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Result Section */}
         <AnimatePresence>
