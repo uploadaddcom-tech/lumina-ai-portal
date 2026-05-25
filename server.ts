@@ -268,123 +268,43 @@ async function startServer() {
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3.1-flash-tts-preview";
 
-        const getChunks = (input: string, maxLen = 100) => {
-          // Split on sentence/phrase boundaries first (Burmese and English punctuation, or newlines)
-          const sentences = input.split(/(?<=[။၊.!?\n])/);
-          const chunks: string[] = [];
+        const getChunks = (input: string, maxLen = 600) => {
+          const sentences = input.split(/(?<=[။၊.!?])\s+/);
+          const chunks = [];
           let current = "";
-          for (let s of sentences) {
-            if (!s) continue;
-            s = s.trim();
-            if (!s) continue;
-
-            if (s.length > maxLen) {
-              if (current) {
-                chunks.push(current);
-                current = "";
-              }
-              let part = s;
-              while (part.length > maxLen) {
-                let slicePoint = maxLen;
-                const lastSpace = part.lastIndexOf(" ", maxLen);
-                if (lastSpace > maxLen * 0.5) {
-                  slicePoint = lastSpace;
-                }
-                chunks.push(part.substring(0, slicePoint).trim());
-                part = part.substring(slicePoint).trim();
-              }
-              if (part.trim()) {
-                current = part.trim();
-              }
+          for (const s of sentences) {
+            if ((current + s).length > maxLen && current) {
+              chunks.push(current.trim());
+              current = s;
             } else {
-              const connector = current ? " " : "";
-              if ((current + connector + s).length > maxLen && current) {
-                chunks.push(current);
-                current = s;
-              } else {
-                current = current ? current + connector + s : s;
-              }
+              current = current ? current + " " + s : s;
             }
           }
-          if (current) {
-            chunks.push(current);
-          }
-          return chunks.filter(c => c.length > 0);
+          if (current) chunks.push(current.trim());
+          return chunks;
         };
 
-        const textChunks = getChunks(text, 100);
-        console.log(`[Voiceover Parallel] Splitting text of length ${text.length} into ${textChunks.length} chunks (max 100 chars).`);
-
-        // To comply with user's "Parallel Processing" requirement while avoiding API Rate Limit (429) errors,
-        // we implement a concurrency-controlled worker pool with a tiny staggered delay.
-        const runWithConcurrencyLimit = async <T>(
-          tasks: (() => Promise<T>)[],
-          concurrency = 3,
-          staggerMs = 200
-        ): Promise<T[]> => {
-          const results: T[] = new Array(tasks.length);
-          let currentIndex = 0;
-
-          const worker = async (): Promise<void> => {
-            while (currentIndex < tasks.length) {
-              const index = currentIndex++;
-              const task = tasks[index];
-              if (index > 0 && staggerMs > 0) {
-                await new Promise((resolve) => setTimeout(resolve, staggerMs));
-              }
-              try {
-                results[index] = await task();
-              } catch (err) {
-                console.error(`[Concurrency Worker] Task failed at index ${index}:`, err);
-                throw err;
-              }
-            }
-          };
-
-          const workers: Promise<void>[] = [];
-          const activeConcurrency = Math.min(concurrency, tasks.length);
-          for (let i = 0; i < activeConcurrency; i++) {
-            workers.push(worker());
-          }
-
-          await Promise.all(workers);
-          return results;
-        };
-
-        const taskFns = textChunks.map((chunk, index) => {
-          return async () => {
-            if (!chunk.trim()) return null;
-            try {
-              const response = await retryWithBackoff((client) => client.models.generateContent({
-                model: model,
-                contents: [{ parts: [{ text: chunk }] }],
-                config: {
-                  responseModalities: ["AUDIO"],
-                  speechConfig: {
-                    voiceConfig: {
-                      prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
-                    }
-                  }
-                } as any
-              }), customKey);
-              
-              const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-              if (audioBase64) {
-                return Buffer.from(audioBase64, 'base64');
-              }
-            } catch (err: any) {
-              console.error(`[Voiceover Parallel] Failed on chunk ${index + 1}/${textChunks.length}: "${chunk}". Error:`, err.message || err);
-              throw err;
-            }
-            return null;
-          };
-        });
-
-        const results = await runWithConcurrencyLimit(taskFns, 3, 200);
+        const textChunks = getChunks(text);
         const audioBuffers: Buffer[] = [];
-        for (const res of results) {
-          if (res) {
-            audioBuffers.push(res);
+
+        for (const chunk of textChunks) {
+          if (!chunk.trim()) continue;
+          const response = await retryWithBackoff((client) => client.models.generateContent({
+            model: model,
+            contents: [{ parts: [{ text: chunk }] }],
+            config: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                }
+              }
+            } as any
+          }), customKey);
+          
+          const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          if (audioBase64) {
+            audioBuffers.push(Buffer.from(audioBase64, 'base64'));
           }
         }
 
