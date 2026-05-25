@@ -1411,6 +1411,7 @@ interface HistoryItem {
   recapResult: string;
   voiceoverAudioUrl?: string | null;
   mergedVideoUrl?: string | null;
+  status?: "recap" | "voiceover" | "merge" | "completed" | "failed";
 }
 
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
@@ -1590,6 +1591,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
     let deducted = false;
+    let activeHistoryId: string | null = null;
 
     try {
       const success = await deductDiamonds(requiredCost);
@@ -1601,15 +1603,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       }
       deducted = true;
 
-      const base64 = await fileToBase64(file);
-      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey, freezeFrameZoomEnabled);
-      const jobResult = await pollForCompletion(jobId);
-      const recapValue = jobResult.text;
-      
-      await incrementUsage();
-      setResult(recapValue || "");
-
       const newHistoryId = Date.now().toString();
+      activeHistoryId = newHistoryId;
       const timestampStr = new Date().toLocaleString(lang === "EN" ? "en-US" : "my-MM", {
         year: "numeric",
         month: "short",
@@ -1623,7 +1618,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         timestamp: timestampStr,
         fileName: file.name,
         style: selectedStyle,
-        recapResult: recapValue || "",
+        recapResult: "",
+        status: "recap"
       };
       setCurrentHistoryId(newHistoryId);
       
@@ -1631,6 +1627,18 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         const updated = [newHistoryItem, ...prev];
         localStorage.setItem(`recap_history_${user?.uid || 'guest'}`, JSON.stringify(updated));
         return updated;
+      });
+
+      const base64 = await fileToBase64(file);
+      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey, freezeFrameZoomEnabled);
+      const jobResult = await pollForCompletion(jobId);
+      const recapValue = jobResult.text;
+      
+      await incrementUsage();
+      setResult(recapValue || "");
+      updateHistoryItem(newHistoryId, { 
+        recapResult: recapValue || "",
+        status: "voiceover"
       });
 
       // Auto-trigger voiceover generation
@@ -1652,7 +1660,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             const blob = new Blob([bytes], { type: "audio/wav" });
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
-            updateHistoryItem(newHistoryId, { voiceoverAudioUrl: url });
+            updateHistoryItem(newHistoryId, { 
+              voiceoverAudioUrl: url,
+              status: "merge"
+            });
 
             // Auto trigger merge and await its completion so any errors are caught here
             await performMerge(file, url, recapValue, newHistoryId);
@@ -1672,6 +1683,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       console.error(err);
       setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
       
+      if (activeHistoryId) {
+        updateHistoryItem(activeHistoryId, { status: "failed" });
+      }
+
       // Auto-refund immediately if we managed to deduct but failed to produce final video
       if (deducted) {
         console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
@@ -1734,6 +1749,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     setIsMerging(true);
     setGenerationPhase("merge");
     setMergedVideoUrl(null);
+
+    const targetId = historyIdToUpdate || currentHistoryId;
+    if (targetId) {
+      updateHistoryItem(targetId, { status: "merge" });
+    }
 
     try {
       const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
@@ -1799,15 +1819,20 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           throw new Error("No download url was returned for the merged video");
         }
         setMergedVideoUrl(job.downloadUrl);
-        const targetId = historyIdToUpdate || currentHistoryId;
         if (targetId) {
-          updateHistoryItem(targetId, { mergedVideoUrl: job.downloadUrl });
+          updateHistoryItem(targetId, { 
+            mergedVideoUrl: job.downloadUrl,
+            status: "completed"
+          });
         }
       } else {
         throw new Error("No Merge job ID returned");
       }
     } catch (err) {
       console.error(err);
+      if (targetId) {
+        updateHistoryItem(targetId, { status: "failed" });
+      }
       alert(err instanceof Error ? err.message : "Something went wrong during merging");
       throw err;
     } finally {

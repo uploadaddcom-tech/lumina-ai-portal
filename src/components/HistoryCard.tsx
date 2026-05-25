@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { FileVideo, Trash2, Eye, Volume2, CloudUpload } from "lucide-react";
-import Markdown from "react-markdown";
+import { FileVideo, Trash2, CloudUpload } from "lucide-react";
 
 interface HistoryItem {
   id: string;
@@ -10,6 +8,7 @@ interface HistoryItem {
   recapResult: string;
   voiceoverAudioUrl?: string | null;
   mergedVideoUrl?: string | null;
+  status?: "recap" | "voiceover" | "merge" | "completed" | "failed";
 }
 
 interface HistoryCardProps {
@@ -21,7 +20,7 @@ interface HistoryCardProps {
 }
 
 export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: HistoryCardProps) {
-  const [showScript, setShowScript] = useState(false);
+  const activeStatus = item.status || (item.mergedVideoUrl ? "completed" : "completed");
 
   return (
     <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-xl border border-border dark:border-white/5 rounded-2xl p-5 hover:border-blue-500/20 transition-all space-y-4">
@@ -53,25 +52,29 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
 
       <div className="flex flex-wrap gap-2 pt-2 items-center justify-between border-t border-white/5">
         <div className="flex flex-wrap gap-2 items-center">
-          <button
-            onClick={() => setShowScript(!showScript)}
-            className="h-9 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 cursor-pointer"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            {showScript 
-              ? (lang === "EN" ? "Hide Script" : "စာသားဝှက်မည်") 
-              : (lang === "EN" ? "View Script" : "စာသားကြည့်မည်")}
-          </button>
+          {activeStatus === "recap" && (
+            <span className="text-[11px] font-black uppercase text-yellow-500 animate-pulse bg-yellow-500/10 px-3 py-1.5 rounded-xl border border-yellow-500/20">
+              Recap Scriptထုတ်နေသည်
+            </span>
+          )}
+          {activeStatus === "voiceover" && (
+            <span className="text-[11px] font-black uppercase text-orange-500 animate-pulse bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/20">
+              အသံထုတ်နေသည်
+            </span>
+          )}
+          {activeStatus === "merge" && (
+            <span className="text-[11px] font-black uppercase text-blue-500 animate-pulse bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20">
+              Final Video ထုတ်နေသည်
+            </span>
+          )}
+          {activeStatus === "failed" && (
+            <span className="text-[11px] font-black uppercase text-red-500 bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20">
+              {lang === "EN" ? "Failed" : "အဆင်မပြေပါ"}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {item.voiceoverAudioUrl && (
-            <div className="flex items-center gap-2 bg-slate-100/5 px-3 py-1.5 rounded-xl border border-white/5 max-w-full">
-              <Volume2 className="w-4 h-4 text-cyan-400 shrink-0" />
-              <audio src={item.voiceoverAudioUrl} controls className="h-6 w-32 md:w-40 sm:w-36 text-xs bg-transparent dark:text-white" />
-            </div>
-          )}
-
           {item.mergedVideoUrl && (
             <a
               href={item.mergedVideoUrl}
@@ -84,12 +87,6 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
           )}
         </div>
       </div>
-
-      {showScript && (
-        <div className="p-4 bg-slate-900/50 border border-white/5 rounded-xl text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto font-sans">
-          <Markdown>{item.recapResult}</Markdown>
-        </div>
-      )}
     </div>
   );
 }
