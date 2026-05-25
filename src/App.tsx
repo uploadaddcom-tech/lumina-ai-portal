@@ -990,16 +990,35 @@ function VideoRecapperView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 }
 
 function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
-  const { user, incrementUsage } = useFirebase();
+  const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[lang].transcribe;
+
+  // Load duration of video
+  useEffect(() => {
+    if (!file) {
+      setDuration(null);
+      return;
+    }
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      setDuration(video.duration);
+    };
+    video.src = URL.createObjectURL(file);
+    return () => {
+      URL.revokeObjectURL(video.src);
+    };
+  }, [file]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -1014,35 +1033,59 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     }
   };
 
+  const isAppApiKey = apiKeyConfig.source === "app";
+  const requiredCost = isAppApiKey && file ? Math.max(2, Math.ceil((duration || 0) / 60) * 2) : 0;
+
+  const fileToBase64 = (f: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.readAsDataURL(f);
+      r.onload = () => resolve((r.result as string).split(",")[1]);
+      r.onerror = (e) => reject(e);
+    });
+  };
+
   const handleGenerate = async () => {
     if (!file) return;
+
+    if (requiredCost > 0 && diamonds < requiredCost) {
+      setShowDiamondModal(true);
+      return;
+    }
     
     setIsGenerating(true);
     setError(null);
     setResult(null);
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+    let deducted = false;
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        try {
-          const base64 = (reader.result as string).split(",")[1];
-          const jobId = await api.transcribe(base64, file.type, lang, apiKey);
-          const jobResult = await pollForCompletion(jobId);
-          await incrementUsage();
-          setResult(jobResult.text || "");
-        } catch (err: any) {
-          console.error(err);
-          setError(lang === "EN" ? `Transcription failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
-        } finally {
+      if (requiredCost > 0) {
+        const success = await deductDiamonds(requiredCost);
+        if (!success) {
+          setShowDiamondModal(true);
           setIsGenerating(false);
+          return;
         }
-      };
-    } catch (err) {
+        deducted = true;
+      }
+
+      const base64 = await fileToBase64(file);
+      const jobId = await api.transcribe(base64, file.type, lang, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      
+      await incrementUsage();
+      setResult(jobResult.text || "");
+    } catch (err: any) {
       console.error(err);
-      setError(lang === "EN" ? "Failed to transcribe. Please try again." : "ဘာသာပြန်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      setError(lang === "EN" ? `Transcription failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
+      
+      if (deducted && requiredCost > 0) {
+        console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
+        await refundDiamonds(requiredCost);
+      }
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -1113,7 +1156,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : t.generate}
+            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
           </button>
         </div>
 
@@ -1136,6 +1179,8 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
       </div>
     </div>
   );
