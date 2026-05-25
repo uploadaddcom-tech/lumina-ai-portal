@@ -893,7 +893,7 @@ async function startServer() {
         }
         
         const timestampPrompt = `
-          Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio based on the script.
+          Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 2 decimal places for millisecond accuracy) for this audio based on the script.
           
           Script: "${subtitleText}"
           
@@ -901,8 +901,8 @@ async function startServer() {
           1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
           2. Break the script into small, highly readable chunks (usually around 4-8 words or a short phrase).
           3. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
-          4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.234, "end_time": 4.567}, ...]
-          5. Timestamps MUST be numbers in seconds with exactly 3 decimal places (e.g., 2.345) to ensure perfect synchronization.
+          4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.23, "end_time": 4.56}, ...]
+          5. Timestamps MUST be numbers in seconds with exactly 2 decimal places (e.g., 2.34) to ensure perfect synchronization.
           6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
         `;
 
@@ -968,7 +968,7 @@ async function startServer() {
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
-          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
+          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(2)},${chunk.end_time.toFixed(2)})'`;
           const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
           const subYPercent = typeof subtitleY === "number" ? subtitleY : 90;
           const subYFact = (subYPercent / 100).toFixed(3);
