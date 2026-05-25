@@ -9,34 +9,81 @@ import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
 
+dotenv.config();
+
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
 
-async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 2000): Promise<T> {
+let currentKeyIdx = 0;
+
+function getAiClient(customKey?: string): GoogleGenAI {
+  if (customKey) {
+    return new GoogleGenAI({ apiKey: customKey });
+  }
+  const apiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3
+  ].filter(Boolean) as string[];
+
+  const keyToUse = apiKeys.length > 0 ? apiKeys[currentKeyIdx % apiKeys.length] : (process.env.GEMINI_API_KEY || "");
+  return new GoogleGenAI({ apiKey: keyToUse });
+}
+
+function rotateApiKey() {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3
+  ].filter(Boolean) as string[];
+
+  if (apiKeys.length > 1) {
+    currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
+    console.log(`[API KEY ROTATION] Rotated to key index ${currentKeyIdx}. Active Key preview: ...${apiKeys[currentKeyIdx].substring(apiKeys[currentKeyIdx].length - 6, apiKeys[currentKeyIdx].length)}`);
+  }
+}
+
+async function retryWithBackoff<T>(
+  fn: (client: GoogleGenAI) => Promise<T>,
+  customKey?: string,
+  maxRetries = 6,
+  initialDelay = 1500
+): Promise<T> {
   let delay = initialDelay;
+  const apiKeysCount = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3
+  ].filter(Boolean).length;
+
   for (let i = 0; i <= maxRetries; i++) {
+    const aiClient = getAiClient(customKey);
     try {
-      return await fn();
+      return await fn(aiClient);
     } catch (error: any) {
       const is503 = error.message?.includes("503") || error.status === 503 || error.message?.includes("high demand");
       const is429 = error.message?.includes("429") || error.status === 429;
       const is500 = error.message?.includes("500") || error.status === 500 || error.message?.includes("Internal error");
-      
-      if (i === maxRetries || (!is503 && !is429 && !is500)) {
+      const isTimeout = error.message?.includes("timeout") || error.message?.includes("fetch failed") || error.code === 'UND_ERR_HEADERS_TIMEOUT';
+
+      if (!customKey && apiKeysCount > 1 && (is503 || is429 || is500 || isTimeout || error.message)) {
+        console.warn(`[API KEY FAILURE] Error on key index ${currentKeyIdx}: ${error.message || error}. Rotating to next key...`);
+        rotateApiKey();
+      }
+
+      if (i === maxRetries) {
         throw error;
       }
-      
-      console.warn(`Gemini API Error (Retryable): ${error.message}. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+
+      console.warn(`Gemini API Error (Retryable): ${error.message || error}. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 2; // Exponential backoff
+      delay *= 1.5;
     }
   }
   throw new Error("Retry failed");
 }
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -151,7 +198,7 @@ async function startServer() {
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
-        const response = await retryWithBackoff(() => aiClient.models.generateContent({
+        const response = await retryWithBackoff((client) => client.models.generateContent({
           model: model,
           contents: [
             {
@@ -161,7 +208,7 @@ async function startServer() {
               ]
             }
           ]
-        }));
+        }), customKey);
         
         let text = response.text || "";
         if (lang === "MY") {
@@ -190,7 +237,7 @@ async function startServer() {
         const model = "gemini-2.5-flash";
         const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
-        const response = await retryWithBackoff(() => aiClient.models.generateContent({
+        const response = await retryWithBackoff((client) => client.models.generateContent({
           model: model,
           contents: [
             {
@@ -200,7 +247,7 @@ async function startServer() {
               ]
             }
           ]
-        }));
+        }), customKey);
         
         appJobs.set(jobId, { status: "completed", text: response.text });
       } catch (error: any) {
@@ -242,7 +289,7 @@ async function startServer() {
 
         for (const chunk of textChunks) {
           if (!chunk.trim()) continue;
-          const response = await retryWithBackoff(() => aiClient.models.generateContent({
+          const response = await retryWithBackoff((client) => client.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: chunk }] }],
             config: {
@@ -253,7 +300,7 @@ async function startServer() {
                 }
               }
             } as any
-          }));
+          }), customKey);
           
           const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           if (audioBase64) {
@@ -906,8 +953,8 @@ async function startServer() {
           6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
         `;
 
-        svChunks = await retryWithBackoff(async () => {
-          const tsResponse = await aiClient.models.generateContent({
+        svChunks = await retryWithBackoff(async (client) => {
+          const tsResponse = await client.models.generateContent({
             model: "gemini-2.5-flash",
             contents: [
               {
@@ -924,7 +971,7 @@ async function startServer() {
 
           const tsRaw = tsResponse.text || "[]";
           return JSON.parse(tsRaw);
-        });
+        }, customKey);
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
