@@ -37,7 +37,10 @@ import {
   User,
   Menu,
   Home,
-  X
+  X,
+  Trash2,
+  History,
+  FileVideo
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -49,6 +52,7 @@ import { useFirebase } from "./components/FirebaseProvider";
 import { loginWithGoogle, logout } from "./lib/firebase";
 import { DiamondIcon } from "./components/DiamondIcon";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { HistoryCard } from "./components/HistoryCard";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
@@ -1302,8 +1306,51 @@ function AdminSecondaryLoginView({ onSuccess, onBack, lang }: { onSuccess: () =>
   );
 }
 
+interface HistoryItem {
+  id: string;
+  timestamp: string;
+  fileName: string;
+  style: string;
+  recapResult: string;
+  voiceoverAudioUrl?: string | null;
+  mergedVideoUrl?: string | null;
+}
+
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
+
+  // Load history based on user
+  useEffect(() => {
+    const userKey = user?.uid || "guest";
+    try {
+      const saved = localStorage.getItem(`recap_history_${userKey}`);
+      if (saved) {
+        setHistory(JSON.parse(saved));
+      } else {
+        setHistory([]);
+      }
+    } catch (e) {
+      console.error("Failed to load history:", e);
+    }
+  }, [user]);
+
+  // Helper to update state and localStorage
+  const updateHistoryItem = (id: string, updates: Partial<HistoryItem>) => {
+    const userKey = user?.uid || "guest";
+    setHistory(prev => {
+      const updated = prev.map(item => {
+        if (item.id === id) {
+          return { ...item, ...updates };
+        }
+        return item;
+      });
+      localStorage.setItem(`recap_history_${userKey}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
@@ -1465,6 +1512,30 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       await incrementUsage();
       setResult(recapValue || "");
 
+      const newHistoryId = Date.now().toString();
+      const timestampStr = new Date().toLocaleString(lang === "EN" ? "en-US" : "my-MM", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      });
+      const newHistoryItem: HistoryItem = {
+        id: newHistoryId,
+        timestamp: timestampStr,
+        fileName: file.name,
+        style: selectedStyle,
+        recapResult: recapValue || "",
+      };
+      setCurrentHistoryId(newHistoryId);
+      
+      setHistory(prev => {
+        const updated = [newHistoryItem, ...prev];
+        localStorage.setItem(`recap_history_${user?.uid || 'guest'}`, JSON.stringify(updated));
+        return updated;
+      });
+
       // Auto-trigger voiceover generation
       if (recapValue) {
         setIsVoiceoverGenerating(true);
@@ -1484,9 +1555,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             const blob = new Blob([bytes], { type: "audio/wav" });
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
+            updateHistoryItem(newHistoryId, { voiceoverAudioUrl: url });
 
             // Auto trigger merge and await its completion so any errors are caught here
-            await performMerge(file, url, recapValue);
+            await performMerge(file, url, recapValue, newHistoryId);
           } else {
             throw new Error("No voiceover audio data returned from api");
           }
@@ -1540,8 +1612,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         const url = URL.createObjectURL(blob);
         setVoiceoverAudioUrl(url);
 
+        if (currentHistoryId) {
+          updateHistoryItem(currentHistoryId, { voiceoverAudioUrl: url });
+        }
+
         // Auto trigger merge on manual regeneration too
-        performMerge(file, url, result || undefined);
+        performMerge(file, url, result || undefined, currentHistoryId || undefined);
       }
     } catch (err) {
       console.error(err);
@@ -1557,7 +1633,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     }
   };
 
-  const performMerge = async (videoFile: File, audioUrl: string, subtitleTextOverride?: string) => {
+  const performMerge = async (videoFile: File, audioUrl: string, subtitleTextOverride?: string, historyIdToUpdate?: string) => {
     setIsMerging(true);
     setGenerationPhase("merge");
     setMergedVideoUrl(null);
@@ -1626,6 +1702,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           throw new Error("No download url was returned for the merged video");
         }
         setMergedVideoUrl(job.downloadUrl);
+        const targetId = historyIdToUpdate || currentHistoryId;
+        if (targetId) {
+          updateHistoryItem(targetId, { mergedVideoUrl: job.downloadUrl });
+        }
       } else {
         throw new Error("No Merge job ID returned");
       }
@@ -1641,7 +1721,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   const handleMerge = () => {
     if (file && voiceoverAudioUrl) {
-      performMerge(file, voiceoverAudioUrl, result || undefined);
+      performMerge(file, voiceoverAudioUrl, result || undefined, currentHistoryId || undefined);
     }
   };
 
@@ -2836,6 +2916,92 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </motion.section>
           )}
         </AnimatePresence>
+
+        {/* History Section */}
+        <div className="pt-12 border-t border-white/5 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <History className="w-5 h-5 text-blue-500" />
+              <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">
+                {lang === "EN" ? "Recap History" : "လုပ်ဆောင်ခဲ့မှု မှတ်တမ်း"}
+              </h2>
+            </div>
+            {history.length > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm(lang === "EN" ? "Are you sure you want to clear all history?" : "မှတ်တမ်းအားလုံးကို ဖြတ်ပစ်ရန် သေချာပါသလား။")) {
+                    const userKey = user?.uid || "guest";
+                    setHistory([]);
+                    localStorage.removeItem(`recap_history_${userKey}`);
+                    setCurrentHistoryId(null);
+                  }
+                }}
+                className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {lang === "EN" ? "CLEAR ALL" : "မှတ်တမ်းအားလုံးဖျက်မည်"}
+              </button>
+            )}
+          </div>
+
+          {history.length === 0 ? (
+            <div className="text-center p-8 bg-white/5 border border-dashed border-white/10 rounded-2xl">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                {lang === "EN" 
+                  ? "No creations logged yet. Begin syncing to save logs!" 
+                  : "မှတ်တမ်းများ မရှိသေးပါ၊ Recap အသစ်များ စတင်ထုတ်လုပ်သောအခါ ဤနေရာတွင် သိမ်းဆည်းပေးမည်ဖြစ်ပါသည်။"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {(() => {
+                const handleRestoreHistory = (histItem: HistoryItem) => {
+                  setResult(histItem.recapResult);
+                  setVoiceoverAudioUrl(histItem.voiceoverAudioUrl || null);
+                  setMergedVideoUrl(histItem.mergedVideoUrl || null);
+                  setCurrentHistoryId(histItem.id);
+                  setSelectedStyle(histItem.style);
+                  
+                  window.scrollTo({ top: 300, behavior: "smooth" });
+
+                  if (!file) {
+                    alert(lang === "EN" 
+                      ? `Restored generated records for "${histItem.fileName}". You can view/download resources or upload original file to perform new merges.` 
+                      : `"${histItem.fileName}" အတွက် ထုတ်ယူထားသော မှတ်တမ်းများကို Workspace သို့ ပြန်သွင်းပေးထားပါသည်။ standard operations များလုပ်ဆောင်ရန် မူရင်းဗီဒီယိုဖိုင်အား ပြန်လည်ရွေးချယ်ပေးပါ။`);
+                  }
+                };
+
+                const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  const userKey = user?.uid || "guest";
+                  setHistory(prev => {
+                    const updated = prev.filter(item => item.id !== id);
+                    localStorage.setItem(`recap_history_${userKey}`, JSON.stringify(updated));
+                    return updated;
+                  });
+                  if (id === currentHistoryId) {
+                    setCurrentHistoryId(null);
+                  }
+                };
+
+                return history.map((item) => {
+                  const styleObj = styles.find(s => s.id === item.style);
+                  const styleLabel = styleObj?.title || item.style;
+                  return (
+                    <HistoryCard 
+                      key={item.id} 
+                      item={item} 
+                      styleLabel={styleLabel} 
+                      lang={lang} 
+                      onRestore={() => handleRestoreHistory(item)}
+                      onDelete={(e) => deleteHistoryItem(item.id, e)}
+                    />
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
