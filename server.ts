@@ -174,7 +174,7 @@ async function startServer() {
             : "ဒီဗီဒီယိုကို ပုံပြင်ဆန်ဆန် ဇာတ်လမ်းတစ်ပုဒ်လို ပြန်ပြောပြပေးပါ၊ ဒါပေမယ့် ရယ်စရာကောင်းတဲ့ ဟာသတွေ၊ ဟာသဥာဏ်ရွှင်တဲ့ သရော်ချက်တွေနဲ့ ဟာသများများ ပေါင်းစပ်ပြီး အလွန်ရယ်ရမယ့် ပုံစံမျိုးဖြင့် ရေးပေးပါ။",
         };
 
-        const expected_wpm = lang === "EN" ? 150 : 110;
+        const expected_wpm = lang === "EN" ? 160 : 190;
         const targetAtempo = 1.3;
         
         let originalDuration = duration ? duration : 60;
@@ -196,14 +196,14 @@ async function startServer() {
         
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target ${wordCount} words for the overall duration of ${displayDuration} seconds to achieve a natural 1.3x speed ratio. DO NOT exceed this word count).
+             - Script length: Approximately ${wordCount} words (Strictly target around ${wordCount} words for the overall duration of ${displayDuration} seconds to achieve a natural 1.3x speed ratio. DO NOT write a short description; write a fully detailed script matching this length).
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ ${wordCount} တိတိ (ဗီဒီယိုအရှည် ${displayDuration} စက္ကန့်အတွက် atempo = 1.3 တိတိ ရရှိစေရန် တွက်ချက်ထားသော စာလုံးရေ ဖြစ်သဖြင့် စာလုံးရေ ယခုသတ်မှတ်ချက်အတိုင်း တိကျစွာ ရေးပေးပါ)။
+             - Script အရှည် - စကားလုံးရေ / စာသားအရှည်သည် စကားစုပေါင်း ${wordCount} ကျော် (ဗီဒီယိုအရှည် ${displayDuration} စက္ကန့်အတွက် atempo = 1.3 တိတိ ရရှိစေရန် တွက်ချက်ထားသော စာလုံးရေးထုံးဖြစ်သဖြင့် စာလုံးရေ ယခုသတ်မှတ်ချက်အတိုင်း အပြည့်အစုံ ရေးပေးပါ၊ အတိုချုံ့ခြင်း သို့မဟုတ် တိုတိုလေးရေးခြင်း လုံးဝ မလုပ်ပါနှင့်)။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
