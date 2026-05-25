@@ -658,7 +658,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
 }
 
 function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
-  const { user, incrementUsage } = useFirebase();
+  const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Kore");
   const [selectedMood, setSelectedMood] = useState("story");
@@ -666,18 +666,63 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
 
   const t = translations[lang].voiceover;
 
+  const getWordCount = (txt: string): number => {
+    const trimmed = txt.trim();
+    if (!trimmed) return 0;
+    
+    const hasMyanmar = /[\u1000-\u109F]/.test(trimmed);
+    if (hasMyanmar) {
+      const myanmarSyllables = (trimmed.match(/[\u1000-\u1021\u1023-\u102a\u103f\u1040-\u1049]/g) || []).length;
+      const nonMyanmarText = trimmed.replace(/[\u1000-\u109F]/g, " ").trim();
+      const englishWordCount = nonMyanmarText.split(/\s+/).filter(Boolean).length;
+      return myanmarSyllables + englishWordCount;
+    }
+    return trimmed.split(/\s+/).filter(Boolean).length;
+  };
+
+  const isAppApiKey = apiKeyConfig.source === "app";
+  const wordCount = getWordCount(text);
+
+  const getRequiredCost = (): number => {
+    if (!isAppApiKey || wordCount <= 0) return 0;
+    if (wordCount < 100) return 1;
+    if (wordCount < 200) return 2;
+    if (wordCount < 300) return 3;
+    return Math.floor(wordCount / 100) + 1;
+  };
+
+  const requiredCost = getRequiredCost();
+
   const handleGenerate = async () => {
     if (!text.trim()) return;
+
+    if (requiredCost > 0 && diamonds < requiredCost) {
+      setShowDiamondModal(true);
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
     setAudioUrl(null);
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+    let deducted = false;
 
     try {
+      if (requiredCost > 0) {
+        const success = await deductDiamonds(requiredCost);
+        if (!success) {
+          setShowDiamondModal(true);
+          setIsGenerating(false);
+          return;
+        }
+        deducted = true;
+      }
+
       const jobId = await api.voiceover(text, selectedVoice, apiKey);
       const jobResult = await pollForCompletion(jobId);
       const base64 = jobResult.audioData;
@@ -697,6 +742,11 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     } catch (err: any) {
       console.error(err);
       setError(lang === "EN" ? `Failed to generate voiceover: ${err.message}` : `Voiceover ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ${err.message}`);
+      
+      if (deducted && requiredCost > 0) {
+        console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
+        await refundDiamonds(requiredCost);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -797,7 +847,7 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               ) : (
                 <Zap className="w-4 h-4" />
               )}
-              {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : t.generate}
+              {isGenerating ? (lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
             </button>
           </div>
           {error && <p className="text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
@@ -837,6 +887,8 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </motion.div>
           )}
         </AnimatePresence>
+        
+        <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
       </div>
     </div>
   );
