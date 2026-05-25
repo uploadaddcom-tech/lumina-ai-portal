@@ -811,25 +811,6 @@ function VoiceoverView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 ))}
               </div>
             </div>
-
-            <div className="flex-1 space-y-3 min-w-[200px]">
-              <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.3em]">{t.selectMood}</label>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(t.moods).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedMood(key)}
-                    className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
-                      selectedMood === key 
-                        ? "bg-purple-600 border-purple-500 text-white shadow-xl shadow-purple-500/20" 
-                        : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-text-secondary dark:text-slate-500 hover:border-slate-300 dark:hover:border-white/10 hover:text-text-primary dark:hover:text-slate-300"
-                    }`}
-                  >
-                    {label as string}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="flex justify-center pt-4">
@@ -1978,25 +1959,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     }`}
                   >
                     {(label as string).split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-3 min-w-[200px]">
-              <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.2em]">{vt.selectMood}</label>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(vt.moods).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedMood(key)}
-                    className={`px-4 py-2 rounded-lg border text-[10px] font-black transition-all ${
-                      selectedMood === key 
-                        ? "bg-purple-600 border-purple-500 text-white shadow-xl shadow-purple-500/20" 
-                        : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:text-slate-800 dark:hover:text-slate-300"
-                    }`}
-                  >
-                    {label as string}
                   </button>
                 ))}
               </div>
