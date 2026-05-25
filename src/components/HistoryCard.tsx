@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileVideo, Trash2, ArrowRight, Eye, Volume2, CloudUpload } from "lucide-react";
+import { FileVideo, Trash2, Eye, Volume2, CloudUpload } from "lucide-react";
 import Markdown from "react-markdown";
 
 interface HistoryItem {
@@ -53,14 +53,6 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
 
       <div className="flex flex-wrap gap-2 pt-2 items-center justify-between border-t border-white/5">
         <div className="flex flex-wrap gap-2 items-center">
-          <button
-            onClick={onRestore}
-            className="h-9 px-4 rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 cursor-pointer"
-          >
-            <ArrowRight className="w-3.5 h-3.5" />
-            {lang === "EN" ? "Restore to Workspace" : "Workspace သို့ယူသွင်းမည်"}
-          </button>
-
           <button
             onClick={() => setShowScript(!showScript)}
             className="h-9 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 cursor-pointer"
