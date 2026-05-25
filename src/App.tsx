@@ -3238,6 +3238,15 @@ function AppContent() {
         )}
       </AnimatePresence>
 
+      <div style={{ display: location.pathname === '/recapmaster' ? 'block' : 'none' }}>
+        <RecapMasterView 
+          onBack={() => navigate('/')} 
+          lang={lang}
+          setLang={setLang}
+          onAdminClick={handleAdminClick}
+        />
+      </div>
+
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/admin" element={
@@ -3265,20 +3274,7 @@ function AppContent() {
           } />
           
           <Route path="/recapmaster" element={
-            <motion.div
-              key="recap-master"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <RecapMasterView 
-                onBack={() => navigate('/')} 
-                lang={lang}
-                setLang={setLang}
-                onAdminClick={handleAdminClick}
-              />
-            </motion.div>
+            <div className="min-h-screen" />
           } />
 
           <Route path="/videorecapper" element={
