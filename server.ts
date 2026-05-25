@@ -268,43 +268,75 @@ async function startServer() {
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3.1-flash-tts-preview";
 
-        const getChunks = (input: string, maxLen = 600) => {
-          const sentences = input.split(/(?<=[။၊.!?])\s+/);
-          const chunks = [];
+        const getChunks = (input: string, maxLen = 100) => {
+          const sentences = input.split(/(?<=[။၊.!?\s])/);
+          const chunks: string[] = [];
           let current = "";
           for (const s of sentences) {
-            if ((current + s).length > maxLen && current) {
-              chunks.push(current.trim());
-              current = s;
+            if (!s) continue;
+            if (s.length > maxLen) {
+              if (current) {
+                chunks.push(current.trim());
+                current = "";
+              }
+              let part = s;
+              while (part.length > maxLen) {
+                chunks.push(part.substring(0, maxLen).trim());
+                part = part.substring(maxLen);
+              }
+              if (part.trim()) {
+                current = part;
+              }
             } else {
-              current = current ? current + " " + s : s;
+              if ((current + s).length > maxLen && current) {
+                chunks.push(current.trim());
+                current = s;
+              } else {
+                current = current ? current + s : s;
+              }
             }
           }
-          if (current) chunks.push(current.trim());
-          return chunks;
+          if (current.trim()) {
+            chunks.push(current.trim());
+          }
+          return chunks.filter(c => c.length > 0);
         };
 
-        const textChunks = getChunks(text);
-        const audioBuffers: Buffer[] = [];
+        const textChunks = getChunks(text, 100);
+        console.log(`[Voiceover Parallel] Splitting text of length ${text.length} into ${textChunks.length} chunks (max 100 chars).`);
 
-        for (const chunk of textChunks) {
-          if (!chunk.trim()) continue;
-          const response = await retryWithBackoff((client) => client.models.generateContent({
-            model: model,
-            contents: [{ parts: [{ text: chunk }] }],
-            config: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+        const promises = textChunks.map(async (chunk, index) => {
+          if (!chunk.trim()) return null;
+          try {
+            const response = await retryWithBackoff((client) => client.models.generateContent({
+              model: model,
+              contents: [{ parts: [{ text: chunk }] }],
+              config: {
+                responseModalities: ["AUDIO"],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                  }
                 }
-              }
-            } as any
-          }), customKey);
-          
-          const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-          if (audioBase64) {
-            audioBuffers.push(Buffer.from(audioBase64, 'base64'));
+              } as any
+            }), customKey);
+            
+            const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            if (audioBase64) {
+              return Buffer.from(audioBase64, 'base64');
+            }
+          } catch (err: any) {
+            console.error(`[Voiceover Parallel] Failed on chunk ${index + 1}/${textChunks.length}: "${chunk}". Error:`, err.message || err);
+            throw err;
+          }
+          return null;
+        });
+
+        const results = await Promise.all(promises);
+        const audioBuffers: Buffer[] = [];
+        for (const res of results) {
+          if (res) {
+            audioBuffers.push(res);
           }
         }
 
