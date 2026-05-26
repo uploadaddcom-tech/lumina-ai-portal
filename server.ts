@@ -231,12 +231,16 @@ Listen carefully to the audio track and classify it into one of three scenarios:
 - SCENARIO B (Dialogue): The audio contains character dialogue, conversation, chat, or movie-style talking between characters.
 - SCENARIO C (No Spoken Speech): The video has no human spoken speech (it is silent, has only wind/ambient noise, or contains only instrumental background music / sound effects).
 
-[FLOW A: NARRATION SPEECH DETECTED (FAST DIRECT TRANSDUCTION)]
+[FLOW A: NARRATION SPEECH DETECTED (STYLE-ADAPTED TRANSLATED SCRIPT)]
 - Use this flow ONLY if SCENARIO A is met (background narration/voiceover/commentary is present).
 - Do NOT write a visual-based recap of the video scenes.
 - Focus exclusively on the spoken words/sentences in the narration.
-- Transcribe the narration and translate/rephrase it directly into natural-flowing, smooth, colloquial ${lang === "EN" ? "English" : "Myanmar (Burmese)"} narrative voiceover.
-- Keep the translation contextually coherent and fast.
+- Transcribe the narration and translate it into smooth, colloquial ${lang === "EN" ? "English" : "Myanmar (Burmese)"} narrative voiceover.
+- IMPORTANT: When transcribing and translating, adjust and rephrase (အသုံးအနှုန်းပုံစံပြောင်း) the words/sentences to match the user's chosen style constraints:
+  Style Goal: "${promptSnippet}"
+  Make sure the phrasing, humor, and tone are adapted to style goal, while preserving the core meaning of the original spoken audio.
+- Respect the duration and word count constraints below:
+  ${constraintPrompt}
 
 [FLOW B: DIALOGUE/CONVERSATION DETECTED (COMBINED VISUAL & AUDIO RECAP)]
 - Use this flow ONLY if SCENARIO B is met (character conversations, dialogues or movie talks are present).
