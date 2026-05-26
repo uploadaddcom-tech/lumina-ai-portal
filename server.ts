@@ -8,7 +8,7 @@ import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
-import ytdl from "@distube/ytdl-core";
+import youtubedl from "youtube-dl-exec";
 
 dotenv.config();
 
@@ -128,6 +128,9 @@ async function startServer() {
 
   // YouTube Download Endpoint
   app.post("/api/youtube/download", async (req, res) => {
+    let tempCookiePath: string | null = null;
+    let tempFilePath: string | null = null;
+
     try {
       const { url } = req.body;
       if (!url) {
@@ -136,16 +139,59 @@ async function startServer() {
 
       console.log(`[YouTube Download] Fetching info for URL: ${url}`);
 
-      let info;
-      try {
-        info = await ytdl.getBasicInfo(url);
-      } catch (err: any) {
-        console.error("Failed to fetch YouTube video details:", err);
-        return res.status(400).json({ error: "Failed to access YouTube video. Please make sure the URL is correct and public." });
+      // Setup cookies option if provided via YOUTUBE_COOKIE env variable
+      const cookieValue = process.env.YOUTUBE_COOKIE;
+      const baseOptions: any = {
+        noWarnings: true,
+      };
+
+      if (cookieValue) {
+        const trimmed = cookieValue.trim();
+        if (trimmed.startsWith("# Netscape") || trimmed.includes("\t")) {
+          // Writing Netscape cookies file
+          const tempDir = path.join(process.cwd(), "temp");
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+          }
+          tempCookiePath = path.join(tempDir, `cookies_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.txt`);
+          fs.writeFileSync(tempCookiePath, trimmed);
+          baseOptions.cookie = tempCookiePath;
+          console.log(`[YouTube Download] Using Netscape cookies from temp file: ${tempCookiePath}`);
+        } else {
+          // Otherwise pass raw header cookie string
+          baseOptions.addHeader = [`Cookie: ${trimmed}`];
+          console.log(`[YouTube Download] Passing dynamic cookie header via addHeader.`);
+        }
       }
 
-      const durationSeconds = parseInt(info.videoDetails.lengthSeconds, 10);
-      const title = info.videoDetails.title || "YouTube Video";
+      let info: any;
+      try {
+        info = await youtubedl(url, {
+          ...baseOptions,
+          dumpSingleJson: true,
+          preferFreeFormats: true,
+        });
+      } catch (err: any) {
+        console.error("Failed to fetch YouTube video details:", err);
+        const errMsg = err.message || "";
+        if (errMsg.includes("confirm you’re not a bot") || errMsg.includes("Sign in")) {
+          return res.status(400).json({ 
+            error: "YouTube bot detection blocks cloud-origin downloads. To make this work, please copy your personal YouTube session Cookie and add it to the YOUTUBE_COOKIE variable in server settings. \n\n(YouTube bot ကန့်သတ်ချက်ကြောင့် server မှ တိုက်ရိုက်ဒေါင်းလုဒ်မရနိုင်ပါ။ ကျေးဇူးပြု၍ server ဆက်တင်တွင် YOUTUBE_COOKIE ကို ထည့်သွင်းပေးပါ သို့မဟုတ် Local Video တင်ပို့သည့်စနစ်ကို သုံးစွဲပေးပါ။)" 
+          });
+        }
+        return res.status(400).json({ 
+          error: "Failed to access YouTube video. Please make sure the URL is correct, public, and check if the YouTube service is available." 
+        });
+      }
+
+      if (!info) {
+        return res.status(400).json({ error: "Failed to parse video metadata." });
+      }
+
+      const durationSeconds = Number(info.duration || 0);
+      const title = info.title || "YouTube Video";
+
+      console.log(`[YouTube Download] Video metadata fetched: "${title}", Duration: ${durationSeconds} seconds`);
 
       if (durationSeconds > 600) {
         return res.status(400).json({ 
@@ -153,62 +199,57 @@ async function startServer() {
         });
       }
 
-      console.log(`[YouTube Download] Downloading video "${title}" of duration ${durationSeconds} seconds...`);
-
-      const formats = info.formats;
-      // Filter for formats that have both video and audio, and height is 720 or lower
-      const validFormats = formats.filter(f => f.hasVideo && f.hasAudio && f.height && f.height <= 720);
-      validFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
-
-      let chosenFormat = validFormats[0] || null;
-      if (!chosenFormat) {
-        chosenFormat = formats.find(f => f.hasVideo && f.hasAudio) || null;
-      }
-
-      if (!chosenFormat) {
-        return res.status(400).json({ error: "No suitable combined video format found." });
-      }
-
-      console.log(`[YouTube Download] Selected format: height=${chosenFormat.height}, container=${chosenFormat.container}`);
+      console.log(`[YouTube Download] Downloading video "${title}" of duration ${durationSeconds} seconds max 720p...`);
 
       const tempDir = path.join(process.cwd(), "temp");
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
       }
       const tempFilename = `yt_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.mp4`;
-      const tempFilePath = path.join(tempDir, tempFilename);
+      tempFilePath = path.join(tempDir, tempFilename);
 
-      await new Promise<void>((resolve, reject) => {
-        const stream = ytdl(url, { format: chosenFormat });
-        const fileStream = fs.createWriteStream(tempFilePath);
-        stream.pipe(fileStream);
+      try {
+        // Download using yt-dlp format selection <= 720 height
+        await youtubedl(url, {
+          ...baseOptions,
+          output: tempFilePath,
+          format: "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+          mergeOutputFormat: "mp4",
+        });
 
-        stream.on("end", () => resolve());
-        stream.on("error", (err) => reject(err));
-        fileStream.on("error", (err) => reject(err));
-      });
+        console.log(`[YouTube Download] Success. Reading downloaded file...`);
+        if (!fs.existsSync(tempFilePath)) {
+          throw new Error("Downloaded file not found on disk.");
+        }
 
-      console.log(`[YouTube Download] Success. Reading downloaded file...`);
-      const videoBuffer = fs.readFileSync(tempFilePath);
-      const videoBase64 = videoBuffer.toString("base64");
+        const videoBuffer = fs.readFileSync(tempFilePath);
+        const videoBase64 = videoBuffer.toString("base64");
 
-      // Clean up file
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
+        console.log(`[YouTube Download] Completed successfully for "${title}"`);
+        res.json({
+          success: true,
+          title,
+          duration: durationSeconds,
+          videoBase64,
+          mimeType: "video/mp4"
+        });
+
+      } catch (dlErr: any) {
+        console.error("[YouTube Download Execution Error]:", dlErr);
+        throw dlErr;
       }
-
-      console.log(`[YouTube Download] Completed successfully for "${title}"`);
-      res.json({
-        success: true,
-        title,
-        duration: durationSeconds,
-        videoBase64,
-        mimeType: "video/mp4"
-      });
 
     } catch (err: any) {
       console.error("[YouTube Download Error]:", err);
       res.status(500).json({ error: err.message || "An error occurred while downloading the YouTube video." });
+    } finally {
+      // Clean up dynamic files safely
+      if (tempCookiePath && fs.existsSync(tempCookiePath)) {
+        try { fs.unlinkSync(tempCookiePath); } catch {}
+      }
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try { fs.unlinkSync(tempFilePath); } catch {}
+      }
     }
   });
 
