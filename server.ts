@@ -8,6 +8,7 @@ import fs from "fs";
 import { exec } from "child_process";
 import crypto from "crypto";
 import { promisify } from "util";
+import ytdl from "@distube/ytdl-core";
 
 dotenv.config();
 
@@ -124,6 +125,92 @@ async function startServer() {
 
   // Middleware to handle JSON payloads - set a large limit for videos
   app.use(express.json({ limit: "300mb" }));
+
+  // YouTube Download Endpoint
+  app.post("/api/youtube/download", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "YouTube URL is required." });
+      }
+
+      console.log(`[YouTube Download] Fetching info for URL: ${url}`);
+
+      let info;
+      try {
+        info = await ytdl.getBasicInfo(url);
+      } catch (err: any) {
+        console.error("Failed to fetch YouTube video details:", err);
+        return res.status(400).json({ error: "Failed to access YouTube video. Please make sure the URL is correct and public." });
+      }
+
+      const durationSeconds = parseInt(info.videoDetails.lengthSeconds, 10);
+      const title = info.videoDetails.title || "YouTube Video";
+
+      if (durationSeconds > 600) {
+        return res.status(400).json({ 
+          error: "ဗီဒီယိုသည် ၁၀ မိနစ်ထက် ကျော်လွန်နေပါသည် (၁၀ မိနစ်အောက်သာ လက်ခံပါသည်)။ Video must be under 10 minutes." 
+        });
+      }
+
+      console.log(`[YouTube Download] Downloading video "${title}" of duration ${durationSeconds} seconds...`);
+
+      const formats = info.formats;
+      // Filter for formats that have both video and audio, and height is 720 or lower
+      const validFormats = formats.filter(f => f.hasVideo && f.hasAudio && f.height && f.height <= 720);
+      validFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
+
+      let chosenFormat = validFormats[0] || null;
+      if (!chosenFormat) {
+        chosenFormat = formats.find(f => f.hasVideo && f.hasAudio) || null;
+      }
+
+      if (!chosenFormat) {
+        return res.status(400).json({ error: "No suitable combined video format found." });
+      }
+
+      console.log(`[YouTube Download] Selected format: height=${chosenFormat.height}, container=${chosenFormat.container}`);
+
+      const tempDir = path.join(process.cwd(), "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const tempFilename = `yt_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.mp4`;
+      const tempFilePath = path.join(tempDir, tempFilename);
+
+      await new Promise<void>((resolve, reject) => {
+        const stream = ytdl(url, { format: chosenFormat });
+        const fileStream = fs.createWriteStream(tempFilePath);
+        stream.pipe(fileStream);
+
+        stream.on("end", () => resolve());
+        stream.on("error", (err) => reject(err));
+        fileStream.on("error", (err) => reject(err));
+      });
+
+      console.log(`[YouTube Download] Success. Reading downloaded file...`);
+      const videoBuffer = fs.readFileSync(tempFilePath);
+      const videoBase64 = videoBuffer.toString("base64");
+
+      // Clean up file
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+
+      console.log(`[YouTube Download] Completed successfully for "${title}"`);
+      res.json({
+        success: true,
+        title,
+        duration: durationSeconds,
+        videoBase64,
+        mimeType: "video/mp4"
+      });
+
+    } catch (err: any) {
+      console.error("[YouTube Download Error]:", err);
+      res.status(500).json({ error: err.message || "An error occurred while downloading the YouTube video." });
+    }
+  });
 
   // Initialize Gemini
   const apiKey = process.env.GEMINI_API_KEY;

@@ -40,7 +40,9 @@ import {
   X,
   Trash2,
   History,
-  FileVideo
+  FileVideo,
+  Youtube,
+  Download
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -1433,6 +1435,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [selectedStyle, setSelectedStyle] = useState("step-by-step");
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
+  const [uploadTab, setUploadTab] = useState<"file" | "youtube">("file");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isDownloadingYoutube, setIsDownloadingYoutube] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationPhase, setGenerationPhase] = useState<"recap" | "voiceover" | "merge" | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -1538,6 +1543,47 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setError(null);
       setResult(null);
       setVoiceoverAudioUrl(null);
+    }
+  };
+
+  const handleYoutubeDownload = async () => {
+    if (!youtubeUrl) return;
+    setIsDownloadingYoutube(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/youtube/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: youtubeUrl })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to download YouTube video.");
+      }
+
+      // Base64 string to unique File object
+      const binaryString = atob(data.videoBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: data.mimeType || "video/mp4" });
+      const sanitizedTitle = (data.title || "youtube_video")
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .substring(0, 30) + ".mp4";
+      const fileObj = new File([blob], sanitizedTitle, { type: data.mimeType || "video/mp4" });
+
+      setFile(fileObj);
+      setDuration(data.duration);
+      setError(null);
+      setResult(null);
+      setVoiceoverAudioUrl(null);
+      setYoutubeUrl(""); // Clear URL input
+    } catch (err: any) {
+      console.error(err);
+      setError(lang === "EN" ? `YouTube download failed: ${err.message}` : `YouTube ဒေါင်းလုဒ်မအောင်မြင်ပါ - ${err.message}`);
+    } finally {
+      setIsDownloadingYoutube(false);
     }
   };
 
@@ -1854,36 +1900,116 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
         {/* Upload Section */}
         <section className="space-y-4">
-          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              className="hidden" 
-              accept="video/mp4,video/quicktime"
-              onChange={handleFileChange}
-            />
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
-                file ? "border-blue-500/50 bg-blue-500/5" : "border-border dark:border-white/10 hover:border-blue-500/30 hover:bg-slate-100 dark:hover:bg-white/5"
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-blue-500/10"
-              }`}>
-                {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
-              </div>
-              <div className="space-y-0.5">
-                <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-text-primary dark:text-white" : "text-text-secondary dark:text-slate-400 group-hover:text-text-primary dark:group-hover:text-slate-300"}`}>
-                  {file ? file.name : t.browseFiles}
-                </h3>
-                <p className="text-[9px] text-text-secondary/60 dark:text-slate-600 font-bold uppercase tracking-widest leading-none">
-                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : t.fileLimit}
-                </p>
-              </div>
+          <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-3 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
+            
+            {/* Tab Switched */}
+            <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-white/5 rounded-xl mb-4 border border-border dark:border-white/5">
+              <button
+                type="button"
+                onClick={() => setUploadTab("file")}
+                className={`py-1.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  uploadTab === "file" 
+                    ? "bg-white dark:bg-white/10 text-blue-600 dark:text-white shadow-sm" 
+                    : "text-slate-500 hover:text-slate-400"
+                }`}
+              >
+                {lang === "EN" ? "Local Video" : "ဗီဒီယို တင်ယူရန်"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadTab("youtube")}
+                className={`py-1.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                  uploadTab === "youtube" 
+                    ? "bg-white dark:bg-white/10 text-red-500 dark:text-white shadow-sm" 
+                    : "text-slate-500 hover:text-slate-400"
+                }`}
+              >
+                <Youtube className="w-3.5 h-3.5 text-red-500" />
+                {lang === "EN" ? "YouTube Link" : "YouTube လင့်ခ်"}
+              </button>
             </div>
+
+            {uploadTab === "file" ? (
+              <>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  className="hidden" 
+                  accept="video/mp4,video/quicktime"
+                  onChange={handleFileChange}
+                />
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+                    file ? "border-blue-500/50 bg-blue-500/5" : "border-border dark:border-white/10 hover:border-blue-500/30 hover:bg-slate-100 dark:hover:bg-white/5"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-blue-500/10"
+                  }`}>
+                    {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
+                  </div>
+                  <div className="space-y-0.5">
+                    <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-text-primary dark:text-white" : "text-text-secondary dark:text-slate-400 group-hover:text-text-primary dark:group-hover:text-slate-300"}`}>
+                      {file ? file.name : t.browseFiles}
+                    </h3>
+                    <p className="text-[9px] text-text-secondary/60 dark:text-slate-600 font-bold uppercase tracking-widest leading-none">
+                      {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : t.fileLimit}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 border border-border dark:border-white/10 rounded-xl p-2.5 px-3">
+                  <Youtube className="w-4 h-4 text-red-500 shrink-0" />
+                  <input 
+                    type="text"
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    placeholder={lang === "EN" ? "Enter YouTube URL..." : "YouTube ဗီဒီယို လင့်ခ် ထည့်ပါ..."}
+                    className="bg-transparent border-none outline-none text-xs text-text-primary dark:text-white placeholder-slate-500 w-full"
+                  />
+                  {youtubeUrl && (
+                    <button type="button" onClick={() => setYoutubeUrl("")} className="text-slate-500 hover:text-slate-300 text-xs font-bold leading-none">✕</button>
+                  )}
+                </div>
+                
+                {file && (
+                  <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2 px-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-[10px] font-bold text-emerald-400 truncate uppercase tracking-wider">{file.name} Loaded</span>
+                    </div>
+                    {duration && (
+                      <span className="text-[9px] font-mono text-emerald-500 shrink-0 font-bold uppercase">{Math.floor(duration / 60)}m {Math.floor(duration % 60)}s</span>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleYoutubeDownload}
+                  disabled={isDownloadingYoutube || !youtubeUrl}
+                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-800 disabled:text-slate-500 text-white font-black text-[11px] uppercase tracking-wider py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                >
+                  {isDownloadingYoutube ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {lang === "EN" ? "Downloading Under 10m (720p)..." : "၇၂၀p အရည်အသွေးဖြင့် ဒေါင်းလုဒ်ဆွဲနေသည်..."}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5 font-bold" />
+                      {lang === "EN" ? "Load YouTube Video" : "YouTube ဗီဒီယို ရယူရန်"}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             {error && (
-              <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>
+              <p className="mt-2.5 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>
             )}
           </div>
         </section>
