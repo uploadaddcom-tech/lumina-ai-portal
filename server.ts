@@ -701,12 +701,160 @@ async function startServer() {
         }
       }
 
-      const vDurRaw = await getDuration(videoPath);
+      let vDurRaw = await getDuration(videoPath);
       // Speed up video by 5% (1.05x speed). Therefore, the effective video duration becomes:
-      const vDur = vDurRaw / 1.05;
+      let vDur = vDurRaw / 1.05;
       const aDur = await getDuration(audioPath);
       
       console.log(`Duration check -> Raw Video Duration (vDurRaw): ${vDurRaw}s, Effective Video Duration (vDur) under 1.05x: ${vDur}s, Audio Duration (aDur): ${aDur}s`);
+
+      const initialSpeed = vDur > 0 ? (aDur / vDur) : 1;
+      console.log(`[MM RECAP LOGIC] Initial alignment speed factor: ${initialSpeed}`);
+
+      if (initialSpeed < 1.2) {
+        // Target speed of atempo is 1.3
+        const targetRawDuration = (aDur / 1.3) * 1.05;
+        console.log(`[MM RECAP LOGIC] Current speed ${initialSpeed} < 1.2. Requiring atempo=1.3. Cutting video from raw duration ${vDurRaw}s to target raw duration ${targetRawDuration}s...`);
+
+        if (targetRawDuration < vDurRaw) {
+          const prompt = `
+            Task: Analyze this video and identify the most important parts to KEEP, so that the total duration of the kept parts is approximately ${targetRawDuration.toFixed(2)} seconds.
+            We need to cut out the least important, static, repetitive, silent, or transitional frames.
+            
+            Requirements:
+            1. The total duration of the video to keep is ${targetRawDuration.toFixed(2)} seconds.
+            2. Break the kept segments into a list of start and end times in seconds (e.g. [{"start": 0, "end": 12.5}, ...]).
+            3. The sum of (end_time - start_time) for all kept segments MUST be as close as possible to ${targetRawDuration.toFixed(2)} seconds.
+            4. Ensure the segments are in chronological order and do not overlap.
+            5. Return ONLY a JSON array of objects: [{"start": 0.0, "end": 12.5}, ...]
+          `;
+
+          let keptSegments: any[] = [];
+          try {
+            const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+            const response = await retryWithBackoff(async (client) => {
+              const res = await client.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: [
+                  {
+                    parts: [
+                      { text: prompt },
+                      { inlineData: { data: videoBase64, mimeType: req.body.mimeType || "video/mp4" } }
+                    ]
+                  }
+                ],
+                config: {
+                  responseMimeType: "application/json"
+                }
+              });
+              return res.text || "[]";
+            }, customKey);
+
+            keptSegments = JSON.parse(response);
+            console.log("[MM RECAP LOGIC] Received segments from Gemini:", keptSegments);
+          } catch (err) {
+            console.error("[MM RECAP LOGIC] Gemini scene cut analysis failed:", err);
+          }
+
+          let validatedSegments: { start: number; end: number }[] = [];
+          if (Array.isArray(keptSegments) && keptSegments.length > 0) {
+            for (let seg of keptSegments) {
+              let start = parseFloat(seg.start);
+              let end = parseFloat(seg.end);
+              if (!isNaN(start) && !isNaN(end) && start >= 0 && end > start && start < vDurRaw) {
+                if (end > vDurRaw) end = vDurRaw;
+                validatedSegments.push({ start, end });
+              }
+            }
+          }
+
+          if (validatedSegments.length === 0) {
+            validatedSegments = [{ start: 0, end: Math.min(vDurRaw, targetRawDuration) }];
+          }
+
+          let currentTotal = validatedSegments.reduce((sum, seg) => sum + (seg.end - seg.start), 0);
+          console.log(`[MM RECAP LOGIC] Raw sum of kept segments: ${currentTotal}s (Target: ${targetRawDuration}s)`);
+
+          if (Math.abs(currentTotal - targetRawDuration) > 0.05) {
+            if (validatedSegments.length > 0) {
+              const diff = targetRawDuration - currentTotal;
+              const lastIdx = validatedSegments.length - 1;
+              validatedSegments[lastIdx].end += diff;
+              if (validatedSegments[lastIdx].end <= validatedSegments[lastIdx].start) {
+                validatedSegments[lastIdx].end = validatedSegments[lastIdx].start + 1.0;
+              }
+            }
+          }
+
+          const segmentFiles = [];
+          for (let i = 0; i < validatedSegments.length; i++) {
+            const seg = validatedSegments[i];
+            const segPath = path.join(tempDir, `cut_seg_${tempId}_${i}.mp4`);
+            await execPromise(`ffmpeg -ss ${seg.start.toFixed(3)} -to ${seg.end.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${segPath}"`);
+            segmentFiles.push(segPath);
+          }
+
+          const concatTxtPath = path.join(tempDir, `concat_cut_${tempId}.txt`);
+          const concatContent = segmentFiles.map(f => `file '${path.resolve(f).replace(/'/g, "'\\''")}'`).join('\n');
+          await writeFilePromise(concatTxtPath, concatContent);
+
+          const cutVideoPath = path.join(tempDir, `video_cut_${tempId}.mp4`);
+          await execPromise(`ffmpeg -f concat -safe 0 -i "${concatTxtPath}" -c copy -y "${cutVideoPath}"`);
+
+          fs.copyFileSync(cutVideoPath, videoPath);
+
+          for (const f of segmentFiles) {
+            if (fs.existsSync(f)) await unlinkPromise(f);
+          }
+          if (fs.existsSync(concatTxtPath)) await unlinkPromise(concatTxtPath);
+          if (fs.existsSync(cutVideoPath)) await unlinkPromise(cutVideoPath);
+
+          // Update durations
+          vDurRaw = await getDuration(videoPath);
+          vDur = vDurRaw / 1.05;
+        }
+      } else if (initialSpeed > 1.4) {
+        // Target speed of atempo is 1.3
+        // Formula: S_slow = D / (2.1 * aDur / 1.3 - D)
+        console.log(`[MM RECAP LOGIC] Current speed ${initialSpeed} > 1.4. Requiring atempo=1.3. Slowing down video...`);
+        
+        let S_slow = vDurRaw / (2.1 * aDur / 1.3 - vDurRaw);
+        if (isNaN(S_slow) || S_slow <= 0.1) S_slow = 0.3;
+        if (S_slow > 0.95) S_slow = 0.95;
+
+        console.log(`[MM RECAP LOGIC] Split video into 4 parts. Slow down parts 2 and 4 by S_slow: ${S_slow}`);
+
+        const pDur = vDurRaw / 4;
+        const part1Path = path.join(tempDir, `slow_part_${tempId}_1.mp4`);
+        const part2Path = path.join(tempDir, `slow_part_${tempId}_2.mp4`);
+        const part3Path = path.join(tempDir, `slow_part_${tempId}_3.mp4`);
+        const part4Path = path.join(tempDir, `slow_part_${tempId}_4.mp4`);
+
+        await execPromise(`ffmpeg -ss 0 -t ${pDur.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${part1Path}"`);
+        await execPromise(`ffmpeg -ss ${pDur.toFixed(3)} -t ${pDur.toFixed(3)} -i "${videoPath}" -vf "setpts=PTS/${S_slow.toFixed(4)}" -c:v libx264 -preset ultrafast -an -y "${part2Path}"`);
+        await execPromise(`ffmpeg -ss ${(2 * pDur).toFixed(3)} -t ${pDur.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${part3Path}"`);
+        await execPromise(`ffmpeg -ss ${(3 * pDur).toFixed(3)} -t ${pDur.toFixed(3)} -i "${videoPath}" -vf "setpts=PTS/${S_slow.toFixed(4)}" -c:v libx264 -preset ultrafast -an -y "${part4Path}"`);
+
+        const concatTxtPath = path.join(tempDir, `concat_slow_${tempId}.txt`);
+        const concatContent = [part1Path, part2Path, part3Path, part4Path].map(f => `file '${path.resolve(f).replace(/'/g, "'\\''")}'`).join('\n');
+        await writeFilePromise(concatTxtPath, concatContent);
+
+        const slowVideoPath = path.join(tempDir, `video_slow_${tempId}.mp4`);
+        await execPromise(`ffmpeg -f concat -safe 0 -i "${concatTxtPath}" -c copy -y "${slowVideoPath}"`);
+
+        fs.copyFileSync(slowVideoPath, videoPath);
+
+        if (fs.existsSync(part1Path)) await unlinkPromise(part1Path);
+        if (fs.existsSync(part2Path)) await unlinkPromise(part2Path);
+        if (fs.existsSync(part3Path)) await unlinkPromise(part3Path);
+        if (fs.existsSync(part4Path)) await unlinkPromise(part4Path);
+        if (fs.existsSync(concatTxtPath)) await unlinkPromise(concatTxtPath);
+        if (fs.existsSync(slowVideoPath)) await unlinkPromise(slowVideoPath);
+
+        // Update durations
+        vDurRaw = await getDuration(videoPath);
+        vDur = vDurRaw / 1.05;
+      }
       
       const vRes = await getResolution(videoPath);
       // Reference width for logo scaling (UI preview container is approx 400px wide)
