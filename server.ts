@@ -313,22 +313,43 @@ async function startServer() {
 
         for (const chunk of textChunks) {
           if (!chunk.trim()) continue;
-          const response = await retryWithBackoff((client) => client.models.generateContent({
-            model: model,
-            contents: [{ parts: [{ text: chunk }] }],
-            config: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
-                }
-              }
-            } as any
-          }), customKey);
           
-          const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          let audioBase64: string | undefined = undefined;
+          let lastErr: any = null;
+          
+          const ttsModels = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-tts", "gemini-2.5-pro-tts"];
+          
+          for (const currentModel of ttsModels) {
+            try {
+              const response = await retryWithBackoff((client) => client.models.generateContent({
+                model: currentModel,
+                contents: [{ parts: [{ text: chunk }] }],
+                config: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                    }
+                  }
+                } as any
+              }), customKey, 2, 800);
+              
+              const chunkData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+              if (chunkData) {
+                audioBase64 = chunkData;
+                console.log(`[TTS SUCCESS] Voiceover chunk generated successfully with model ${currentModel}`);
+                break;
+              }
+            } catch (err: any) {
+              console.warn(`[TTS FALLBACK] Model ${currentModel} failed: ${err.message || err}. Trying next fallback...`);
+              lastErr = err;
+            }
+          }
+          
           if (audioBase64) {
             audioBuffers.push(Buffer.from(audioBase64, 'base64'));
+          } else {
+            throw lastErr || new Error("All TTS fallback models failed to generate audio.");
           }
         }
 
