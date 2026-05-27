@@ -46,8 +46,7 @@ function rotateApiKey() {
 }
 
 async function retryWithBackoff<T>(
-  fn: (client: GoogleGenAI, modelName: string) => Promise<T>,
-  models: string[],
+  fn: (client: GoogleGenAI) => Promise<T>,
   customKey?: string,
   maxRetries = 6,
   initialDelay = 1500
@@ -59,29 +58,17 @@ async function retryWithBackoff<T>(
     process.env.GEMINI_API_KEY_3
   ].filter(Boolean).length;
 
-  let modelIdx = 0;
-
   for (let i = 0; i <= maxRetries; i++) {
     const aiClient = getAiClient(customKey);
-    const activeModel = models[modelIdx % models.length];
     try {
-      return await fn(aiClient, activeModel);
+      return await fn(aiClient);
     } catch (error: any) {
-      const is503 = error.message?.includes("503") || error.status === 503 || error.message?.includes("high demand") || error.message?.includes("UNAVAILABLE");
+      const is503 = error.message?.includes("503") || error.status === 503 || error.message?.includes("high demand");
       const is429 = error.message?.includes("429") || error.status === 429;
       const is500 = error.message?.includes("500") || error.status === 500 || error.message?.includes("Internal error");
       const isTimeout = error.message?.includes("timeout") || error.message?.includes("fetch failed") || error.code === 'UND_ERR_HEADERS_TIMEOUT';
-      const isUnsupported = error.message?.includes("only supports text output") || error.status === 400 || error.message?.includes("INVALID_ARGUMENT");
 
-      const isModelError = is503 || is429 || is500 || isTimeout || isUnsupported;
-
-      if (isModelError && models.length > 1) {
-        modelIdx = (modelIdx + 1) % models.length;
-        const nextModel = models[modelIdx];
-        console.warn(`[MODEL FALLBACK] Model ${activeModel} failed with error ${error.message || error}. Falling back to next model: ${nextModel}...`);
-      }
-
-      if (!customKey && apiKeysCount > 1 && (isModelError || error.message)) {
+      if (!customKey && apiKeysCount > 1 && (is503 || is429 || is500 || isTimeout || error.message)) {
         console.warn(`[API KEY FAILURE] Error on key index ${currentKeyIdx}: ${error.message || error}. Rotating to next key...`);
         rotateApiKey();
       }
@@ -235,8 +222,8 @@ async function startServer() {
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
-        const response = await retryWithBackoff((client, activeModel) => client.models.generateContent({
-          model: activeModel,
+        const response = await retryWithBackoff((client) => client.models.generateContent({
+          model: model,
           contents: [
             {
               parts: [
@@ -245,7 +232,7 @@ async function startServer() {
               ]
             }
           ]
-        }), ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"], customKey);
+        }), customKey);
         
         let text = response.text || "";
         if (lang === "MY") {
@@ -274,8 +261,8 @@ async function startServer() {
         const model = "gemini-2.5-flash";
         const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
-        const response = await retryWithBackoff((client, activeModel) => client.models.generateContent({
-          model: activeModel,
+        const response = await retryWithBackoff((client) => client.models.generateContent({
+          model: model,
           contents: [
             {
               parts: [
@@ -284,7 +271,7 @@ async function startServer() {
               ]
             }
           ]
-        }), ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"], customKey);
+        }), customKey);
         
         appJobs.set(jobId, { status: "completed", text: response.text });
       } catch (error: any) {
@@ -303,7 +290,7 @@ async function startServer() {
       try {
         const { text, voiceName, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-2.0-flash";
+        const model = "gemini-3.1-flash-tts-preview";
 
         const getChunks = (input: string, maxLen = 600) => {
           const sentences = input.split(/(?<=[။၊.!?])\s+/);
@@ -326,30 +313,9 @@ async function startServer() {
 
         for (const chunk of textChunks) {
           if (!chunk.trim()) continue;
-
-          let targetText = chunk;
-          // Check if containing Burmese characters
-          if (/[\u1000-\u109f]/.test(chunk)) {
-            console.log(`[Burmese script detected, romanizing chunk for TTS...]`);
-            try {
-              const romanizedResp = await retryWithBackoff((client, activeModel) => client.models.generateContent({
-                model: activeModel,
-                contents: `You are a high-quality phonetic transliteration system. Transliterate the following Myanmar (Burmese) text into Romanized Burmese phonetic text using standard English letters so that when a standard English Text-To-Speech reader reads the English characters, it sounds like natural spoken Burmese pronunciation. Only return the romanized text without extra commentary, explanations, quotes, markdown, or markup:\n\n${chunk}`
-              }), ["gemini-2.5-flash", "gemini-3.5-flash"], customKey);
-              
-              const romanizedText = romanizedResp.text?.trim();
-              if (romanizedText) {
-                console.log(`[Romanized chunk output]: ${romanizedText}`);
-                targetText = romanizedText;
-              }
-            } catch (err) {
-              console.error("Romanization pre-pass failed:", err);
-            }
-          }
-
-          const response = await retryWithBackoff((client, activeModel) => client.models.generateContent({
-            model: activeModel,
-            contents: [{ parts: [{ text: targetText }] }],
+          const response = await retryWithBackoff((client) => client.models.generateContent({
+            model: model,
+            contents: [{ parts: [{ text: chunk }] }],
             config: {
               responseModalities: ["AUDIO"],
               speechConfig: {
@@ -358,7 +324,7 @@ async function startServer() {
                 }
               }
             } as any
-          }), ["gemini-3.1-flash-tts-preview"], customKey);
+          }), customKey);
           
           const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           if (audioBase64) {
@@ -790,9 +756,9 @@ async function startServer() {
           let keptSegments: any[] = [];
           try {
             const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-            const response = await retryWithBackoff(async (client, activeModel) => {
+            const response = await retryWithBackoff(async (client) => {
               const res = await client.models.generateContent({
-                model: activeModel,
+                model: "gemini-2.5-flash",
                 contents: [
                   {
                     parts: [
@@ -806,7 +772,7 @@ async function startServer() {
                 }
               });
               return res.text || "[]";
-            }, ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"], customKey);
+            }, customKey);
 
             keptSegments = JSON.parse(response);
             console.log("[MM RECAP LOGIC] Received segments from Gemini:", keptSegments);
@@ -1159,9 +1125,9 @@ async function startServer() {
           6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
         `;
 
-        svChunks = await retryWithBackoff(async (client, activeModel) => {
+        svChunks = await retryWithBackoff(async (client) => {
           const tsResponse = await client.models.generateContent({
-            model: activeModel,
+            model: "gemini-2.5-flash",
             contents: [
               {
                 parts: [
@@ -1177,7 +1143,7 @@ async function startServer() {
 
           const tsRaw = tsResponse.text || "[]";
           return JSON.parse(tsRaw);
-        }, ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"], customKey);
+        }, customKey);
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
