@@ -142,7 +142,7 @@ async function startServer() {
       try {
         const { videoBase64, mimeType, style, lang, duration, apiKey: customKey, freezeFrameZoomEnabled } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-2.5-flash";
+        const model = "gemini-3.5-flash";
         
         const stylePrompts: Record<string, string> = {
           "step-by-step": lang === "EN" 
@@ -258,7 +258,7 @@ async function startServer() {
       try {
         const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-2.5-flash";
+        const model = "gemini-3.5-flash";
         const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
 
         const response = await retryWithBackoff((client) => client.models.generateContent({
@@ -758,7 +758,7 @@ async function startServer() {
             const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
             const response = await retryWithBackoff(async (client) => {
               const res = await client.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: "gemini-3.5-flash",
                 contents: [
                   {
                     parts: [
@@ -1127,7 +1127,7 @@ async function startServer() {
 
         svChunks = await retryWithBackoff(async (client) => {
           const tsResponse = await client.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.5-flash",
             contents: [
               {
                 parts: [
