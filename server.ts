@@ -302,7 +302,7 @@ async function startServer() {
       try {
         const { text, voiceName, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-3.1-flash-tts-preview";
+        const model = "gemini-2.5-flash";
 
         const getChunks = (input: string, maxLen = 600) => {
           const sentences = input.split(/(?<=[။၊.!?])\s+/);
@@ -336,7 +336,7 @@ async function startServer() {
                 }
               }
             } as any
-          }), ["gemini-3.1-flash-tts-preview"], customKey);
+          }), ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.1-flash-tts-preview"], customKey);
           
           const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           if (audioBase64) {
