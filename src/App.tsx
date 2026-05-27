@@ -1483,10 +1483,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
-    const [subtitleFontSize, setSubtitleFontSize] = useState(24);
-    const [subtitleFont, setSubtitleFont] = useState("Padauk");
+    const [subtitleFontSize, setSubtitleFontSize] = useState(13);
+    const [subtitleFont, setSubtitleFont] = useState("Tharlon");
     const [subtitleBoxColor, setSubtitleBoxColor] = useState("#000000");
-    const [subtitleY, setSubtitleY] = useState(90);
+    const [subtitleY, setSubtitleY] = useState(75);
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
 
     // Dynamic Live Preview Tracking

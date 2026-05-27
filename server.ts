@@ -1072,12 +1072,12 @@ async function startServer() {
       // Stage 3: Sync Subtitles with AI Timestamps
       if (subtitleEnabled && subtitleText) {
         const color = (subtitleColor || "#ffffff").replace('#', '0x');
-        const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 24) * 0.4);
+        const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 13) * 0.4);
         const fSize = Math.floor(previewFontSizeInPx * effectiveFontScale);
         
-        let targetFontFile = "Padauk-Bold.ttf";
-        if (subtitleFont === "Tharlon") {
-          targetFontFile = "Tharlon-Regular.ttf";
+        let targetFontFile = "Tharlon-Regular.ttf";
+        if (subtitleFont === "Padauk") {
+          targetFontFile = "Padauk-Bold.ttf";
         } else if (subtitleFont === "Myanmar Sagar") {
           targetFontFile = "MyanmarSagar.ttf";
         } else if (subtitleFont === "YoeYar-One Bold") {
@@ -1090,6 +1090,8 @@ async function startServer() {
           targetFontFile = "MyanmarPauklay.ttf";
         } else if (subtitleFont === "Yunghkio") {
           targetFontFile = "Yunghkio.ttf";
+        } else if (subtitleFont === "Tharlon") {
+          targetFontFile = "Tharlon-Regular.ttf";
         }
 
         const fontPaths = [
@@ -1210,7 +1212,7 @@ async function startServer() {
           
           const enableArg = `:enable='between(t,${chunk.start_time.toFixed(2)},${chunk.end_time.toFixed(2)})'`;
           const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
-          const subYPercent = typeof subtitleY === "number" ? subtitleY : 90;
+          const subYPercent = typeof subtitleY === "number" ? subtitleY : 75;
           const subYFact = (subYPercent / 100).toFixed(3);
           // Use the provided box color with 0.6 opacity
           vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*${subYFact}:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:text_shaping=1:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
