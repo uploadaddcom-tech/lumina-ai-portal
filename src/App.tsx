@@ -1664,9 +1664,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       } else {
         throw new Error("No recap script returned from api");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError(lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      const errMsg = err?.message || (lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      setError(errMsg);
       
       if (activeHistoryId) {
         updateHistoryItem(activeHistoryId, { status: "failed" });

@@ -814,6 +814,10 @@ async function startServer() {
       const initialSpeed = vDur > 0 ? (aDur / vDur) : 1;
       console.log(`[MM RECAP LOGIC] Initial alignment speed factor: ${initialSpeed}`);
 
+      if (initialSpeed > 1.9) {
+        throw new Error("အဆင်မပြေပါ");
+      }
+
       if (initialSpeed < 1.2) {
         // Target speed of atempo is 1.3
         const targetRawDuration = (aDur / 1.3) * 1.05;
@@ -917,41 +921,20 @@ async function startServer() {
           vDur = vDurRaw / 1.05;
         }
       } else if (initialSpeed > 1.4) {
-        // Target speed of atempo is 1.3
-        // Formula: S_slow = D / (2.1 * aDur / 1.3 - D)
-        console.log(`[MM RECAP LOGIC] Current speed ${initialSpeed} > 1.4. Requiring atempo=1.3. Slowing down video...`);
+        // Target speed of atempo is 1.4 under user requirements if speed > 1.4
+        console.log(`[MM RECAP LOGIC] Current speed ${initialSpeed} > 1.4. Requiring atempo=1.4. Slowing down entire video...`);
         
-        let S_slow = vDurRaw / (2.1 * aDur / 1.3 - vDurRaw);
+        let S_slow = 1.4 / initialSpeed;
         if (isNaN(S_slow) || S_slow <= 0.1) S_slow = 0.3;
         if (S_slow > 0.95) S_slow = 0.95;
 
-        console.log(`[MM RECAP LOGIC] Split video into 4 parts. Slow down parts 2 and 4 by S_slow: ${S_slow}`);
-
-        const pDur = vDurRaw / 4;
-        const part1Path = path.join(tempDir, `slow_part_${tempId}_1.mp4`);
-        const part2Path = path.join(tempDir, `slow_part_${tempId}_2.mp4`);
-        const part3Path = path.join(tempDir, `slow_part_${tempId}_3.mp4`);
-        const part4Path = path.join(tempDir, `slow_part_${tempId}_4.mp4`);
-
-        await execPromise(`ffmpeg -ss 0 -t ${pDur.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${part1Path}"`);
-        await execPromise(`ffmpeg -ss ${pDur.toFixed(3)} -t ${pDur.toFixed(3)} -i "${videoPath}" -vf "setpts=PTS/${S_slow.toFixed(4)}" -c:v libx264 -preset ultrafast -an -y "${part2Path}"`);
-        await execPromise(`ffmpeg -ss ${(2 * pDur).toFixed(3)} -t ${pDur.toFixed(3)} -i "${videoPath}" -c:v libx264 -preset ultrafast -an -y "${part3Path}"`);
-        await execPromise(`ffmpeg -ss ${(3 * pDur).toFixed(3)} -t ${pDur.toFixed(3)} -i "${videoPath}" -vf "setpts=PTS/${S_slow.toFixed(4)}" -c:v libx264 -preset ultrafast -an -y "${part4Path}"`);
-
-        const concatTxtPath = path.join(tempDir, `concat_slow_${tempId}.txt`);
-        const concatContent = [part1Path, part2Path, part3Path, part4Path].map(f => `file '${path.resolve(f).replace(/'/g, "'\\''")}'`).join('\n');
-        await writeFilePromise(concatTxtPath, concatContent);
+        console.log(`[MM RECAP LOGIC] Slow down entire video by S_slow: ${S_slow.toFixed(4)}`);
 
         const slowVideoPath = path.join(tempDir, `video_slow_${tempId}.mp4`);
-        await execPromise(`ffmpeg -f concat -safe 0 -i "${concatTxtPath}" -c copy -y "${slowVideoPath}"`);
+        await execPromise(`ffmpeg -i "${videoPath}" -vf "setpts=PTS/${S_slow.toFixed(4)}" -c:v libx264 -preset ultrafast -an -y "${slowVideoPath}"`);
 
         fs.copyFileSync(slowVideoPath, videoPath);
 
-        if (fs.existsSync(part1Path)) await unlinkPromise(part1Path);
-        if (fs.existsSync(part2Path)) await unlinkPromise(part2Path);
-        if (fs.existsSync(part3Path)) await unlinkPromise(part3Path);
-        if (fs.existsSync(part4Path)) await unlinkPromise(part4Path);
-        if (fs.existsSync(concatTxtPath)) await unlinkPromise(concatTxtPath);
         if (fs.existsSync(slowVideoPath)) await unlinkPromise(slowVideoPath);
 
         // Update durations
