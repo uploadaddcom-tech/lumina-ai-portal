@@ -326,9 +326,30 @@ async function startServer() {
 
         for (const chunk of textChunks) {
           if (!chunk.trim()) continue;
+
+          let targetText = chunk;
+          // Check if containing Burmese characters
+          if (/[\u1000-\u109f]/.test(chunk)) {
+            console.log(`[Burmese script detected, romanizing chunk for TTS...]`);
+            try {
+              const romanizedResp = await retryWithBackoff((client, activeModel) => client.models.generateContent({
+                model: activeModel,
+                contents: `You are a high-quality phonetic transliteration system. Transliterate the following Myanmar (Burmese) text into Romanized Burmese phonetic text using standard English letters so that when a standard English Text-To-Speech reader reads the English characters, it sounds like natural spoken Burmese pronunciation. Only return the romanized text without extra commentary, explanations, quotes, markdown, or markup:\n\n${chunk}`
+              }), ["gemini-2.5-flash", "gemini-3.5-flash"], customKey);
+              
+              const romanizedText = romanizedResp.text?.trim();
+              if (romanizedText) {
+                console.log(`[Romanized chunk output]: ${romanizedText}`);
+                targetText = romanizedText;
+              }
+            } catch (err) {
+              console.error("Romanization pre-pass failed:", err);
+            }
+          }
+
           const response = await retryWithBackoff((client, activeModel) => client.models.generateContent({
             model: activeModel,
-            contents: [{ parts: [{ text: chunk }] }],
+            contents: [{ parts: [{ text: targetText }] }],
             config: {
               responseModalities: ["AUDIO"],
               speechConfig: {
@@ -337,7 +358,7 @@ async function startServer() {
                 }
               }
             } as any
-          }), ["gemini-2.0-flash", "gemini-3.1-flash-tts-preview"], customKey);
+          }), ["gemini-3.1-flash-tts-preview"], customKey);
           
           const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           if (audioBase64) {
