@@ -71,8 +71,9 @@ async function retryWithBackoff<T>(
       const is429 = error.message?.includes("429") || error.status === 429;
       const is500 = error.message?.includes("500") || error.status === 500 || error.message?.includes("Internal error");
       const isTimeout = error.message?.includes("timeout") || error.message?.includes("fetch failed") || error.code === 'UND_ERR_HEADERS_TIMEOUT';
+      const isUnsupported = error.message?.includes("only supports text output") || error.status === 400 || error.message?.includes("INVALID_ARGUMENT");
 
-      const isModelError = is503 || is429 || is500 || isTimeout;
+      const isModelError = is503 || is429 || is500 || isTimeout || isUnsupported;
 
       if (isModelError && models.length > 1) {
         modelIdx = (modelIdx + 1) % models.length;
@@ -302,7 +303,7 @@ async function startServer() {
       try {
         const { text, voiceName, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
-        const model = "gemini-2.5-flash";
+        const model = "gemini-2.0-flash";
 
         const getChunks = (input: string, maxLen = 600) => {
           const sentences = input.split(/(?<=[။၊.!?])\s+/);
@@ -336,7 +337,7 @@ async function startServer() {
                 }
               }
             } as any
-          }), ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.1-flash-tts-preview"], customKey);
+          }), ["gemini-2.0-flash", "gemini-3.1-flash-tts-preview"], customKey);
           
           const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           if (audioBase64) {
