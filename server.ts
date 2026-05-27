@@ -140,7 +140,7 @@ async function startServer() {
 
     (async () => {
       try {
-        const { videoBase64, mimeType, style, lang, duration, apiKey: customKey, freezeFrameZoomEnabled } = req.body;
+        const { videoBase64, mimeType, style, lang, duration, apiKey: customKey, freezeFrameZoomEnabled, isNarrationRecap } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3.5-flash";
         
@@ -202,30 +202,16 @@ async function startServer() {
         const wpm = isFreezeEnabled ? 230 : 190;
         const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
         
-        // Dynamic mathematically scaled character limits in Myanmar language (proportional to example script with 1700 characters/60s)
-        const targetMyChars = duration ? Math.floor((duration / 60) * 1700) : 1700;
-        const lowerBoundMyChars = Math.floor(targetMyChars * 0.85);
-        const upperBoundMyChars = Math.floor(targetMyChars * 1.02);
-
-        // Dynamic mathematically scaled character limits in English (proportional to 950 characters/60s, approx 190 words)
-        const targetEnChars = duration ? Math.floor((duration / 60) * 950) : 950;
-        const lowerBoundEnChars = Math.floor(targetEnChars * 0.85);
-        const upperBoundEnChars = Math.floor(targetEnChars * 1.02);
-
-        console.log(`[MM RECAP LOGIC] Video Duration: ${duration}s. Target Myanmar Character limit: ${lowerBoundMyChars}-${upperBoundMyChars}. Target English Character limit: ${lowerBoundEnChars}-${upperBoundEnChars}.`);
-
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Strictly between ${lowerBoundEnChars} and ${upperBoundEnChars} characters, including spaces (Targeting approximately ${wordCount} words for the total video duration of ${duration ? duration.toFixed(1) : 60} seconds).
-             - The script length is mathematically calculated based on the 60-second example script's character/word density ratio. Since the current video is ${duration ? duration.toFixed(1) : 60} seconds, your response MUST fall strictly within ${lowerBoundEnChars} to ${upperBoundEnChars} characters. DO NOT exceed this character count boundary under any circumstances.
+             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds. DO NOT exceed this word count).
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စုစုပေါင်း မြန်မာစာလုံးရေ (Character count - ဗျည်း၊ သရ၊ အက္ခရာ၊ အသံထွက် သင်္ကေတများအားလုံး အကျုံးဝင်သည်) သည် ${lowerBoundMyChars} မှ ${upperBoundMyChars} characters တိကျစွာ ဖြစ်ရပါမည်။ (လွန်ကဲစွာ မရှည်လျားစေရ၊ ဤကန့်သတ်ချက်ထက် ပိုမိုမရှည်စေရန် အထူးတင်းကြပ်စွာ လိုက်နာပါ)။
-             - ဤစာလုံးရေအပိုင်းအခြားသည် သင်ပေးထားသော ၆၀ စက္ကန့် စံပြနမူနာ Script (character count ၁၇၀၀ ရှိသော) ၏ အချိုးအစားအတိုင်း လက်ရှိဗီဒီယိုကြာချိန် ${duration ? duration.toFixed(1) : 60} စက္ကန့်ပေါ်မူတည်ပြီး အချိုးကျတွက်ချက်ထားခြင်း ဖြစ်သည်။ ၎င်းနှင့်ကိုက်ညီအောင် စာလုံးရေကို တိကျစွာ အချိုးချရေးပေးပါ။
+             - Script အရှည် - စကားလုံးရေ ${wordCount} တိတိ (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် စာလုံးရေ မပိုစေဘဲ တိကျစွာ တွက်ချက်ထားသည်)။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
@@ -236,19 +222,77 @@ async function startServer() {
         const promptSnippet = stylePrompts[style] || stylePrompts["step-by-step"];
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
-        const response = await retryWithBackoff((client) => client.models.generateContent({
-          model: model,
-          contents: [
-            {
-              parts: [
-                { text: finalPrompt },
-                { inlineData: { data: videoBase64, mimeType } }
+        let text = "";
+
+        if (isNarrationRecap === true || isNarrationRecap === "true") {
+          const tempDir = path.join(process.cwd(), "temp");
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+          }
+          const tempId = crypto.randomBytes(8).toString("hex");
+          const inputVideoPath = path.join(tempDir, `narration_input_${tempId}.mp4`);
+          const outputAudioPath = path.join(tempDir, `narration_output_${tempId}.wav`);
+
+          try {
+            await writeFilePromise(inputVideoPath, Buffer.from(videoBase64, 'base64'));
+
+            // Extract audio track using FFmpeg
+            await execPromise(`ffmpeg -i "${inputVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${outputAudioPath}" -y`);
+
+            // Read extracted WAV audio content as base64
+            const audioBuffer = await readFilePromise(outputAudioPath);
+            const audioBase64 = audioBuffer.toString("base64");
+
+            // Build beautiful translation instruction
+            const systemPrompt = lang === "EN"
+              ? "Listen to the audio in this file carefully and transcribe it, then translate the transcription into English so that it flows naturally. Only provide the translated text. No introductions, no greetings, no description."
+              : `ဒီဗီဒီယိုရဲ့ နောက်ခံစကားပြော (Narration) ကို သေချာနားထောင်ပြီး transcribeလုပ်ပြီး၊ မြန်မာဘာသာစကားနဲ့ နားထောင်လို့ အဆင်ပြေပြေနဲ့ အရမ်းချောမွေ့ဆွဲဆောင်မှုရှိတဲ့ ဇာတ်လမ်းပြောစတိုင် (recap voiceover script) စာသားအဖြစ် ဘာသာပြန်ပေးပါ။
+
+ကန့်သတ်ချက်များ -
+- ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
+- "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
+- အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
+- အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
+- Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
+- Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+
+            const response = await retryWithBackoff((client) => client.models.generateContent({
+              model: model,
+              contents: [
+                {
+                  parts: [
+                    { text: systemPrompt },
+                    { inlineData: { data: audioBase64, mimeType: "audio/wav" } }
+                  ]
+                }
               ]
+            }), customKey);
+
+            text = response.text || "";
+
+          } finally {
+            if (fs.existsSync(inputVideoPath)) {
+              await unlinkPromise(inputVideoPath).catch(err => console.error("Clean input fail:", err));
             }
-          ]
-        }), customKey);
-        
-        let text = response.text || "";
+            if (fs.existsSync(outputAudioPath)) {
+              await unlinkPromise(outputAudioPath).catch(err => console.error("Clean audio fail:", err));
+            }
+          }
+        } else {
+          const response = await retryWithBackoff((client) => client.models.generateContent({
+            model: model,
+            contents: [
+              {
+                parts: [
+                  { text: finalPrompt },
+                  { inlineData: { data: videoBase64, mimeType } }
+                ]
+              }
+            ]
+          }), customKey);
+          
+          text = response.text || "";
+        }
         if (lang === "MY") {
           text = text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1');
           text = text.replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1');

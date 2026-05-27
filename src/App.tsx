@@ -40,7 +40,8 @@ import {
   X,
   Trash2,
   History,
-  FileVideo
+  FileVideo,
+  Mic
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -56,11 +57,11 @@ import { HistoryCard } from "./components/HistoryCard";
 
 // Internal API Helpers to replace GeminiService.ts
 const api = {
-  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number, apiKey?: string, freezeFrameZoomEnabled?: boolean) {
+  async recap(videoBase64: string, mimeType: string, style: string, lang: Language, duration?: number, apiKey?: string, freezeFrameZoomEnabled?: boolean, isNarrationRecap?: boolean) {
     const res = await fetch("/api/recap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration, apiKey, freezeFrameZoomEnabled }),
+      body: JSON.stringify({ videoBase64, mimeType, style, lang, duration, apiKey, freezeFrameZoomEnabled, isNarrationRecap }),
     });
     if (!res.ok) throw new Error("Recap request failed");
     return (await res.json()).jobId;
@@ -1480,6 +1481,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   // Freeze Frame Zoom Setting
   const [freezeFrameZoomEnabled, setFreezeFrameZoomEnabled] = useState(false);
   
+  // Narration original audio processing switch
+  const [isNarrationRecap, setIsNarrationRecap] = useState(false);
+  
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
     const [subtitleColor, setSubtitleColor] = useState("#ffffff");
@@ -1611,7 +1615,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       });
 
       const base64 = await fileToBase64(file);
-      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey, freezeFrameZoomEnabled);
+      const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey, freezeFrameZoomEnabled, isNarrationRecap);
       const jobResult = await pollForCompletion(jobId);
       const recapValue = jobResult.text;
       
@@ -1886,6 +1890,42 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>
             )}
           </div>
+        </section>
+
+        {/* Narration Mode Toggle Switch */}
+        <section id="narration-mode-container" className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-4 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+              isNarrationRecap 
+                ? "bg-purple-600/20 border border-purple-500/30 text-purple-400" 
+                : "bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500"
+            }`}>
+              <Mic className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-text-primary dark:text-white uppercase tracking-wider">
+                {lang === "EN" ? "Narration Mode" : "နောက်ခံအသံစနစ်"}
+              </h3>
+              <p className="text-[10px] text-text-secondary dark:text-slate-500 font-bold leading-normal">
+                {lang === "EN" 
+                  ? "Transcribe voiceover & Translate to Myanmar" 
+                  : "ဗီဒီယိုပါနောက်ခံအသံကို ခွဲထုတ်ပြီး မြန်မာလို ဘာသာပြန်မည်"}
+              </p>
+            </div>
+          </div>
+          <button
+            id="narration-mode-toggle"
+            onClick={() => setIsNarrationRecap(!isNarrationRecap)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+              isNarrationRecap ? "bg-purple-600" : "bg-slate-200 dark:bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                isNarrationRecap ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </section>
 
         {/* Style Selection */}
