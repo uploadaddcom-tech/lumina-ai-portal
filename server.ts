@@ -202,16 +202,30 @@ async function startServer() {
         const wpm = isFreezeEnabled ? 230 : 190;
         const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
         
+        // Dynamic mathematically scaled character limits in Myanmar language (proportional to example script with 1700 characters/60s)
+        const targetMyChars = duration ? Math.floor((duration / 60) * 1700) : 1700;
+        const lowerBoundMyChars = Math.floor(targetMyChars * 0.85);
+        const upperBoundMyChars = Math.floor(targetMyChars * 1.02);
+
+        // Dynamic mathematically scaled character limits in English (proportional to 950 characters/60s, approx 190 words)
+        const targetEnChars = duration ? Math.floor((duration / 60) * 950) : 950;
+        const lowerBoundEnChars = Math.floor(targetEnChars * 0.85);
+        const upperBoundEnChars = Math.floor(targetEnChars * 1.02);
+
+        console.log(`[MM RECAP LOGIC] Video Duration: ${duration}s. Target Myanmar Character limit: ${lowerBoundMyChars}-${upperBoundMyChars}. Target English Character limit: ${lowerBoundEnChars}-${upperBoundEnChars}.`);
+
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds. DO NOT exceed this word count).
+             - Script length: Strictly between ${lowerBoundEnChars} and ${upperBoundEnChars} characters, including spaces (Targeting approximately ${wordCount} words for the total video duration of ${duration ? duration.toFixed(1) : 60} seconds).
+             - The script length is mathematically calculated based on the 60-second example script's character/word density ratio. Since the current video is ${duration ? duration.toFixed(1) : 60} seconds, your response MUST fall strictly within ${lowerBoundEnChars} to ${upperBoundEnChars} characters. DO NOT exceed this character count boundary under any circumstances.
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ ${wordCount} တိတိ (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် စာလုံးရေ မပိုစေဘဲ တိကျစွာ တွက်ချက်ထားသည်)။
+             - Script အရှည် - စုစုပေါင်း မြန်မာစာလုံးရေ (Character count - ဗျည်း၊ သရ၊ အက္ခရာ၊ အသံထွက် သင်္ကေတများအားလုံး အကျုံးဝင်သည်) သည် ${lowerBoundMyChars} မှ ${upperBoundMyChars} characters တိကျစွာ ဖြစ်ရပါမည်။ (လွန်ကဲစွာ မရှည်လျားစေရ၊ ဤကန့်သတ်ချက်ထက် ပိုမိုမရှည်စေရန် အထူးတင်းကြပ်စွာ လိုက်နာပါ)။
+             - ဤစာလုံးရေအပိုင်းအခြားသည် သင်ပေးထားသော ၆၀ စက္ကန့် စံပြနမူနာ Script (character count ၁၇၀၀ ရှိသော) ၏ အချိုးအစားအတိုင်း လက်ရှိဗီဒီယိုကြာချိန် ${duration ? duration.toFixed(1) : 60} စက္ကန့်ပေါ်မူတည်ပြီး အချိုးကျတွက်ချက်ထားခြင်း ဖြစ်သည်။ ၎င်းနှင့်ကိုက်ညီအောင် စာလုံးရေကို တိကျစွာ အချိုးချရေးပေးပါ။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
