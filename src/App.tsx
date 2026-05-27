@@ -1482,7 +1482,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [freezeFrameZoomEnabled, setFreezeFrameZoomEnabled] = useState(false);
   
   // Narration original audio processing switch
-  const [isNarrationRecap, setIsNarrationRecap] = useState(false);
+  const [isNarrationRecap, setIsNarrationRecap] = useState(true);
   
     // Subtitle Settings
     const [subtitleEnabled, setSubtitleEnabled] = useState(false);
@@ -1866,12 +1866,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               onClick={() => setIsNarrationRecap(false)}
               className={`flex-1 py-2.5 px-3 rounded-xl text-center text-xs font-black tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 ${
                 !isNarrationRecap 
-                  ? "bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-md transform active:scale-[0.98]"
+                  ? "bg-blue-600 text-white shadow-xl shadow-blue-500/30 transform active:scale-[0.98]"
                   : "text-text-secondary/85 dark:text-slate-400 hover:text-text-primary dark:hover:text-slate-200"
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              {lang === "EN" ? "AI Recap" : "ဗီဒီယို Recap"}
+              {lang === "EN" ? "Ai Mode" : "Ai Mode"}
             </button>
             <button
               id="mode-narration"
@@ -1879,12 +1879,12 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               onClick={() => setIsNarrationRecap(true)}
               className={`flex-1 py-2.5 px-3 rounded-xl text-center text-xs font-black tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 ${
                 isNarrationRecap 
-                  ? "bg-purple-600 text-white shadow-xl shadow-purple-500/30 transform active:scale-[0.98]"
+                  ? "bg-blue-600 text-white shadow-xl shadow-blue-500/30 transform active:scale-[0.98]"
                   : "text-text-secondary/85 dark:text-slate-400 hover:text-text-primary dark:hover:text-slate-200"
               }`}
             >
               <Mic className="w-3.5 h-3.5" />
-              {lang === "EN" ? "Narration" : "နောက်ခံအသံ"}
+              {lang === "EN" ? "Narration Mode" : "Narration Mode"}
             </button>
           </div>
 
