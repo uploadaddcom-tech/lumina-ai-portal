@@ -1858,6 +1858,36 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
         {/* Upload Section */}
         <section className="space-y-4">
+          {/* Segmented Mode Selector Switch */}
+          <div id="recap-mode-selector" className="max-w-sm mx-auto bg-slate-100/80 dark:bg-slate-900/40 p-1.5 rounded-2xl border border-border dark:border-white/5 flex gap-1 shadow-inner backdrop-blur-xl">
+            <button
+              id="mode-ai-recap"
+              type="button"
+              onClick={() => setIsNarrationRecap(false)}
+              className={`flex-1 py-2.5 px-3 rounded-xl text-center text-xs font-black tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 ${
+                !isNarrationRecap 
+                  ? "bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-md transform active:scale-[0.98]"
+                  : "text-text-secondary/85 dark:text-slate-400 hover:text-text-primary dark:hover:text-slate-200"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              {lang === "EN" ? "AI Recap" : "ဗီဒီယို Recap"}
+            </button>
+            <button
+              id="mode-narration"
+              type="button"
+              onClick={() => setIsNarrationRecap(true)}
+              className={`flex-1 py-2.5 px-3 rounded-xl text-center text-xs font-black tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 ${
+                isNarrationRecap 
+                  ? "bg-purple-600 text-white shadow-xl shadow-purple-500/30 transform active:scale-[0.98]"
+                  : "text-text-secondary/85 dark:text-slate-400 hover:text-text-primary dark:hover:text-slate-200"
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              {lang === "EN" ? "Narration" : "နောက်ခံအသံ"}
+            </button>
+          </div>
+
           <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2.5 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
             <input 
               type="file" 
@@ -1890,42 +1920,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>
             )}
           </div>
-        </section>
-
-        {/* Narration Mode Toggle Switch */}
-        <section id="narration-mode-container" className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-4 border border-border dark:border-white/5 shadow-2xl max-w-sm mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
-              isNarrationRecap 
-                ? "bg-purple-600/20 border border-purple-500/30 text-purple-400" 
-                : "bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500"
-            }`}>
-              <Mic className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-text-primary dark:text-white uppercase tracking-wider">
-                {lang === "EN" ? "Narration Mode" : "နောက်ခံအသံစနစ်"}
-              </h3>
-              <p className="text-[10px] text-text-secondary dark:text-slate-500 font-bold leading-normal">
-                {lang === "EN" 
-                  ? "Transcribe voiceover & Translate to Myanmar" 
-                  : "ဗီဒီယိုပါနောက်ခံအသံကို ခွဲထုတ်ပြီး မြန်မာလို ဘာသာပြန်မည်"}
-              </p>
-            </div>
-          </div>
-          <button
-            id="narration-mode-toggle"
-            onClick={() => setIsNarrationRecap(!isNarrationRecap)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-              isNarrationRecap ? "bg-purple-600" : "bg-slate-200 dark:bg-zinc-700"
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                isNarrationRecap ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </button>
         </section>
 
         {/* Style Selection */}
