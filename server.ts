@@ -814,7 +814,7 @@ async function startServer() {
       const initialSpeed = vDur > 0 ? (aDur / vDur) : 1;
       console.log(`[MM RECAP LOGIC] Initial alignment speed factor: ${initialSpeed}`);
 
-      if (initialSpeed > 1.9) {
+      if (initialSpeed > 1.9 || initialSpeed < 0.8) {
         throw new Error("အဆင်မပြေပါ");
       }
 
