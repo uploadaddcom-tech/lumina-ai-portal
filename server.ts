@@ -45,6 +45,66 @@ function rotateApiKey() {
   }
 }
 
+async function generateGoogleCloudTTS(text: string, voiceName: string, customKey?: string): Promise<Buffer> {
+  const apiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3
+  ].filter(Boolean) as string[];
+  const apiKey = customKey || (apiKeys.length > 0 ? apiKeys[currentKeyIdx % apiKeys.length] : (process.env.GEMINI_API_KEY || ""));
+
+  if (!apiKey) {
+    throw new Error("No API key configured for Google Cloud Text-to-Speech API.");
+  }
+
+  let gcloudVoiceName = "my-MM-Standard-A";
+  let languageCode = "my-MM";
+
+  const hasMyanmar = /[\u1000-\u109F]/.test(text);
+  if (!hasMyanmar) {
+    gcloudVoiceName = "en-US-Standard-C";
+    languageCode = "en-US";
+  }
+
+  if (voiceName === "my-MM-Standard-A" || voiceName === "my-MM-Standard-B") {
+    gcloudVoiceName = voiceName;
+    languageCode = "my-MM";
+  } else if (voiceName.startsWith("en-US-")) {
+    gcloudVoiceName = voiceName;
+    languageCode = "en-US";
+  }
+
+  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      input: { text },
+      voice: {
+        languageCode,
+        name: gcloudVoiceName
+      },
+      audioConfig: {
+        audioEncoding: "LINEAR16"
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorDetail = await response.text();
+    throw new Error(`Google Cloud Text-to-Speech service returned status ${response.status}. Please make sure the Text-to-Speech API is enabled in your Google Cloud Console. Detail: ${errorDetail}`);
+  }
+
+  const data = await response.json() as { audioContent: string };
+  if (!data.audioContent) {
+    throw new Error("Response did not contain 'audioContent'. Please make sure Cloud Text-to-Speech API is enabled.");
+  }
+
+  return Buffer.from(data.audioContent, "base64");
+}
+
 async function retryWithBackoff<T>(
   fn: (client: GoogleGenAI) => Promise<T>,
   customKey?: string,
@@ -292,69 +352,89 @@ async function startServer() {
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3.1-flash-tts-preview";
 
-        const getChunks = (input: string, maxLen = 600) => {
-          const sentences = input.split(/(?<=[။၊.!?])\s+/);
-          const chunks = [];
-          let current = "";
-          for (const s of sentences) {
-            if ((current + s).length > maxLen && current) {
-              chunks.push(current.trim());
-              current = s;
-            } else {
-              current = current ? current + " " + s : s;
-            }
-          }
-          if (current) chunks.push(current.trim());
-          return chunks;
-        };
+        let audioBase64Result: string;
 
-        const textChunks = getChunks(text);
-        const audioBuffers: Buffer[] = [];
-
-        for (const chunk of textChunks) {
-          if (!chunk.trim()) continue;
-          const response = await retryWithBackoff((client) => client.models.generateContent({
-            model: model,
-            contents: [{ parts: [{ text: chunk }] }],
-            config: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+        if (voiceName === "GCloudBurmese") {
+          console.log("[TTS] Utilizing Google Cloud Text-to-Speech directly...");
+          const audioBuffer = await generateGoogleCloudTTS(text, voiceName, customKey);
+          audioBase64Result = audioBuffer.toString("base64");
+        } else {
+          try {
+            console.log("[TTS] Trying Gemini Model for TTS...");
+            const getChunks = (input: string, maxLen = 600) => {
+              const sentences = input.split(/(?<=[။၊.!?])\s+/);
+              const chunks = [];
+              let current = "";
+              for (const s of sentences) {
+                if ((current + s).length > maxLen && current) {
+                  chunks.push(current.trim());
+                  current = s;
+                } else {
+                  current = current ? current + " " + s : s;
                 }
               }
-            } as any
-          }), customKey);
-          
-          const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-          if (audioBase64) {
-            audioBuffers.push(Buffer.from(audioBase64, 'base64'));
+              if (current) chunks.push(current.trim());
+              return chunks;
+            };
+
+            const textChunks = getChunks(text);
+            const audioBuffers: Buffer[] = [];
+
+            for (const chunk of textChunks) {
+              if (!chunk.trim()) continue;
+              const response = await retryWithBackoff((client) => client.models.generateContent({
+                model: model,
+                contents: [{ parts: [{ text: chunk }] }],
+                config: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                    }
+                  }
+                } as any
+              }), customKey);
+              
+              const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+              if (audioBase64) {
+                audioBuffers.push(Buffer.from(audioBase64, 'base64'));
+              }
+            }
+
+            const pcmData = Buffer.concat(audioBuffers);
+            if (pcmData.length === 0) {
+              throw new Error("No audio fragments returned by the Gemini TTS service.");
+            }
+            const sampleRate = 24000;
+            const numChannels = 1;
+            const byteRate = sampleRate * numChannels * 2; // 16-bit
+            const blockAlign = numChannels * 2;
+            
+            const header = Buffer.alloc(44);
+            header.write('RIFF', 0);
+            header.writeUInt32LE(36 + pcmData.length, 4);
+            header.write('WAVE', 8);
+            header.write('fmt ', 12);
+            header.writeUInt32LE(16, 16);
+            header.writeUInt16LE(1, 20); // PCM
+            header.writeUInt16LE(numChannels, 22);
+            header.writeUInt32LE(sampleRate, 24);
+            header.writeUInt32LE(byteRate, 28);
+            header.writeUInt16LE(blockAlign, 32);
+            header.writeUInt16LE(16, 34); // 16-bit
+            header.write('data', 36);
+            header.writeUInt32LE(pcmData.length, 40);
+
+            const finalAudio = Buffer.concat([header, pcmData]);
+            audioBase64Result = finalAudio.toString("base64");
+          } catch (geminiError: any) {
+            console.warn("[TTS] Gemini TTS failed, auto-falling back to Google Cloud Text-to-Speech API...", geminiError.message || geminiError);
+            const audioBuffer = await generateGoogleCloudTTS(text, voiceName, customKey);
+            audioBase64Result = audioBuffer.toString("base64");
           }
         }
 
-        const pcmData = Buffer.concat(audioBuffers);
-        const sampleRate = 24000;
-        const numChannels = 1;
-        const byteRate = sampleRate * numChannels * 2; // 16-bit
-        const blockAlign = numChannels * 2;
-        
-        const header = Buffer.alloc(44);
-        header.write('RIFF', 0);
-        header.writeUInt32LE(36 + pcmData.length, 4);
-        header.write('WAVE', 8);
-        header.write('fmt ', 12);
-        header.writeUInt32LE(16, 16);
-        header.writeUInt16LE(1, 20); // PCM
-        header.writeUInt16LE(numChannels, 22);
-        header.writeUInt32LE(sampleRate, 24);
-        header.writeUInt32LE(byteRate, 28);
-        header.writeUInt16LE(blockAlign, 32);
-        header.writeUInt16LE(16, 34); // 16-bit
-        header.write('data', 36);
-        header.writeUInt32LE(pcmData.length, 40);
-
-        const finalAudio = Buffer.concat([header, pcmData]);
-        appJobs.set(jobId, { status: "completed", audioData: finalAudio.toString("base64") });
+        appJobs.set(jobId, { status: "completed", audioData: audioBase64Result });
       } catch (error: any) {
         console.error("Voiceover Error Background:", error);
         appJobs.set(jobId, { status: "error", error: error.message });

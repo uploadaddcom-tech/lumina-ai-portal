@@ -62,7 +62,8 @@ export const translations = {
         Charon: "Charon (Technical & Clear)",
         Kore: "Kore (Bright & Friendly)",
         Fenrir: "Fenrir (Rugged & Warm)",
-        Zephyr: "Zephyr (Soft & Calm)"
+        Zephyr: "Zephyr (Soft & Calm)",
+        GCloudBurmese: "Myanmar Female (Google Cloud TTS)"
       },
       moods: {
         story: "Storytelling",
@@ -213,7 +214,8 @@ export const translations = {
         Charon: "Charon (ကြည်လင်သောအသံ)",
         Kore: "Kore (ဖော်ရွေသောအသံ)",
         Fenrir: "Fenrir (နွေးထွေးသောအသံ)",
-        Zephyr: "Zephyr (အေးချမ်းသောအသံ)"
+        Zephyr: "Zephyr (အေးချမ်းသောအသံ)",
+        GCloudBurmese: "မြန်မာအသံ (Google Text-to-Speech - တိကျစွာထွက်)"
       },
       moods: {
         story: "ပုံပြင်ပြောဟန်",
