@@ -814,7 +814,7 @@ async function startServer() {
       const initialSpeed = vDur > 0 ? (aDur / vDur) : 1;
       console.log(`[MM RECAP LOGIC] Initial alignment speed factor: ${initialSpeed}`);
 
-      if (initialSpeed > 1.9 || initialSpeed < 0.8) {
+      if (initialSpeed > 2.4 || initialSpeed < 0.8) {
         throw new Error("အဆင်မပြေပါ");
       }
 
@@ -921,10 +921,14 @@ async function startServer() {
           vDur = vDurRaw / 1.05;
         }
       } else if (initialSpeed > 1.4) {
-        // Target speed of atempo is 1.4 under user requirements if speed > 1.4
-        console.log(`[MM RECAP LOGIC] Current speed ${initialSpeed} > 1.4. Requiring atempo=1.4. Slowing down entire video...`);
+        // Target speed of atempo is 1.4 or 1.6 under user requirements if speed > 1.4
+        let targetAtempo = 1.4;
+        if (initialSpeed >= 1.9 && initialSpeed <= 2.4) {
+          targetAtempo = 1.6;
+        }
+        console.log(`[MM RECAP LOGIC] Current speed ${initialSpeed} > 1.4. Requiring atempo=${targetAtempo}. Slowing down entire video...`);
         
-        let S_slow = 1.4 / initialSpeed;
+        let S_slow = targetAtempo / initialSpeed;
         if (isNaN(S_slow) || S_slow <= 0.1) S_slow = 0.3;
         if (S_slow > 0.95) S_slow = 0.95;
 
