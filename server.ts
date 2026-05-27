@@ -1097,31 +1097,22 @@ async function startServer() {
       // Stage 3: Sync Subtitles with AI Timestamps
       if (subtitleEnabled && subtitleText) {
         let targetFontFile = "Tharlon-Regular.ttf";
-        let assFontName = "Tharlon";
         if (subtitleFont === "Padauk") {
           targetFontFile = "Padauk-Bold.ttf";
-          assFontName = "Padauk";
         } else if (subtitleFont === "Myanmar Sagar") {
           targetFontFile = "MyanmarSagar.ttf";
-          assFontName = "Myanmar Sagar";
         } else if (subtitleFont === "YoeYar-One Bold") {
           targetFontFile = "YoeYar-One Bold.ttf";
-          assFontName = "YoeYar-One Bold";
         } else if (subtitleFont === "Myanmar Gant Gaw") {
           targetFontFile = "MyanmarGantGaw.ttf";
-          assFontName = "Myanmar Gant Gaw";
         } else if (subtitleFont === "Myanmar Khway") {
           targetFontFile = "MyanmarKhway.ttf";
-          assFontName = "Myanmar Khway";
         } else if (subtitleFont === "Myanmar Pauklay") {
           targetFontFile = "MyanmarPauklay.ttf";
-          assFontName = "Myanmar Pauklay";
         } else if (subtitleFont === "Yunghkio") {
           targetFontFile = "Yunghkio.ttf";
-          assFontName = "Yunghkio";
         } else if (subtitleFont === "Tharlon") {
           targetFontFile = "Tharlon-Regular.ttf";
-          assFontName = "Tharlon";
         }
 
         const fontPaths = [
@@ -1133,10 +1124,10 @@ async function startServer() {
           "/usr/share/fonts/truetype/padauk/Padauk-Regular.ttf"
         ];
 
-        let actualFontDir = ".";
+        let fontArg = "";
         for (const fp of fontPaths) {
           if (fs.existsSync(fp)) {
-            actualFontDir = path.dirname(fp);
+            fontArg = `:fontfile='${fp}'`;
             break;
           }
         }
@@ -1164,18 +1155,21 @@ async function startServer() {
           }
         }
         
+        const targetAudioDur = atempoChain ? vDur : aDur;
         const timestampPrompt = `
           Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 2 decimal places for millisecond accuracy) for this audio based on the script.
           
           Script: "${subtitleText}"
           
           Requirements:
-          1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
-          2. Break the script into small, highly readable chunks (usually around 4-8 words or a short phrase).
-          3. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
-          4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.23, "end_time": 4.56}, ...]
-          5. Timestamps MUST be numbers in seconds with exactly 2 decimal places (e.g., 2.34) to ensure perfect synchronization.
-          6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
+          1. The total duration of this audio is exactly ${targetAudioDur.toFixed(2)} seconds.
+          2. Map the subtitle text chunks sequentially. The very first chunk MUST start at or near 0.00 seconds, and the last chunk MUST end exactly at or near ${targetAudioDur.toFixed(2)} seconds.
+          3. You MUST distribute the timestamps proportionally across the entire ${targetAudioDur.toFixed(2)} seconds based on the speech sequence. Do not group them together or end them early.
+          4. Break the script into small, highly readable chunks (around 4-8 words or a short phrase).
+          5. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
+          6. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.23, "end_time": 4.56}, ...]
+          7. Timestamps MUST be numbers in seconds with exactly 2 decimal places (e.g., 2.34) to ensure perfect synchronization.
+          8. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
         `;
 
         svChunks = await retryWithBackoff(async (client) => {
@@ -1200,7 +1194,7 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // Generate .srt file format
+        // Generate .srt file format for user persistence/download
         let srtContent = "";
         let srtIndex = 1;
         
@@ -1220,40 +1214,57 @@ async function startServer() {
           return lines;
         };
 
+        const getVisualLength = (str: string) => {
+          // Myanmar combining marks heuristic: ignore non-spacing marks for visual width estimation
+          return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
+        };
+
+        // 1. Write the SRT file as requested by the user
         for (const chunk of svChunks) {
           if (!chunk.text.trim()) continue;
-          
           const startStr = formatSRTTime(chunk.start_time);
           const endStr = formatSRTTime(chunk.end_time);
           const lines = wrapText(chunk.text.trim(), 40);
           const wrappedText = lines.join('\n');
-          
           srtContent += `${srtIndex}\n${startStr} --> ${endStr}\n${wrappedText}\n\n`;
           srtIndex++;
         }
 
         const srtPath = path.join(tempDir, `subtitles_${tempId}.srt`);
         await writeFilePromise(srtPath, srtContent);
-        
-        // Use relative path for FFmpeg subtitles filter to avoid colon/path escaping issues.
-        const relativeSrtPath = `temp/subtitles_${tempId}.srt`;
-        
-        // Style parameters
-        const srtColor = convertHexToASSColor(subtitleColor || "#ffffff", 100);
-        const srtBoxColor = convertHexToASSColor(subtitleBoxColor || "#000000", 60);
-        
+
+        // 2. Format drawtext filters chunk-by-chunk for perfect Burmese font rendering (no broken unicode characters)
+        const color = (subtitleColor || "#ffffff").replace('#', '0x');
+        const previewFontSizeInPx = Math.max(1, (subtitleFontSize || 26) * 0.6);
+        const fSize = Math.max(14, Math.floor(previewFontSizeInPx * effectiveFontScale));
+        const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
         const subYPercent = typeof subtitleY === "number" ? subtitleY : 75;
-        // Reference resolution height for standard ASS style overrides is typically 288 or 360.
-        // Let's use 288. MarginV is the vertical margin from the bottom in ASS pixels (0 to 288).
-        const assRefHeight = 288;
-        const assMarginV = Math.max(10, Math.floor(assRefHeight * (1 - subYPercent / 100)));
-        // Proportional font size for ASS
-        const assFontSize = Math.max(8, Math.floor((subtitleFontSize || 13) * 0.8));
-        
-        const styleOverride = `Fontname=${assFontName},Fontsize=${assFontSize},PrimaryColour=${srtColor},BorderStyle=3,BackColour=${srtBoxColor},Alignment=2,MarginV=${assMarginV}`;
-        
-        vFilters.push(`${lastV}subtitles=filename='${relativeSrtPath}':fontsdir='${actualFontDir}':force_style='${styleOverride}'[subv]`);
-        lastV = "[subv]";
+        const subYFact = (subYPercent / 100).toFixed(3);
+
+        let svIndex = 0;
+        for (const chunk of svChunks) {
+          if (!chunk.text.trim()) continue;
+          
+          const lines = wrapText(chunk.text.trim(), 40);
+          const visualLengths = lines.map(getVisualLength);
+          const maxWidth = Math.max(...visualLengths);
+          
+          const centeredLines = lines.map((l, idx) => {
+            const padSize = Math.max(0, Math.floor((maxWidth - visualLengths[idx]) / 2));
+            const pad = " ".repeat(padSize);
+            return `${pad}${l}${pad}`;
+          });
+          const wrapped = centeredLines.map(l => ` ${l} `).join('\n');
+          
+          const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
+          await writeFilePromise(chunkPath, wrapped);
+          
+          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(2)},${chunk.end_time.toFixed(2)})'`;
+          vFilters.push(`${lastV}drawtext=textfile='${chunkPath}':x=(w-text_w)/2:y=(h-text_h)*${subYFact}:fontsize=${fSize}:fontcolor=${color}:box=1:boxcolor=${boxCol}@0.6:boxborderw=10:line_spacing=5:text_shaping=1:fix_bounds=true${fontArg}${enableArg}[sv${svIndex}]`);
+          
+          lastV = `[sv${svIndex}]`;
+          svIndex++;
+        }
       }
 
       // Stage 4: Logo
