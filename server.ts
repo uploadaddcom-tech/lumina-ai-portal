@@ -1186,11 +1186,12 @@ async function startServer() {
           
           Requirements:
           1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
-          2. Break the script into small, highly readable chunks (usually around 4-8 words or a short phrase).
-          3. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
-          4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.23, "end_time": 4.56}, ...]
-          5. Timestamps MUST be numbers in seconds with exactly 2 decimal places (e.g., 2.34) to ensure perfect synchronization.
-          6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
+          2. CRITICAL FOR BURMESE AND ALL LANGUAGES: Do NOT group multiple sentences, long clauses, or paragraph blocks into a single segment. You MUST break down long blocks or sentences into very small chunks.
+          3. Each segment text MUST be strictly 4 to 8 words, or a very short phrase (စကားစုအတိုလေးများ). It must never contain more than 1 short sentence/phrase, resulting in at most 1 short line on screen, and absolutely never 3-4 lines or paragraphs.
+          4. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
+          5. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.23, "end_time": 4.56}, ...]
+          6. Timestamps MUST be numbers in seconds with exactly 2 decimal places (e.g., 2.34) to ensure perfect synchronization.
+          7. Ensure the chunks cover the FULL script in precise sequential order without missing any text, chunk by chunk.
         `;
 
         svChunks = await retryWithBackoff(async (client) => {
