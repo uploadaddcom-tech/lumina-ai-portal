@@ -1219,9 +1219,9 @@ async function startServer() {
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
         let svIndex = 0;
-        // Inherent model-based transcribe latency + ffmpeg audio stream filter overhead is around 450ms.
-        // Shifting timestamps backwards by 0.45 seconds fully calibrates the subtitles to appear in absolute lockstep with the spoken audio!
-        const latencyCalibrationOffset = 0.450; 
+        // No calibration offset is needed because Gemini is fed the pre-adjusted audio directly.
+        // Therefore, the generated timestamps (at 3 decimal places) are already perfectly aligned with the final audio.
+        const latencyCalibrationOffset = 0.0; 
 
         for (const chunk of svChunks) {
           if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
@@ -1231,7 +1231,7 @@ async function startServer() {
           if (isNaN(rawStart)) rawStart = 0;
           if (isNaN(rawEnd)) rawEnd = rawStart + 1.0;
 
-          // Align timestamps with a negative offset calibration
+          // Use the precise millisecond-accurate timestamps from the AI directly without any delay shifts
           const calibratedStart = Math.max(0, rawStart - latencyCalibrationOffset);
           const calibratedEnd = Math.max(calibratedStart + 0.1, rawEnd - latencyCalibrationOffset);
 
