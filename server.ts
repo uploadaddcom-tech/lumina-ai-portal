@@ -11,7 +11,19 @@ import { promisify } from "util";
 
 dotenv.config();
 
-const execPromise = promisify(exec);
+const execPromise = (cmd: string): Promise<{ stdout: string; stderr: string }> => {
+  return new Promise((resolve, reject) => {
+    exec(cmd, { maxBuffer: 100 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        (error as any).stderr = stderr;
+        (error as any).stdout = stdout;
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+};
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
@@ -342,6 +354,7 @@ async function startServer() {
   app.post("/api/voiceover", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
+    console.log(`[VOICEOVER REQUEST] Received voiceover request. Job ID: ${jobId}, voice: ${req.body.voiceName || 'Kore'}`);
     res.json({ jobId });
 
     (async () => {
@@ -367,9 +380,11 @@ async function startServer() {
         };
 
         const textChunks = getChunks(text);
+        console.log(`[VOICEOVER PROCESSING] Chunked input text into ${textChunks.length} segments.`);
         const audioBuffers: Buffer[] = [];
 
-        for (const chunk of textChunks) {
+        for (let idx = 0; idx < textChunks.length; idx++) {
+          const chunk = textChunks[idx];
           if (!chunk.trim()) continue;
           
           let audioBase64: string | undefined = undefined;
@@ -379,6 +394,7 @@ async function startServer() {
           
           for (const currentModel of ttsModels) {
             try {
+              console.log(`[TTS ROUND] Generating audio for chunk ${idx + 1}/${textChunks.length} using model ${currentModel}...`);
               const response = await retryWithBackoff((client) => client.models.generateContent({
                 model: currentModel,
                 contents: [{ parts: [{ text: chunk }] }],
@@ -395,11 +411,11 @@ async function startServer() {
               const chunkData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
               if (chunkData) {
                 audioBase64 = chunkData;
-                console.log(`[TTS SUCCESS] Voiceover chunk generated successfully with model ${currentModel}`);
+                console.log(`[TTS SUCCESS] Voiceover chunk ${idx + 1}/${textChunks.length} generated successfully with model ${currentModel}`);
                 break;
               }
             } catch (err: any) {
-              console.warn(`[TTS FALLBACK] Model ${currentModel} failed: ${err.message || err}. Trying next fallback...`);
+              console.warn(`[TTS FALLBACK] Model ${currentModel} failed for chunk ${idx+1}: ${err.message || err}. Trying next fallback...`);
               lastErr = err;
             }
           }
@@ -407,10 +423,12 @@ async function startServer() {
           if (audioBase64) {
             audioBuffers.push(Buffer.from(audioBase64, 'base64'));
           } else {
-            throw lastErr || new Error("All TTS fallback models failed to generate audio.");
+            console.error(`[TTS FATAL] All models failed to generate audio for chunk ${idx + 1}/${textChunks.length}`);
+            throw lastErr || new Error(`All TTS fallback models failed to generate audio for chunk ${idx + 1}.`);
           }
         }
 
+        console.log(`[VOICEOVER ASSEMBLY] Successfully generated all chunks. Concatenating and writing WAV header...`);
         const pcmData = Buffer.concat(audioBuffers);
         const sampleRate = 24000;
         const numChannels = 1;
@@ -434,8 +452,9 @@ async function startServer() {
 
         const finalAudio = Buffer.concat([header, pcmData]);
         appJobs.set(jobId, { status: "completed", audioData: finalAudio.toString("base64") });
+        console.log(`[VOICEOVER COMPLETE] Job ID ${jobId} status updated to 'completed'. WAV filesize: ${finalAudio.length} bytes.`);
       } catch (error: any) {
-        console.error("Voiceover Error Background:", error);
+        console.error("[VOICEOVER ERROR] Voiceover Error Background:", error);
         appJobs.set(jobId, { status: "error", error: error.message });
       }
     })();
@@ -451,6 +470,7 @@ async function startServer() {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    console.log(`[MERGE REQUEST] Received merge request. Job ID: ${jobId}, tempId: ${tempId}`);
     // Initialize job status
     appJobs.set(jobId, { status: "processing" });
 
@@ -465,6 +485,7 @@ async function startServer() {
       const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
 
       try {
+        console.log(`[MERGE BG INITIALIZING] Job ID: ${jobId}. Writing uploaded video and audio buffers...`);
         const { 
         videoBase64, 
         audioBase64, 
@@ -1403,8 +1424,10 @@ async function startServer() {
   app.get("/api/status/:jobId", (req, res) => {
     const job = appJobs.get(req.params.jobId);
     if (!job) {
+      console.warn(`[STATUS CHECK] Job not found: ${req.params.jobId}`);
       return res.status(404).json({ error: "Job not found" });
     }
+    console.log(`[STATUS CHECK] Job ID: ${req.params.jobId}, Status: ${job.status}`);
     res.json(job);
   });
 
