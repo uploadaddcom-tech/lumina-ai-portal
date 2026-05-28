@@ -3320,6 +3320,14 @@ function AppContent() {
   const tools = getTools(lang);
 
   const handleToolClick = (toolId: string) => {
+    if (toolId === "subtitle-editor") {
+      const isAdmin = user && (role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com');
+      if (!isAdmin) {
+        alert("Update လုပ်နေသောကြောင့် သုံးလို့မရသေးပါ");
+        return;
+      }
+    }
+
     if (!user) {
       setIntendedToolId(toolId);
       setShowLoginPrompt(true);
