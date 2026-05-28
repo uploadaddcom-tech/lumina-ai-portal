@@ -1219,9 +1219,9 @@ async function startServer() {
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
         let svIndex = 0;
-        // Inherent model-based transcribe latency + ffmpeg audio stream filter overhead is around 220ms.
-        // Shifting timestamps backwards by 0.22 seconds fully calibrates the subtitles to appear in absolute lockstep with the spoken audio!
-        const latencyCalibrationOffset = 0.220; 
+        // Inherent model-based transcribe latency + ffmpeg audio stream filter overhead is around 450ms.
+        // Shifting timestamps backwards by 0.45 seconds fully calibrates the subtitles to appear in absolute lockstep with the spoken audio!
+        const latencyCalibrationOffset = 0.450; 
 
         for (const chunk of svChunks) {
           if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
