@@ -1161,23 +1161,9 @@ async function startServer() {
         console.log("Requesting AI Timestamps for Subtitles...");
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         
-        let aiAudioBase64 = audioBuffer.toString('base64');
-        
-        // CRITICAL SYNC FIX: If audio is speed-adjusted, AI must hear the ADJUSTED audio 
-        // to provide accurate timestamps for the final video timeline.
-        if (atempoChain) {
-          console.log(`Pre-adjusting audio for AI sync with filter: ${atempoChain}...`);
-          const aiAudioPath = path.join(tempDir, `ai_audio_${tempId}.wav`);
-          
-          try {
-            await execPromise(`ffmpeg -i "${audioPath}" -filter:a "${atempoChain}" -y "${aiAudioPath}"`);
-            const scaledBuffer = fs.readFileSync(aiAudioPath);
-            aiAudioBase64 = scaledBuffer.toString('base64');
-            if (fs.existsSync(aiAudioPath)) await unlinkPromise(aiAudioPath);
-          } catch (ffmpegErr) {
-            console.warn("Pre-adjustment failed, using original audio:", ffmpegErr);
-          }
-        }
+        // Send the PRISTINE, UNALTERED original audio directly to AI for flawless, natural timeline alignment.
+        // This avoids rate distortion, pitch artifacts, and temporal shifts introduced by ffmpeg atempo filters.
+        const aiAudioBase64 = audioBuffer.toString('base64');
         
         const timestampPrompt = `
           Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio based on the script.
@@ -1220,26 +1206,32 @@ async function startServer() {
 
         // 1. programmatic calibration and strict sequential cleanup of timestamps
         const sanitizedChunks: { text: string; start: number; end: number }[] = [];
-        let runningEnd = 0.0;
+        let runningEndRaw = 0.0;
+        const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
+        console.log(`Applying mathematical alignment scale factor for subtitles: ${audioSpeedFactor}`);
 
         for (const chunk of svChunks) {
           if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
           
           let rawStart = parseFloat(chunk.start_time as any);
           let rawEnd = parseFloat(chunk.end_time as any);
-          if (isNaN(rawStart)) rawStart = runningEnd;
+          if (isNaN(rawStart)) rawStart = runningEndRaw;
           if (isNaN(rawEnd)) rawEnd = rawStart + 1.5;
 
           if (rawStart < 0) rawStart = 0;
           if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
 
+          // Mathematically scale original audio timestamps using the speed factor to get the exact output alignment
+          const scaledStart = rawStart / audioSpeedFactor;
+          const scaledEnd = rawEnd / audioSpeedFactor;
+
           sanitizedChunks.push({
             text: chunk.text.trim(),
-            start: rawStart,
-            end: rawEnd
+            start: scaledStart,
+            end: scaledEnd
           });
 
-          runningEnd = rawEnd;
+          runningEndRaw = rawEnd;
         }
 
         // 2. Resolve overlaps, enforce logical progression, and prevent subtitles from sticking
