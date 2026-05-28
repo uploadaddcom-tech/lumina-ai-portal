@@ -1216,12 +1216,12 @@ async function startServer() {
           return NaN;
         };
 
-        // 1. Programmatic calibration and strict sequential cleanup of timestamps
+          // 1. Programmatic calibration and conversion of timestamps
         const sanitizedChunks: { text: string; start: number; end: number }[] = [];
-        let lastEnd = 0.0; // In scaled output seconds
         const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
         console.log(`Applying mathematical alignment scale factor for subtitles: ${audioSpeedFactor}`);
 
+        let lastEndRaw = 0.0;
         for (const chunk of svChunks) {
           if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
           
@@ -1238,9 +1238,9 @@ async function startServer() {
           let rawStart = parseTimestamp(rawStartVal);
           let rawEnd = parseTimestamp(rawEndVal);
 
-          // Chronological fallback based on previous chunk end-time
+          // Fallback based on previous raw end time
           if (isNaN(rawStart)) {
-            rawStart = lastEnd * audioSpeedFactor + 0.1;
+            rawStart = lastEndRaw + 0.1;
           }
           if (isNaN(rawEnd)) {
             rawEnd = rawStart + 1.5;
@@ -1254,17 +1254,8 @@ async function startServer() {
           const calibratedStart = Math.max(0, rawStart - 0.150);
           const calibratedEnd = Math.max(calibratedStart + 0.5, rawEnd - 0.150);
 
-          let scaledStart = calibratedStart / audioSpeedFactor;
-          let scaledEnd = calibratedEnd / audioSpeedFactor;
-
-          // STRICT CHRONOLOGICAL PROGRESSION (No sorting): 
-          // Keep identical script sequence of text matching the spoken progression perfectly.
-          // If a timestamp is duplicate or reset, push it sequentially after the previous chunk end.
-          if (scaledStart < lastEnd + 0.02) {
-            scaledStart = lastEnd + 0.02;
-            const originalLength = Math.max(0.5, (calibratedEnd - calibratedStart) / audioSpeedFactor);
-            scaledEnd = scaledStart + originalLength;
-          }
+          const scaledStart = calibratedStart / audioSpeedFactor;
+          const scaledEnd = calibratedEnd / audioSpeedFactor;
 
           sanitizedChunks.push({
             text: chunk.text.trim(),
@@ -1272,8 +1263,11 @@ async function startServer() {
             end: scaledEnd
           });
 
-          lastEnd = scaledEnd;
+          lastEndRaw = rawEnd;
         }
+
+        // Always sort sanitized chunks chronologically to guarantee correct order and prevent overlaps
+        sanitizedChunks.sort((a, b) => a.start - b.start);
 
         // 2. Resolve overlaps, enforce logical progression
         for (let i = 0; i < sanitizedChunks.length; i++) {
