@@ -3291,6 +3291,83 @@ function PremiumModal({ lang, onClose }: { lang: Language; onClose: () => void }
   );
 }
 
+const faqData = {
+  EN: [
+    {
+      q: "Are there any video file size limits?",
+      a: "Yes, currently we support MP4 and MOV video files of up to 300MB."
+    },
+    {
+      q: "How can I download subtitle (.SRT) files?",
+      a: "After processing your video in the Video Transcribe section, a download button will appear allowing you to export the time-synced .SRT file directly."
+    },
+    {
+      q: "Can I receive the AI Recap in different styles?",
+      a: "Yes! You can choose from 9 custom styles including Step-by-Step, Funny Commentary, and Epic Exaggerated to match your video's niche."
+    },
+    {
+      q: "Can I use my own API Key?",
+      a: "Absolutely. Under API Settings, select 'Own API Key' and enter your own Gemini API Key to continue processing."
+    }
+  ],
+  MY: [
+    {
+      q: "ဗီဒီယိုဖိုင်ကန့်သတ်ချက် ရှိပါသလား?",
+      a: "ဟုတ်ကဲ့၊ လောလောဆယ်တွင် MP4 နှင့် MOV format များကို အများဆုံး 300MB အထိ လက်ခံဆောင်ရွက်ပေးပါသည်။"
+    },
+    {
+      q: "စာတန်းထိုး (SRT) ဖိုင်များကို ဘယ်လိုထုတ်ယူနိုင်မလဲ?",
+      a: "Video Transcribe ကဏ္ဍတွင် ဗီဒီယိုကို တင်ပြီးပါက 'Download Subtitles (.SRT)' ခလုတ်ကို နှိပ်၍ အချိန်ကိုက်စာတန်းထိုးဖိုင်ကို ဒေါင်းလုဒ်ရယူနိုင်ပါသည်။"
+    },
+    {
+      q: "AI Recap ကို အခြားပုံစံတွေနဲ့ ထုတ်လို့ရပါသလား?",
+      a: "ဟုတ်ကဲ့၊ Step-by-Step, Material List, Funny Commentary, Epic Exaggerated စသည့် စိတ်ကြိုက်စတိုင်လ် ၉ မျိုးအထိ ရွေးချယ်နိုင်ပါသည်။"
+    },
+    {
+      q: "ကိုယ်ပိုင် API Key သုံးလို့ရနိုင်သလား?",
+      a: "ဟုတ်ကဲ့ ရနိုင်ပါတယ်။ Option ကဏ္ဍအောက်ရှိ API Settings တွင် 'Own API Key' ကို ရွေးချယ်ပြီး သင့်ကိုယ်ပိုင် Gemini API Key ကို အသုံးပြုနိုင်ပါသည်။"
+    }
+  ]
+};
+
+function FAQItem({ faq }: { faq: { q: string; a: string } }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div 
+      onClick={() => setIsOpen(!isOpen)}
+      className="bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:border-blue-500/30 transition-all duration-300 shadow-sm select-none group"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 group-hover:text-blue-600 transition-colors">
+          {faq.q}
+        </h3>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </motion.div>
+      </div>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+            animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {faq.a}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function AppContent() {
   const { user, loading, role, diamonds } = useFirebase();
   const navigate = useNavigate();
@@ -3585,6 +3662,59 @@ function AppContent() {
                       </motion.div>
                     );
                   })}
+                </div>
+
+                {/* Our Goal & FAQ Sections */}
+                <div className="mt-20 pt-16 border-t border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-start">
+                  {/* Our Goal Section */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    className="relative overflow-hidden bg-white/5 dark:bg-[#0f172a]/20 backdrop-blur-md rounded-[2rem] p-8 border border-white/[0.05] shadow-2xl h-full flex flex-col justify-between"
+                  >
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="space-y-4 relative z-10">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest font-tech">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Mission & Vision
+                      </div>
+                      <h2 className="text-lg md:text-xl font-black text-text-primary dark:text-white tracking-tight">
+                        {lang === "EN" ? "Our Goal" : "ကျွန်ုပ်တို့၏ ရည်မှန်းချက်"}
+                      </h2>
+                      <p className="text-xs text-text-secondary dark:text-slate-400 leading-relaxed font-semibold font-sans">
+                        {lang === "EN" 
+                          ? "To empower Burmese content creators and businesses with cutting-edge AI tools, allowing them to effortlessly generate video recaps, extract high-quality subtitles, and create professional AI voiceovers in seconds."
+                          : "မြန်မာ Content Creator များအတွက် ဗီဒီယိုတည်းဖြတ်ခြင်း၊ ဘာသာပြန်ခြင်းနှင့် စာတန်းထိုးခြင်း လုပ်ငန်းစဉ်များကို AI နည်းပညာအသုံးပြုပြီး စက္ကန့်ပိုင်းအတွင်း အလွယ်ကူဆုံးနှင့် အချိန်ကုန်အသက်သာဆုံး ဖြေရှင်းပေးနိုင်ရန် ရည်ရွယ်ပါသည်။"
+                        }
+                      </p>
+                    </div>
+                    <div className="mt-8 relative z-10 p-5 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-xl flex items-center justify-center text-center font-black font-tech text-[10px] uppercase tracking-widest leading-none">
+                      {lang === "EN" ? "INNOVATE" : "တီထွင်ဆန်းသစ်မှု"}
+                    </div>
+                  </motion.div>
+
+                  {/* FAQs Section */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    className="space-y-6"
+                  >
+                    <div className="text-center lg:text-left space-y-2">
+                      <h2 className="text-lg md:text-xl font-black text-text-primary dark:text-white tracking-tight">
+                        {lang === "EN" ? "Frequently Asked Questions" : "အမေးများသော မေးခွန်းများ (FAQs)"}
+                      </h2>
+                    </div>
+
+                    <div className="space-y-4">
+                      {faqData[lang].map((faq, index) => (
+                        <FAQItem key={index} faq={faq} />
+                      ))}
+                    </div>
+                  </motion.div>
                 </div>
               </main>
 
