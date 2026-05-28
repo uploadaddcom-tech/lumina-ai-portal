@@ -1650,6 +1650,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               status: "merge"
             });
 
+            setIsVoiceoverGenerating(false);
             // Auto trigger merge and await its completion so any errors are caught here
             await performMerge(file, url, recapValue, newHistoryId);
           } else {
@@ -2962,14 +2963,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         {!showLogoSettings && !showRatioSettings && !showBlurSettings && (() => {
           const isAnyGenerating = isGenerating || isVoiceoverGenerating || isMerging;
           const getButtonText = () => {
+            if (generationPhase === "merge" || isMerging) {
+              return lang === "EN" ? "Generating Final Video..." : "Final Videoထုတ်နေသည်...";
+            }
             if (generationPhase === "recap") {
               return lang === "EN" ? "Generating Recap Script..." : "Recap စာသားထုတ်နေသည်...";
             }
             if (generationPhase === "voiceover" || isVoiceoverGenerating) {
               return lang === "EN" ? "Generating Neural Voice..." : "အသံထုတ်နေသည်...";
-            }
-            if (generationPhase === "merge" || isMerging) {
-              return lang === "EN" ? "Generating Final Video..." : "Final Videoထုတ်နေသည်...";
             }
             if (isGenerating) {
               return lang === "EN" ? "SYNCING..." : "ထုတ်လုပ်နေသည်...";
