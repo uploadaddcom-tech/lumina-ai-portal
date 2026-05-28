@@ -148,6 +148,21 @@ async function startServer() {
   app.post("/api/recap", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
+
+    try {
+      const { videoBase64 } = req.body;
+      if (videoBase64) {
+        const tempDir = path.join(process.cwd(), "temp");
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+        await writeFilePromise(path.join(tempDir, `video_source_${jobId}.bin`), Buffer.from(videoBase64, 'base64'));
+        console.log(`[RECAP CACHE] Cached source video on disk for jobId: ${jobId}`);
+      }
+    } catch (err) {
+      console.error("[RECAP WRITE ERROR]", err);
+    }
+
     res.json({ jobId });
 
     (async () => {
@@ -322,6 +337,21 @@ async function startServer() {
   app.post("/api/transcribe", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
+
+    try {
+      const { videoBase64 } = req.body;
+      if (videoBase64) {
+        const tempDir = path.join(process.cwd(), "temp");
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+        await writeFilePromise(path.join(tempDir, `video_source_${jobId}.bin`), Buffer.from(videoBase64, 'base64'));
+        console.log(`[TRANSCRIBE CACHE] Cached source video on disk for jobId: ${jobId}`);
+      }
+    } catch (err) {
+      console.error("[TRANSCRIBE WRITE ERROR]", err);
+    }
+
     res.json({ jobId });
 
     (async () => {
@@ -483,11 +513,13 @@ async function startServer() {
       const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
       const logoPath = path.join(tempDir, `logo_${tempId}.png`);
       const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
+      let videoJobId: string | undefined = undefined;
 
       try {
         console.log(`[MERGE BG INITIALIZING] Job ID: ${jobId}. Writing uploaded video and audio buffers...`);
         const { 
         videoBase64, 
+        videoJobId: reqVideoJobId,
         audioBase64, 
         logoBase64, 
         logoSize, 
@@ -517,7 +549,30 @@ async function startServer() {
         apiKey: customKey
       } = req.body;
       
-      const videoBuffer = Buffer.from(videoBase64, 'base64');
+      videoJobId = reqVideoJobId;
+      
+      let videoBuffer: Buffer | null = null;
+      if (videoJobId) {
+        const cachedPath = path.join(tempDir, `video_source_${videoJobId}.bin`);
+        if (fs.existsSync(cachedPath)) {
+          try {
+            console.log(`[MERGE] Reusing disk-cached video for job ${videoJobId}`);
+            videoBuffer = await readFilePromise(cachedPath);
+          } catch (readErr) {
+            console.error(`[MERGE] Error reading disk-cached video ${videoJobId}:`, readErr);
+          }
+        } else {
+          console.warn(`[MERGE] Cached video not found at ${cachedPath}`);
+        }
+      }
+      
+      if (!videoBuffer) {
+        if (!videoBase64) {
+          throw new Error("No video input source found (neither cached videoJobId nor direct videoBase64 provided)");
+        }
+        videoBuffer = Buffer.from(videoBase64, 'base64');
+      }
+      
       const audioBuffer = Buffer.from(audioBase64, 'base64');
 
       await writeFilePromise(videoPath, videoBuffer);
@@ -1400,6 +1455,14 @@ async function startServer() {
         if (fs.existsSync(audioPath)) await unlinkPromise(audioPath);
         if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
         // Note: outputPath is kept for the download endpoint
+        
+        // Clean up cached original video as well to preserve disk space
+        if (videoJobId) {
+          const cachedPath = path.join(tempDir, `video_source_${videoJobId}.bin`);
+          if (fs.existsSync(cachedPath)) {
+            await unlinkPromise(cachedPath).catch(cleanErr => console.error("Clean cached video fail:", cleanErr));
+          }
+        }
         
         const fPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(fPath)) await unlinkPromise(fPath);

@@ -112,13 +112,15 @@ const api = {
     subtitleY?: number,
     glowingSweepEnabled?: boolean,
     freezeFrameZoomEnabled?: boolean,
-    apiKey?: string
+    apiKey?: string,
+    videoJobId?: string
   ) {
     const res = await fetch("/api/merge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-        videoBase64, 
+        videoBase64: videoJobId ? undefined : videoBase64, 
+        videoJobId,
         audioBase64, 
         logoBase64, 
         logoSize, 
@@ -1394,6 +1396,7 @@ interface HistoryItem {
   voiceoverAudioUrl?: string | null;
   mergedVideoUrl?: string | null;
   status?: "recap" | "voiceover" | "merge" | "completed" | "failed";
+  videoJobId?: string;
 }
 
 function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
@@ -1616,6 +1619,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
       const base64 = await fileToBase64(file);
       const jobId = await api.recap(base64, file.type, selectedStyle, lang, duration || undefined, apiKey, freezeFrameZoomEnabled, isNarrationRecap);
+      
+      // Store the video job ID immediately in the history item for potential manual re-generation later
+      updateHistoryItem(newHistoryId, { videoJobId: jobId });
+
       const jobResult = await pollForCompletion(jobId);
       const recapValue = jobResult.text;
       
@@ -1637,12 +1644,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           const voice64 = vResult.audioData;
           
           if (voice64) {
-            const binaryString = atob(voice64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            const blob = new Blob([bytes], { type: "audio/wav" });
+            // Decodes using native data URL conversion, very resource-efficient
+            const blobRes = await fetch("data:audio/wav;base64," + voice64);
+            const blob = await blobRes.blob();
             const url = URL.createObjectURL(blob);
             setVoiceoverAudioUrl(url);
             updateHistoryItem(newHistoryId, { 
@@ -1650,8 +1654,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               status: "merge"
             });
 
-            // Auto trigger merge and await its completion so any errors are caught here
-            await performMerge(file, url, recapValue, newHistoryId);
+            // Auto trigger merge and await its completion so any errors are caught here, passing the video job cache ID
+            await performMerge(file, url, recapValue, newHistoryId, jobId);
           } else {
             throw new Error("No voiceover audio data returned from api");
           }
@@ -1700,22 +1704,22 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       
       if (base64) {
         await incrementUsage();
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const blob = new Blob([bytes], { type: "audio/wav" });
+        // Speed up using modern native utility
+        const blobRes = await fetch("data:audio/wav;base64," + base64);
+        const blob = await blobRes.blob();
         const url = URL.createObjectURL(blob);
         setVoiceoverAudioUrl(url);
+
+        // Retrieve video caching job ID from current history item if available
+        const activeItem = history.find(item => item.id === currentHistoryId);
+        const vJobId = activeItem?.videoJobId || undefined;
 
         if (currentHistoryId) {
           updateHistoryItem(currentHistoryId, { voiceoverAudioUrl: url });
         }
 
         // Auto trigger merge on manual regeneration too
-        performMerge(file, url, result || undefined, currentHistoryId || undefined);
+        await performMerge(file, url, result || undefined, currentHistoryId || undefined, vJobId);
       }
     } catch (err) {
       console.error(err);
@@ -1731,7 +1735,13 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     }
   };
 
-  const performMerge = async (videoFile: File, audioUrl: string, subtitleTextOverride?: string, historyIdToUpdate?: string) => {
+  const performMerge = async (
+    videoFile: File, 
+    audioUrl: string, 
+    subtitleTextOverride?: string, 
+    historyIdToUpdate?: string,
+    videoJobId?: string
+  ) => {
     setIsMerging(true);
     setGenerationPhase("merge");
     setMergedVideoUrl(null);
@@ -1752,7 +1762,11 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         });
       };
 
-      const videoBase64 = await fileToBase64(videoFile);
+      let videoBase64 = "";
+      if (!videoJobId) {
+        // Only convert to base64 if not cached on the server
+        videoBase64 = await fileToBase64(videoFile);
+      }
       
       let logoBase64 = undefined;
       if (logoFile) {
@@ -1795,7 +1809,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         subtitleY,
         glowingSweepEnabled,
         freezeFrameZoomEnabled,
-        apiKey
+        apiKey,
+        videoJobId
       );
       
       if (jobId) {
@@ -1819,7 +1834,8 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       if (targetId) {
         updateHistoryItem(targetId, { status: "failed" });
       }
-      alert(err instanceof Error ? err.message : "Something went wrong during merging");
+      // Use clean console logging instead of browser-blocking alert which crashes sandboxed preview frames
+      setError(err instanceof Error ? err.message : "Something went wrong during merging");
       throw err;
     } finally {
       setIsMerging(false);
@@ -1829,7 +1845,9 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
   const handleMerge = () => {
     if (file && voiceoverAudioUrl) {
-      performMerge(file, voiceoverAudioUrl, result || undefined, currentHistoryId || undefined);
+      const activeItem = history.find(item => item.id === currentHistoryId);
+      const vJobId = activeItem?.videoJobId || undefined;
+      performMerge(file, voiceoverAudioUrl, result || undefined, currentHistoryId || undefined, vJobId);
     }
   };
 

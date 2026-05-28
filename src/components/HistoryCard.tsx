@@ -9,6 +9,7 @@ interface HistoryItem {
   voiceoverAudioUrl?: string | null;
   mergedVideoUrl?: string | null;
   status?: "recap" | "voiceover" | "merge" | "completed" | "failed";
+  videoJobId?: string;
 }
 
 interface HistoryCardProps {
