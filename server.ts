@@ -1158,189 +1158,49 @@ async function startServer() {
 
         let svChunks: { text: string; start_time: number; end_time: number }[] = [];
 
-        console.log("Requesting AI Timestamps split into 3 parts for perfect length and sync...");
+        console.log("Requesting AI Timestamps for Subtitles...");
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         
-        try {
-          // 1. Split the text script into sentences/phrases
-          const sentences: string[] = [];
-          let currentPiece = "";
-          // Split on Myanmar punctuation (။, ၊), English punctuation, or newlines
-          const rawSplit = subtitleText.split(/([။၊\n\r\.!\?]+)/);
-          for (const part of rawSplit) {
-            if (!part) continue;
-            currentPiece += part;
-            if (/[။၊\n\r\.!\?]/.test(part)) {
-              sentences.push(currentPiece.trim());
-              currentPiece = "";
+        // Send the PRISTINE, UNALTERED original audio directly to AI for flawless, natural timeline alignment.
+        // This avoids rate distortion, pitch artifacts, and temporal shifts introduced by ffmpeg atempo filters.
+        const aiAudioBase64 = audioBuffer.toString('base64');
+        
+        const timestampPrompt = `
+          Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio based on the script.
+          
+          Script: "${subtitleText}"
+          
+          Requirements:
+          1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
+          2. TIMING PRECISION: Start times must align precisely with the exact millisecond the speech actually begins. Subtitles must appear exactly when the first phonetic sound/syllable of the chunk is heard.
+          3. CRITICAL ENDING: Do not extend past the end of speech. Subtitles must disappear as soon as that spoken chunk finishes, ensuring perfect synchronization.
+          4. CRITICAL FOR SPACELESS LANGUAGES (LIKE MYANMAR/BURMESE): Since the Myanmar language does not contain word spaces, you MUST segment the script by grammatical phrases, clauses, or natural pauses rather than 'word counts'. Splitting at natural comma-like boundaries or semantic breath boundaries (စကားစု ရပ်နားမှု) is highly recommended. Each chunk must be a short phrase that a human can read easily, lasting around 1.0 to 3.0 seconds in speech. Never let a single subtitle chunk extend too long.
+          5. For normal spaced languages, each segment text MUST be strictly 4 to 8 words, or a very short phrase (စကားစုအတိုလေးများ). It must never contain more than 1 short sentence/phrase, resulting in at most 1 short line on screen, and absolutely never 3-4 lines or paragraphs.
+          6. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
+          7. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.234, "end_time": 4.567}, ...]
+          8. Timestamps MUST be numbers in seconds with exactly 3 decimal places (e.g., 2.345) to ensure perfect synchronization.
+          9. Ensure the chunks cover the FULL script in precise sequential order without missing any text, chunk by chunk.
+        `;
+
+        svChunks = await retryWithBackoff(async (client) => {
+          const tsResponse = await client.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: [
+              {
+                parts: [
+                  { text: timestampPrompt },
+                  { inlineData: { data: aiAudioBase64, mimeType: 'audio/wav' } }
+                ]
+              }
+            ],
+            config: {
+              responseMimeType: "application/json"
             }
-          }
-          if (currentPiece.trim()) {
-            sentences.push(currentPiece.trim());
-          }
-
-          const scriptParts: string[] = [];
-          const totalSentences = sentences.length;
-
-          if (totalSentences >= 3) {
-            const sizePerPart = Math.ceil(totalSentences / 3);
-            scriptParts.push(sentences.slice(0, sizePerPart).join(" "));
-            scriptParts.push(sentences.slice(sizePerPart, sizePerPart * 2).join(" "));
-            scriptParts.push(sentences.slice(sizePerPart * 2).join(" "));
-          } else {
-            // Fall back to spacing token split if the text has very few punctuation marks
-            const tokens = subtitleText.split(/\s+/).filter(Boolean);
-            const partLen = Math.ceil(tokens.length / 3);
-            scriptParts.push(tokens.slice(0, partLen).join(" "));
-            scriptParts.push(tokens.slice(partLen, partLen * 2).join(" "));
-            scriptParts.push(tokens.slice(partLen * 2).join(" "));
-          }
-
-          // 2. Extract corresponding audio parts with FFMPEG
-          const partDur = aDur / 3;
-          console.log(`Dividing audio duration ${aDur}s into 3 slices of ~${partDur.toFixed(2)}s each.`);
-
-          const partAudios: string[] = [];
-          for (let k = 0; k < 3; k++) {
-            const startOffset = k * partDur;
-            const chunkAudioPath = path.join(tempDir, `part_audio_${tempId}_${k}.wav`);
-            await execPromise(`ffmpeg -ss ${startOffset.toFixed(4)} -t ${partDur.toFixed(4)} -i "${audioPath}" -y "${chunkAudioPath}"`);
-            partAudios.push(chunkAudioPath);
-          }
-
-          // 3. Request timestamps from Gemini for each segment
-          const partChunksPromises = scriptParts.map(async (scriptPart, k) => {
-            if (!scriptPart.trim()) {
-              console.log(`Part ${k} script segment is empty, returning empty list.`);
-              return [];
-            }
-
-            const startOffset = k * partDur;
-            const audioPartBuffer = fs.readFileSync(partAudios[k]);
-            const partAudioBase64 = audioPartBuffer.toString('base64');
-
-            const partPrompt = `
-              Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio segment based on the script text below.
-              
-              Script Segment: "${scriptPart}"
-              
-              Requirements:
-              1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script segment.
-              2. TIMING PRECISION: Start times must align precisely with the exact millisecond the speech actually begins. Subtitles must appear exactly when the first phonetic sound/syllable of the chunk is heard. Timestamps MUST be relative to the beginning of THIS audio chunk (i.e., starting from 0.000).
-              3. CRITICAL ENDING: Do not extend past the end of speech. Subtitles must disappear as soon as that spoken chunk finishes, ensuring perfect synchronization.
-              4. CRITICAL FOR SPACELESS LANGUAGES (LIKE MYANMAR/BURMESE): Since the Myanmar language does not contain word spaces, you MUST segment the script by grammatical phrases, clauses, or natural pauses rather than 'word counts'. Splitting at natural comma-like boundaries or semantic breath boundaries (စကားစု ရပ်နားမှု) is highly recommended. Each chunk must be a short phrase that a human can read easily, lasting around 1.0 to 3.0 seconds in speech. Never let a single subtitle chunk extend too long.
-              5. For normal spaced languages, each segment text MUST be strictly 4 to 8 words, or a very short phrase (စကားစုအတိုလေးများ). It must never contain more than 1 short sentence/phrase, resulting in at most 1 short line on screen, and absolutely never 3-4 lines or paragraphs.
-              6. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.234, "end_time": 4.567}, ...]
-              7. Timestamps MUST be numbers in seconds with exactly 3 decimal places (e.g., 2.345) to ensure perfect synchronization.
-              8. Ensure the chunks cover the FULL script segment in precise sequential order without missing any text. So match and output chunks for the FULL provided script segment.
-            `;
-
-            const partResult = await retryWithBackoff(async (client) => {
-              const tsResponse = await client.models.generateContent({
-                model: "gemini-3.5-flash",
-                contents: [
-                  {
-                    parts: [
-                      { text: partPrompt },
-                      { inlineData: { data: partAudioBase64, mimeType: 'audio/wav' } }
-                    ]
-                  }
-                ],
-                config: {
-                  responseMimeType: "application/json"
-                }
-              });
-
-              const tsRaw = tsResponse.text || "[]";
-              return JSON.parse(tsRaw);
-            }, customKey);
-
-            console.log(`Part ${k} responded with ${partResult.length} chunks.`);
-
-            // Adjust timestamps to be absolute relative to the full audio timeline
-            const adjusted: { text: string; start_time: number; end_time: number }[] = [];
-            for (const chunk of partResult) {
-              const cAny = chunk as any;
-              const text = (cAny.text || "").trim();
-              if (!text) continue;
-
-              let sTime = parseTimestamp(cAny.start_time !== undefined ? cAny.start_time : cAny.start);
-              if (isNaN(sTime)) sTime = parseTimestamp(cAny.startTime);
-              if (isNaN(sTime)) sTime = parseTimestamp(cAny.time_start);
-              
-              let eTime = parseTimestamp(cAny.end_time !== undefined ? cAny.end_time : cAny.end);
-              if (isNaN(eTime)) eTime = parseTimestamp(cAny.endTime);
-              if (isNaN(eTime)) eTime = parseTimestamp(cAny.time_end);
-
-              if (isNaN(sTime)) continue;
-              if (isNaN(eTime)) eTime = sTime + 1.5;
-
-              adjusted.push({
-                text: text,
-                start_time: sTime + startOffset,
-                end_time: eTime + startOffset
-              });
-            }
-            return adjusted;
           });
 
-          const results = await Promise.all(partChunksPromises);
-          
-          // Clean up temporary audio chunk files
-          for (const p of partAudios) {
-            try {
-              if (fs.existsSync(p)) {
-                fs.unlinkSync(p);
-              }
-            } catch (err) {
-              console.warn("Error deleting sub-audio chunk:", err);
-            }
-          }
-
-          // Merge the parts
-          for (const res of results) {
-            svChunks.push(...res);
-          }
-
-        } catch (splitErr) {
-          console.error("3-part audio subtitle splitting failed, falling back to original full audio transcription:", splitErr);
-          
-          const aiAudioBase64 = audioBuffer.toString('base64');
-          const timestampPrompt = `
-            Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio based on the script.
-            
-            Script: "${subtitleText}"
-            
-            Requirements:
-            1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
-            2. TIMING PRECISION: Start times must align precisely with the exact millisecond the speech actually begins. Subtitles must appear exactly when the first phonetic sound/syllable of the chunk is heard.
-            3. CRITICAL ENDING: Do not extend past the end of speech. Subtitles must disappear as soon as that spoken chunk finishes, ensuring perfect synchronization.
-            4. CRITICAL FOR SPACELESS LANGUAGES (LIKE MYANMAR/BURMESE): Since the Myanmar language does not contain word spaces, you MUST segment the script by grammatical phrases, clauses, or natural pauses rather than 'word counts'. Splitting at natural comma-like boundaries or semantic breath boundaries (စကားစု ရပ်နားမှု) is highly recommended. Each chunk must be a short phrase that a human can read easily, lasting around 1.0 to 3.0 seconds in speech. Never let a single subtitle chunk extend too long.
-            5. For normal spaced languages, each segment text MUST be strictly 4 to 8 words, or a very short phrase (စကားစုအတိုလေးများ). It must never contain more than 1 short sentence/phrase, resulting in at most 1 short line on screen, and absolutely never 3-4 lines or paragraphs.
-            6. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.234, "end_time": 4.567}, ...]
-            7. Timestamps MUST be numbers in seconds with exactly 3 decimal places (e.g., 2.345) to ensure perfect synchronization.
-            8. Ensure the chunks cover the FULL script in precise sequential order without missing any text, chunk by chunk.
-          `;
-
-          svChunks = await retryWithBackoff(async (client) => {
-            const tsResponse = await client.models.generateContent({
-              model: "gemini-3.5-flash",
-              contents: [
-                {
-                  parts: [
-                    { text: timestampPrompt },
-                    { inlineData: { data: aiAudioBase64, mimeType: 'audio/wav' } }
-                  ]
-                }
-              ],
-              config: {
-                responseMimeType: "application/json"
-              }
-            });
-
-            const tsRaw = tsResponse.text || "[]";
-            return JSON.parse(tsRaw);
-          }, customKey);
-        }
+          const tsRaw = tsResponse.text || "[]";
+          return JSON.parse(tsRaw);
+        }, customKey);
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
