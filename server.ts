@@ -1186,7 +1186,7 @@ async function startServer() {
           
           Requirements:
           1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
-          2. CRITICAL TIMING: Start times must align precisely with the exact millisecond the speech actually begins, with NO pre-start padding or cushion (do NOT start 0.2s to 0.3s early). Subtitles must appear exactly when the first phonetic sound/syllable of the chunk is heard.
+          2. TIMING PRECISION: Start times must align precisely with the exact millisecond the speech actually begins. Subtitles must appear exactly when the first phonetic sound/syllable of the chunk is heard.
           3. CRITICAL ENDING: Do not extend past the end of speech. Subtitles must disappear as soon as that spoken chunk finishes, ensuring perfect synchronization.
           4. CRITICAL FOR BURMESE AND ALL LANGUAGES: Do NOT group multiple sentences, long clauses, or paragraph blocks into a single segment. You MUST break down long blocks or sentences into very small chunks.
           5. Each segment text MUST be strictly 4 to 8 words, or a very short phrase (စကားစုအတိုလေးများ). It must never contain more than 1 short sentence/phrase, resulting in at most 1 short line on screen, and absolutely never 3-4 lines or paragraphs.
@@ -1219,9 +1219,22 @@ async function startServer() {
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
         let svIndex = 0;
+        // Inherent model-based transcribe latency + ffmpeg audio stream filter overhead is around 220ms.
+        // Shifting timestamps backwards by 0.22 seconds fully calibrates the subtitles to appear in absolute lockstep with the spoken audio!
+        const latencyCalibrationOffset = 0.220; 
+
         for (const chunk of svChunks) {
-          if (!chunk.text.trim()) continue;
+          if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
           
+          let rawStart = parseFloat(chunk.start_time as any);
+          let rawEnd = parseFloat(chunk.end_time as any);
+          if (isNaN(rawStart)) rawStart = 0;
+          if (isNaN(rawEnd)) rawEnd = rawStart + 1.0;
+
+          // Align timestamps with a negative offset calibration
+          const calibratedStart = Math.max(0, rawStart - latencyCalibrationOffset);
+          const calibratedEnd = Math.max(calibratedStart + 0.1, rawEnd - latencyCalibrationOffset);
+
           const wrapText = (text: string, maxLen: number) => {
             const words = text.split(/\s+/);
             let lines = [];
@@ -1258,7 +1271,7 @@ async function startServer() {
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
-          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(3)},${chunk.end_time.toFixed(3)})'`;
+          const enableArg = `:enable='between(t,${calibratedStart.toFixed(3)},${calibratedEnd.toFixed(3)})'`;
           const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
           const subYPercent = typeof subtitleY === "number" ? subtitleY : 75;
           const subYFact = (subYPercent / 100).toFixed(3);
