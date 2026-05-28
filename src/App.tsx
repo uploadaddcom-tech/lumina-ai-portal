@@ -2240,7 +2240,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                                 style={{ 
                                   transform: `scale(${(videoScale || 100) / 100})`,
                                   clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                  filter: "contrast(115%) brightness(115%) saturate(125%)"
                                 }}
                                 autoPlay 
                                 muted 
@@ -2471,7 +2471,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                                 style={{ 
                                   transform: `scale(${(videoScale || 100) / 100})`,
                                   clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                  filter: "contrast(115%) brightness(115%) saturate(125%)"
                                 }}
                                 autoPlay 
                                 muted 
@@ -2620,7 +2620,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                                 style={{ 
                                   transform: `scale(${(videoScale || 100) / 100})`,
                                   clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                  filter: "contrast(115%) brightness(115%) saturate(125%)"
                                 }}
                                 autoPlay 
                                 muted 
@@ -2790,7 +2790,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                                 style={{ 
                                   transform: `scale(${(videoScale || 100) / 100})`,
                                   clipPath: `inset(${cropTop}% ${cropRight}% ${cropBottom}% ${cropLeft}%)`,
-                                  filter: "contrast(115%) brightness(95%) saturate(125%)"
+                                  filter: "contrast(115%) brightness(115%) saturate(125%)"
                                 }}
                                 autoPlay 
                                 muted 
