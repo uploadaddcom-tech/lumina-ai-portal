@@ -1204,28 +1204,56 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // Helper to safely parse strings / numbers / formats like "1.23s"
+        // Helper to safely parse strings / numbers / formats like "1:23", "01:23.456", "1.23s", and millisecond integers
         const parseTimestamp = (val: any): number => {
           if (val === undefined || val === null) return NaN;
-          if (typeof val === 'number') return val;
-          if (typeof val === 'string') {
-            const cleaned = val.replace(/[sS](ec(ond)?)?/, '').trim();
-            const parsed = parseFloat(cleaned);
-            return isNaN(parsed) ? NaN : parsed;
+          
+          let str = String(val).trim();
+          if (!str) return NaN;
+
+          // Replace trailing 's', 'sec', etc.
+          str = str.replace(/[sS](ec(ond)?)?$/, '').trim();
+
+          // Check if it is in MM:SS or HH:MM:SS format (e.g., "1:23" or "01:23" or "00:01:23")
+          if (str.includes(':')) {
+            const parts = str.split(':');
+            let secs = 0;
+            let multiplier = 1;
+            // Go from right to left (seconds, minutes, hours)
+            for (let i = parts.length - 1; i >= 0; i--) {
+              const p = parseFloat(parts[i]);
+              if (isNaN(p)) return NaN;
+              secs += p * multiplier;
+              multiplier *= 60;
+            }
+            return secs;
           }
-          return NaN;
+
+          const parsed = parseFloat(str);
+          if (isNaN(parsed)) return NaN;
+
+          // Heuristic: If parsed number is extremely large (e.g. > 1000) and we can see it
+          // could be millisecond integers (like 12300 instead of 12.3), convert it to seconds.
+          // Note that a standard video in this app is usually under 5-10 minutes.
+          // If the raw timestamp is > 1000, it is 100% in milliseconds.
+          if (parsed > 1000) {
+            return parsed / 1000;
+          }
+
+          return parsed;
         };
 
-          // 1. Programmatic calibration and conversion of timestamps
-        const sanitizedChunks: { text: string; start: number; end: number }[] = [];
-        const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
-        console.log(`Applying mathematical alignment scale factor for subtitles: ${audioSpeedFactor}`);
+        // 1. Compute cumulative character weights of all subtitle scripts for exact fallback mapping
+        const totalChars = svChunks.reduce((sum, chunk) => sum + (chunk?.text?.length || 0), 0) || 1;
+        let pAccumChars = 0;
+        
+        const preparedChunks = svChunks.map((chunk, idx) => {
+          const text = (chunk?.text || "").trim();
+          const len = text.length;
+          const pStart = pAccumChars / totalChars;
+          pAccumChars += len;
+          const pEnd = pAccumChars / totalChars;
 
-        let lastEndRaw = 0.0;
-        for (const chunk of svChunks) {
-          if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
-          
-          // Support multiple potential key structures returned by Gemini
           const cAny = chunk as any;
           let rawStartVal = cAny.start_time !== undefined ? cAny.start_time : cAny.start;
           if (rawStartVal === undefined) rawStartVal = cAny.startTime;
@@ -1238,32 +1266,101 @@ async function startServer() {
           let rawStart = parseTimestamp(rawStartVal);
           let rawEnd = parseTimestamp(rawEndVal);
 
-          // Fallback based on previous raw end time
+          return {
+            text,
+            rawStart,
+            rawEnd,
+            pStart,
+            pEnd,
+          };
+        });
+
+        // 2. Linear text-weight interpolation for any NaN timestamps to guarantee full-timeline alignment
+        const interpolatedChunks = preparedChunks.map((item, idx) => {
+          let rawStart = item.rawStart;
+          let rawEnd = item.rawEnd;
+
           if (isNaN(rawStart)) {
-            rawStart = lastEndRaw + 0.1;
+            // Find left bound
+            let L_time = 0;
+            let L_p = 0;
+            for (let i = idx - 1; i >= 0; i--) {
+              if (!isNaN(preparedChunks[i].rawStart)) {
+                L_time = preparedChunks[i].rawStart;
+                L_p = preparedChunks[i].pStart;
+                break;
+              }
+            }
+            // Find right bound
+            let R_time = aDur;
+            let R_p = 1.0;
+            for (let i = idx + 1; i < preparedChunks.length; i++) {
+              if (!isNaN(preparedChunks[i].rawStart)) {
+                R_time = preparedChunks[i].rawStart;
+                R_p = preparedChunks[i].pStart;
+                break;
+              }
+            }
+            const denom = R_p - L_p;
+            rawStart = L_time + (R_time - L_time) * (denom > 0 ? (item.pStart - L_p) / denom : 0);
           }
+
           if (isNaN(rawEnd)) {
-            rawEnd = rawStart + 1.5;
+            // Find left bound
+            let L_time = rawStart + 0.5;
+            let L_p = item.pStart;
+            for (let i = idx - 1; i >= 0; i--) {
+              if (!isNaN(preparedChunks[i].rawEnd)) {
+                L_time = preparedChunks[i].rawEnd;
+                L_p = preparedChunks[i].pEnd;
+                break;
+              }
+            }
+            // Find right bound
+            let R_time = aDur;
+            let R_p = 1.0;
+            for (let i = idx + 1; i < preparedChunks.length; i++) {
+              if (!isNaN(preparedChunks[i].rawEnd)) {
+                R_time = preparedChunks[i].rawEnd;
+                R_p = preparedChunks[i].pEnd;
+                break;
+              }
+            }
+            const denom = R_p - L_p;
+            rawEnd = L_time + (R_time - L_time) * (denom > 0 ? (item.pEnd - L_p) / denom : 0);
           }
 
+          // Bounds safety
           if (rawStart < 0) rawStart = 0;
-          if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
+          if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.2;
+          if (rawEnd > aDur) rawEnd = aDur;
+          if (rawStart >= aDur) rawStart = Math.max(0, aDur - 1.0);
 
-          // Apply a professional 150ms calibration offset to account for model acoustic onset latency,
-          // then scale the timeframe mathematically by the speed factor.
-          const calibratedStart = Math.max(0, rawStart - 0.150);
-          const calibratedEnd = Math.max(calibratedStart + 0.5, rawEnd - 0.150);
+          return {
+            text: item.text,
+            rawStart,
+            rawEnd
+          };
+        });
+
+        // 3. Scale timeframes mathematically by speed factor and push to sanitized array
+        const sanitizedChunks: { text: string; start: number; end: number }[] = [];
+        const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
+        console.log(`Applying mathematical alignment scale factor for subtitles: ${audioSpeedFactor}`);
+
+        for (const item of interpolatedChunks) {
+          // Apply a professional 150ms calibration offset to account for model acoustic onset latency
+          const calibratedStart = Math.max(0, item.rawStart - 0.150);
+          const calibratedEnd = Math.max(calibratedStart + 0.5, item.rawEnd - 0.150);
 
           const scaledStart = calibratedStart / audioSpeedFactor;
           const scaledEnd = calibratedEnd / audioSpeedFactor;
 
           sanitizedChunks.push({
-            text: chunk.text.trim(),
+            text: item.text,
             start: scaledStart,
             end: scaledEnd
           });
-
-          lastEndRaw = rawEnd;
         }
 
         // Always sort sanitized chunks chronologically to guarantee correct order and prevent overlaps
