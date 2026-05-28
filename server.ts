@@ -1204,58 +1204,26 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // Helper to safely parse strings / numbers / formats like "1.23s"
-        const parseTimestamp = (val: any): number => {
-          if (val === undefined || val === null) return NaN;
-          if (typeof val === 'number') return val;
-          if (typeof val === 'string') {
-            const cleaned = val.replace(/[sS](ec(ond)?)?/, '').trim();
-            const parsed = parseFloat(cleaned);
-            return isNaN(parsed) ? NaN : parsed;
-          }
-          return NaN;
-        };
-
-          // 1. Programmatic calibration and conversion of timestamps
+        // 1. programmatic calibration and strict sequential cleanup of timestamps
         const sanitizedChunks: { text: string; start: number; end: number }[] = [];
+        let runningEndRaw = 0.0;
         const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
         console.log(`Applying mathematical alignment scale factor for subtitles: ${audioSpeedFactor}`);
 
-        let lastEndRaw = 0.0;
         for (const chunk of svChunks) {
           if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
           
-          // Support multiple potential key structures returned by Gemini
-          const cAny = chunk as any;
-          let rawStartVal = cAny.start_time !== undefined ? cAny.start_time : cAny.start;
-          if (rawStartVal === undefined) rawStartVal = cAny.startTime;
-          if (rawStartVal === undefined) rawStartVal = cAny.time_start;
-
-          let rawEndVal = cAny.end_time !== undefined ? cAny.end_time : cAny.end;
-          if (rawEndVal === undefined) rawEndVal = cAny.endTime;
-          if (rawEndVal === undefined) rawEndVal = cAny.time_end;
-
-          let rawStart = parseTimestamp(rawStartVal);
-          let rawEnd = parseTimestamp(rawEndVal);
-
-          // Fallback based on previous raw end time
-          if (isNaN(rawStart)) {
-            rawStart = lastEndRaw + 0.1;
-          }
-          if (isNaN(rawEnd)) {
-            rawEnd = rawStart + 1.5;
-          }
+          let rawStart = parseFloat(chunk.start_time as any);
+          let rawEnd = parseFloat(chunk.end_time as any);
+          if (isNaN(rawStart)) rawStart = runningEndRaw;
+          if (isNaN(rawEnd)) rawEnd = rawStart + 1.5;
 
           if (rawStart < 0) rawStart = 0;
           if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
 
-          // Apply a professional 150ms calibration offset to account for model acoustic onset latency,
-          // then scale the timeframe mathematically by the speed factor.
-          const calibratedStart = Math.max(0, rawStart - 0.150);
-          const calibratedEnd = Math.max(calibratedStart + 0.5, rawEnd - 0.150);
-
-          const scaledStart = calibratedStart / audioSpeedFactor;
-          const scaledEnd = calibratedEnd / audioSpeedFactor;
+          // Mathematically scale original audio timestamps using the speed factor to get the exact output alignment
+          const scaledStart = rawStart / audioSpeedFactor;
+          const scaledEnd = rawEnd / audioSpeedFactor;
 
           sanitizedChunks.push({
             text: chunk.text.trim(),
@@ -1263,42 +1231,51 @@ async function startServer() {
             end: scaledEnd
           });
 
-          lastEndRaw = rawEnd;
+          runningEndRaw = rawEnd;
         }
 
-        // Always sort sanitized chunks chronologically to guarantee correct order and prevent overlaps
-        sanitizedChunks.sort((a, b) => a.start - b.start);
+        // 2. Resolve overlaps, enforce logical progression, and prevent subtitles from sticking
+        const maxVideoDur = (vDur && vDur > 0) ? vDur : 9999.0;
 
-        // 2. Resolve overlaps, enforce logical progression
         for (let i = 0; i < sanitizedChunks.length; i++) {
           const current = sanitizedChunks[i];
           const textLen = current.text.length;
 
-          // Upper duration limit (default max 3.5s per chunk to prevent sticking forever)
-          const maxDur = Math.min(3.5, Math.max(1.2, textLen * 0.15));
+          // Upper duration limit (default max 4.5s per chunk to prevent sticking forever)
+          const maxDur = Math.min(4.5, Math.max(1.5, textLen * 0.15));
           if (current.end - current.start > maxDur) {
             current.end = current.start + maxDur;
           }
 
-          // Lower duration limit (at least 0.5s for readability)
-          if (current.end - current.start < 0.5) {
-            current.end = current.start + 0.5;
+          // Lower duration limit (at least 0.8s for readability)
+          if (current.end - current.start < 0.8) {
+            current.end = current.start + 0.8;
           }
 
-          // Sequential check: if next starts before current ends, truncate current's end-time.
-          // Crucially: NEVER modify next's start-time to prevent lagging cascade delays!
+          // Sequential check: if next starts before current ends, adjust them to avoid overlap
           if (i < sanitizedChunks.length - 1) {
             const next = sanitizedChunks[i + 1];
             if (next.start < current.end) {
-              current.end = Math.max(current.start + 0.3, next.start - 0.02);
+              if (next.start > current.start + 0.5) {
+                current.end = next.start - 0.05; // 50ms gaps between subtitles
+              } else {
+                next.start = current.end + 0.05;
+                if (next.end <= next.start) {
+                  next.end = next.start + 1.5;
+                }
+              }
             }
           }
         }
 
-        // 3. Final validation of safety limits
+        // 3. Bound-check timestamps within total video duration so they disappear elegantly at the end
         for (const current of sanitizedChunks) {
-          if (current.start < 0) current.start = 0;
-          if (current.end <= current.start) current.end = current.start + 0.8;
+          if (current.start >= maxVideoDur) {
+            current.start = Math.max(0, maxVideoDur - 0.5);
+          }
+          if (current.end > maxVideoDur) {
+            current.end = maxVideoDur;
+          }
         }
 
         let svIndex = 0;
