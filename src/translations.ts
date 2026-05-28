@@ -141,7 +141,7 @@ export const translations = {
       },
       videoTranscribe: {
         title: "Video Transcribe",
-        desc: "Videoများကို မြန်မာလိုဘာသာပြန်စာတန်းထိုးပေးဖြစ်ပါတယ်",
+        desc: "Videoများကို စက္ကန့်ပိုင်းအတွင်းမြန်မာစာသားထုတ်ပေးမည်",
       },
       aiVoiceover: {
         title: "Ai Voiceover",
@@ -292,7 +292,7 @@ export const translations = {
       },
       videoTranscribe: {
         title: "Video Transcribe",
-        desc: "Videoများကို မြန်မာလိုဘာသာပြန်စာတန်းထိုးပေးဖြစ်ပါတယ်",
+        desc: "Videoများကို စက္ကန့်ပိုင်းအတွင်းမြန်မာစာသားထုတ်ပေးမည်",
       },
       aiVoiceover: {
         title: "Ai Voiceover",

@@ -41,7 +41,8 @@ import {
   Trash2,
   History,
   FileVideo,
-  Mic
+  Mic,
+  Download
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -1029,6 +1030,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [duration, setDuration] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [srtResult, setSrtResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   const [showDiamondModal, setShowDiamondModal] = useState(false);
@@ -1064,6 +1066,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setFile(selectedFile);
       setError(null);
       setResult(null);
+      setSrtResult(null);
     }
   };
 
@@ -1090,6 +1093,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     setIsGenerating(true);
     setError(null);
     setResult(null);
+    setSrtResult(null);
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
     let deducted = false;
@@ -1111,6 +1115,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       
       await incrementUsage();
       setResult(jobResult.text || "");
+      setSrtResult(jobResult.srt || null);
     } catch (err: any) {
       console.error(err);
       setError(lang === "EN" ? `Transcription failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
@@ -1209,7 +1214,31 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 </div>
               </div>
 
-
+              {srtResult && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([srtResult], { type: "text/srt;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      const originalName = file?.name || "subtitles.srt";
+                      const baseName = originalName.includes(".") 
+                        ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                        : originalName;
+                      a.download = `${baseName}.srt`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-teal-500/20 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    {lang === "EN" ? "Download Subtitles (.SRT)" : ".SRT စာတမ်းထိုးဖိုင် ဒေါင်းလုဒ်ဆွဲရန်"}
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -88,7 +88,7 @@ async function retryWithBackoff<T>(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const appJobs = new Map<string, { status: string; downloadUrl?: string; text?: string; audioData?: string; error?: string }>();
+const appJobs = new Map<string, { status: string; downloadUrl?: string; text?: string; srt?: string; audioData?: string; error?: string }>();
 
 // Periodic cleanup of temp files and job history (every 30 minutes)
 setInterval(() => {
@@ -313,11 +313,46 @@ async function startServer() {
     res.json({ jobId });
 
     (async () => {
+      const tempDir = path.join(process.cwd(), "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const tempId = crypto.randomBytes(8).toString("hex");
+      const inputVideoPath = path.join(tempDir, `transcribe_input_${tempId}.mp4`);
+      const outputAudioPath = path.join(tempDir, `transcribe_output_${tempId}.wav`);
+
       try {
         const { videoBase64, mimeType, lang, apiKey: customKey } = req.body;
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3.5-flash";
-        const prompt = `Listen to the audio in this video carefully and transcribe it, then translate the transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language so that it flows naturally. Only provide the translated text.`;
+
+        let audioBase64 = "";
+        let audioExtracted = false;
+
+        try {
+          await writeFilePromise(inputVideoPath, Buffer.from(videoBase64, "base64"));
+          await execPromise(`ffmpeg -i "${inputVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${outputAudioPath}" -y`);
+          const audioBuffer = await readFilePromise(outputAudioPath);
+          audioBase64 = audioBuffer.toString("base64");
+          audioExtracted = true;
+        } catch (ffmpegErr) {
+          console.warn("FFmpeg audio extraction failed, falling back to direct video processing:", ffmpegErr);
+        }
+
+        const prompt = `You are a professional captioner and translator. Listen to the audio in this file carefully.
+First, transcribe everything spoken.
+Second, translate the entire transcription into ${lang === "EN" ? "English" : "Myanmar (Burmese)"} so it flows naturally.
+Third, generate standard SubRip (.srt) subtitles matching the audio timeline with the translated text.
+
+Provide your response in JSON format containing two keys:
+1. "transcript": The complete, continuous paragraph-style translated text (or original text if it's already in the target language) suitable for reading.
+2. "srt": The raw content of an SRT subtitle file containing sequential indexes, timestamp lines (format: HH:MM:SS,mmm --> HH:MM:SS,mmm), and the translated subtitle strings.
+
+Do not include any greeting or explanation. Only return a JSON object with these two keys: "transcript" and "srt".`;
+
+        const inlinePart = audioExtracted 
+          ? { inlineData: { data: audioBase64, mimeType: "audio/wav" } }
+          : { inlineData: { data: videoBase64, mimeType } };
 
         const response = await retryWithBackoff((client) => client.models.generateContent({
           model: model,
@@ -325,16 +360,38 @@ async function startServer() {
             {
               parts: [
                 { text: prompt },
-                { inlineData: { data: videoBase64, mimeType } }
+                inlinePart
               ]
             }
-          ]
+          ],
+          config: {
+            responseMimeType: "application/json"
+          }
         }), customKey);
         
-        appJobs.set(jobId, { status: "completed", text: response.text });
+        let parsed = { transcript: "", srt: "" };
+        try {
+          const textResponse = response.text || "{}";
+          parsed = JSON.parse(textResponse);
+        } catch (jsonErr) {
+          console.error("Failed to parse JSON from Gemini transcribe", jsonErr);
+          parsed = {
+            transcript: response.text || "",
+            srt: ""
+          };
+        }
+
+        appJobs.set(jobId, { status: "completed", text: parsed.transcript, srt: parsed.srt });
       } catch (error: any) {
         console.error("Transcribe Error Background:", error);
         appJobs.set(jobId, { status: "error", error: error.message });
+      } finally {
+        if (fs.existsSync(inputVideoPath)) {
+          await unlinkPromise(inputVideoPath).catch(err => console.error("Clean transcribe input fail:", err));
+        }
+        if (fs.existsSync(outputAudioPath)) {
+          await unlinkPromise(outputAudioPath).catch(err => console.error("Clean transcribe audio fail:", err));
+        }
       }
     })();
   });
