@@ -1204,19 +1204,47 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
+        // Helper to safely parse strings / numbers / formats like "1.23s"
+        const parseTimestamp = (val: any): number => {
+          if (val === undefined || val === null) return NaN;
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') {
+            const cleaned = val.replace(/[sS](ec(ond)?)?/, '').trim();
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? NaN : parsed;
+          }
+          return NaN;
+        };
+
         // 1. Programmatic calibration and strict sequential cleanup of timestamps
         const sanitizedChunks: { text: string; start: number; end: number }[] = [];
-        let runningEndRaw = 0.0;
+        let lastEnd = 0.0; // In scaled output seconds
         const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
         console.log(`Applying mathematical alignment scale factor for subtitles: ${audioSpeedFactor}`);
 
         for (const chunk of svChunks) {
           if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
           
-          let rawStart = parseFloat(chunk.start_time as any);
-          let rawEnd = parseFloat(chunk.end_time as any);
-          if (isNaN(rawStart)) rawStart = runningEndRaw;
-          if (isNaN(rawEnd)) rawEnd = rawStart + 1.5;
+          // Support multiple potential key structures returned by Gemini
+          const cAny = chunk as any;
+          let rawStartVal = cAny.start_time !== undefined ? cAny.start_time : cAny.start;
+          if (rawStartVal === undefined) rawStartVal = cAny.startTime;
+          if (rawStartVal === undefined) rawStartVal = cAny.time_start;
+
+          let rawEndVal = cAny.end_time !== undefined ? cAny.end_time : cAny.end;
+          if (rawEndVal === undefined) rawEndVal = cAny.endTime;
+          if (rawEndVal === undefined) rawEndVal = cAny.time_end;
+
+          let rawStart = parseTimestamp(rawStartVal);
+          let rawEnd = parseTimestamp(rawEndVal);
+
+          // Chronological fallback based on previous chunk end-time
+          if (isNaN(rawStart)) {
+            rawStart = lastEnd * audioSpeedFactor + 0.1;
+          }
+          if (isNaN(rawEnd)) {
+            rawEnd = rawStart + 1.5;
+          }
 
           if (rawStart < 0) rawStart = 0;
           if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
@@ -1226,8 +1254,17 @@ async function startServer() {
           const calibratedStart = Math.max(0, rawStart - 0.150);
           const calibratedEnd = Math.max(calibratedStart + 0.5, rawEnd - 0.150);
 
-          const scaledStart = calibratedStart / audioSpeedFactor;
-          const scaledEnd = calibratedEnd / audioSpeedFactor;
+          let scaledStart = calibratedStart / audioSpeedFactor;
+          let scaledEnd = calibratedEnd / audioSpeedFactor;
+
+          // STRICT CHRONOLOGICAL PROGRESSION (No sorting): 
+          // Keep identical script sequence of text matching the spoken progression perfectly.
+          // If a timestamp is duplicate or reset, push it sequentially after the previous chunk end.
+          if (scaledStart < lastEnd + 0.02) {
+            scaledStart = lastEnd + 0.02;
+            const originalLength = Math.max(0.5, (calibratedEnd - calibratedStart) / audioSpeedFactor);
+            scaledEnd = scaledStart + originalLength;
+          }
 
           sanitizedChunks.push({
             text: chunk.text.trim(),
@@ -1235,11 +1272,8 @@ async function startServer() {
             end: scaledEnd
           });
 
-          runningEndRaw = rawEnd;
+          lastEnd = scaledEnd;
         }
-
-        // Always sort sanitized chunks chronologically to guarantee correct sequential filter mapping
-        sanitizedChunks.sort((a, b) => a.start - b.start);
 
         // 2. Resolve overlaps, enforce logical progression
         for (let i = 0; i < sanitizedChunks.length; i++) {
