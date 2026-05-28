@@ -1204,7 +1204,7 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // 1. programmatic calibration and strict sequential cleanup of timestamps
+        // 1. Programmatic calibration and strict sequential cleanup of timestamps
         const sanitizedChunks: { text: string; start: number; end: number }[] = [];
         let runningEndRaw = 0.0;
         const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
@@ -1221,9 +1221,13 @@ async function startServer() {
           if (rawStart < 0) rawStart = 0;
           if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
 
-          // Mathematically scale original audio timestamps using the speed factor to get the exact output alignment
-          const scaledStart = rawStart / audioSpeedFactor;
-          const scaledEnd = rawEnd / audioSpeedFactor;
+          // Apply a professional 150ms calibration offset to account for model acoustic onset latency,
+          // then scale the timeframe mathematically by the speed factor.
+          const calibratedStart = Math.max(0, rawStart - 0.150);
+          const calibratedEnd = Math.max(calibratedStart + 0.5, rawEnd - 0.150);
+
+          const scaledStart = calibratedStart / audioSpeedFactor;
+          const scaledEnd = calibratedEnd / audioSpeedFactor;
 
           sanitizedChunks.push({
             text: chunk.text.trim(),
@@ -1234,44 +1238,39 @@ async function startServer() {
           runningEndRaw = rawEnd;
         }
 
-        // 2. Resolve overlaps, enforce logical progression, and prevent subtitles from sticking
-        const maxVideoDur = (vDur && vDur > 0) ? vDur : 9999.0;
+        // Always sort sanitized chunks chronologically to guarantee correct sequential filter mapping
+        sanitizedChunks.sort((a, b) => a.start - b.start);
 
+        // 2. Resolve overlaps, enforce logical progression
         for (let i = 0; i < sanitizedChunks.length; i++) {
           const current = sanitizedChunks[i];
           const textLen = current.text.length;
 
-          // Upper duration limit (default max 4.5s per chunk to prevent sticking forever)
-          const maxDur = Math.min(4.5, Math.max(1.5, textLen * 0.15));
+          // Upper duration limit (default max 3.5s per chunk to prevent sticking forever)
+          const maxDur = Math.min(3.5, Math.max(1.2, textLen * 0.15));
           if (current.end - current.start > maxDur) {
             current.end = current.start + maxDur;
           }
 
-          // Lower duration limit (at least 0.8s for readability)
-          if (current.end - current.start < 0.8) {
-            current.end = current.start + 0.8;
+          // Lower duration limit (at least 0.5s for readability)
+          if (current.end - current.start < 0.5) {
+            current.end = current.start + 0.5;
           }
 
-          // Sequential check: if next starts before current ends, adjust them to avoid overlap
+          // Sequential check: if next starts before current ends, truncate current's end-time.
+          // Crucially: NEVER modify next's start-time to prevent lagging cascade delays!
           if (i < sanitizedChunks.length - 1) {
             const next = sanitizedChunks[i + 1];
             if (next.start < current.end) {
-              if (next.start > current.start + 0.5) {
-                current.end = next.start - 0.05; // 50ms gaps between subtitles
-              } else {
-                next.start = current.end + 0.05;
-                if (next.end <= next.start) {
-                  next.end = next.start + 1.5;
-                }
-              }
+              current.end = Math.max(current.start + 0.3, next.start - 0.02);
             }
           }
         }
 
-        // 3. Prevent any accidental negative offsets or invalid sequence values, avoiding any timeline collapses
+        // 3. Final validation of safety limits
         for (const current of sanitizedChunks) {
           if (current.start < 0) current.start = 0;
-          if (current.end <= current.start) current.end = current.start + 1.0;
+          if (current.end <= current.start) current.end = current.start + 0.8;
         }
 
         let svIndex = 0;
