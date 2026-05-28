@@ -1268,14 +1268,10 @@ async function startServer() {
           }
         }
 
-        // 3. Bound-check timestamps within total video duration so they disappear elegantly at the end
+        // 3. Prevent any accidental negative offsets or invalid sequence values, avoiding any timeline collapses
         for (const current of sanitizedChunks) {
-          if (current.start >= maxVideoDur) {
-            current.start = Math.max(0, maxVideoDur - 0.5);
-          }
-          if (current.end > maxVideoDur) {
-            current.end = maxVideoDur;
-          }
+          if (current.start < 0) current.start = 0;
+          if (current.end <= current.start) current.end = current.start + 1.0;
         }
 
         let svIndex = 0;
