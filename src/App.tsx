@@ -1155,24 +1155,24 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         <div className="max-w-sm mx-auto">
           <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
         </div>
-        <section className="bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-2 border border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/20 transition-all">
+        <section className="bg-white rounded-2xl p-2 border border-slate-200 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/30 transition-all">
           <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
           <div 
             onClick={() => fileInputRef.current?.click()}
             className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
-              file ? "border-blue-500/50 bg-blue-500/5" : "border-white/10 hover:border-blue-500/30 hover:bg-white/5"
+              file ? "border-blue-500/50 bg-blue-50" : "border-slate-200/60 hover:border-blue-500/30 hover:bg-slate-50"
             }`}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-              file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-white/5 group-hover:bg-blue-500/10"
+              file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-slate-100 group-hover:bg-blue-50"
             }`}>
-              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />}
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 group-hover:text-blue-500" />}
             </div>
             <div className="space-y-0.5 text-center">
-              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}>
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800" : "text-slate-700 group-hover:text-blue-600"}`}>
                 {file ? file.name : translations[lang].recapMaster.browseFiles}
               </h3>
-              <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest leading-none">
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">
                 {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
               </p>
             </div>
