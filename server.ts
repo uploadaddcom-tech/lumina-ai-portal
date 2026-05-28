@@ -11,19 +11,7 @@ import { promisify } from "util";
 
 dotenv.config();
 
-const execPromise = (cmd: string): Promise<{ stdout: string; stderr: string }> => {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { maxBuffer: 100 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (error) {
-        (error as any).stderr = stderr;
-        (error as any).stdout = stdout;
-        reject(error);
-      } else {
-        resolve({ stdout, stderr });
-      }
-    });
-  });
-};
+const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
 const unlinkPromise = promisify(fs.unlink);
 const readFilePromise = promisify(fs.readFile);
@@ -148,21 +136,6 @@ async function startServer() {
   app.post("/api/recap", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
-
-    try {
-      const { videoBase64 } = req.body;
-      if (videoBase64) {
-        const tempDir = path.join(process.cwd(), "temp");
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        await writeFilePromise(path.join(tempDir, `video_source_${jobId}.bin`), Buffer.from(videoBase64, 'base64'));
-        console.log(`[RECAP CACHE] Cached source video on disk for jobId: ${jobId}`);
-      }
-    } catch (err) {
-      console.error("[RECAP WRITE ERROR]", err);
-    }
-
     res.json({ jobId });
 
     (async () => {
@@ -337,21 +310,6 @@ async function startServer() {
   app.post("/api/transcribe", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
-
-    try {
-      const { videoBase64 } = req.body;
-      if (videoBase64) {
-        const tempDir = path.join(process.cwd(), "temp");
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        await writeFilePromise(path.join(tempDir, `video_source_${jobId}.bin`), Buffer.from(videoBase64, 'base64'));
-        console.log(`[TRANSCRIBE CACHE] Cached source video on disk for jobId: ${jobId}`);
-      }
-    } catch (err) {
-      console.error("[TRANSCRIBE WRITE ERROR]", err);
-    }
-
     res.json({ jobId });
 
     (async () => {
@@ -384,7 +342,6 @@ async function startServer() {
   app.post("/api/voiceover", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
-    console.log(`[VOICEOVER REQUEST] Received voiceover request. Job ID: ${jobId}, voice: ${req.body.voiceName || 'Kore'}`);
     res.json({ jobId });
 
     (async () => {
@@ -410,11 +367,9 @@ async function startServer() {
         };
 
         const textChunks = getChunks(text);
-        console.log(`[VOICEOVER PROCESSING] Chunked input text into ${textChunks.length} segments.`);
         const audioBuffers: Buffer[] = [];
 
-        for (let idx = 0; idx < textChunks.length; idx++) {
-          const chunk = textChunks[idx];
+        for (const chunk of textChunks) {
           if (!chunk.trim()) continue;
           
           let audioBase64: string | undefined = undefined;
@@ -424,7 +379,6 @@ async function startServer() {
           
           for (const currentModel of ttsModels) {
             try {
-              console.log(`[TTS ROUND] Generating audio for chunk ${idx + 1}/${textChunks.length} using model ${currentModel}...`);
               const response = await retryWithBackoff((client) => client.models.generateContent({
                 model: currentModel,
                 contents: [{ parts: [{ text: chunk }] }],
@@ -441,11 +395,11 @@ async function startServer() {
               const chunkData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
               if (chunkData) {
                 audioBase64 = chunkData;
-                console.log(`[TTS SUCCESS] Voiceover chunk ${idx + 1}/${textChunks.length} generated successfully with model ${currentModel}`);
+                console.log(`[TTS SUCCESS] Voiceover chunk generated successfully with model ${currentModel}`);
                 break;
               }
             } catch (err: any) {
-              console.warn(`[TTS FALLBACK] Model ${currentModel} failed for chunk ${idx+1}: ${err.message || err}. Trying next fallback...`);
+              console.warn(`[TTS FALLBACK] Model ${currentModel} failed: ${err.message || err}. Trying next fallback...`);
               lastErr = err;
             }
           }
@@ -453,12 +407,10 @@ async function startServer() {
           if (audioBase64) {
             audioBuffers.push(Buffer.from(audioBase64, 'base64'));
           } else {
-            console.error(`[TTS FATAL] All models failed to generate audio for chunk ${idx + 1}/${textChunks.length}`);
-            throw lastErr || new Error(`All TTS fallback models failed to generate audio for chunk ${idx + 1}.`);
+            throw lastErr || new Error("All TTS fallback models failed to generate audio.");
           }
         }
 
-        console.log(`[VOICEOVER ASSEMBLY] Successfully generated all chunks. Concatenating and writing WAV header...`);
         const pcmData = Buffer.concat(audioBuffers);
         const sampleRate = 24000;
         const numChannels = 1;
@@ -482,9 +434,8 @@ async function startServer() {
 
         const finalAudio = Buffer.concat([header, pcmData]);
         appJobs.set(jobId, { status: "completed", audioData: finalAudio.toString("base64") });
-        console.log(`[VOICEOVER COMPLETE] Job ID ${jobId} status updated to 'completed'. WAV filesize: ${finalAudio.length} bytes.`);
       } catch (error: any) {
-        console.error("[VOICEOVER ERROR] Voiceover Error Background:", error);
+        console.error("Voiceover Error Background:", error);
         appJobs.set(jobId, { status: "error", error: error.message });
       }
     })();
@@ -500,7 +451,6 @@ async function startServer() {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    console.log(`[MERGE REQUEST] Received merge request. Job ID: ${jobId}, tempId: ${tempId}`);
     // Initialize job status
     appJobs.set(jobId, { status: "processing" });
 
@@ -513,13 +463,10 @@ async function startServer() {
       const audioPath = path.join(tempDir, `audio_${tempId}.wav`);
       const logoPath = path.join(tempDir, `logo_${tempId}.png`);
       const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
-      let videoJobId: string | undefined = undefined;
 
       try {
-        console.log(`[MERGE BG INITIALIZING] Job ID: ${jobId}. Writing uploaded video and audio buffers...`);
         const { 
         videoBase64, 
-        videoJobId: reqVideoJobId,
         audioBase64, 
         logoBase64, 
         logoSize, 
@@ -549,30 +496,7 @@ async function startServer() {
         apiKey: customKey
       } = req.body;
       
-      videoJobId = reqVideoJobId;
-      
-      let videoBuffer: Buffer | null = null;
-      if (videoJobId) {
-        const cachedPath = path.join(tempDir, `video_source_${videoJobId}.bin`);
-        if (fs.existsSync(cachedPath)) {
-          try {
-            console.log(`[MERGE] Reusing disk-cached video for job ${videoJobId}`);
-            videoBuffer = await readFilePromise(cachedPath);
-          } catch (readErr) {
-            console.error(`[MERGE] Error reading disk-cached video ${videoJobId}:`, readErr);
-          }
-        } else {
-          console.warn(`[MERGE] Cached video not found at ${cachedPath}`);
-        }
-      }
-      
-      if (!videoBuffer) {
-        if (!videoBase64) {
-          throw new Error("No video input source found (neither cached videoJobId nor direct videoBase64 provided)");
-        }
-        videoBuffer = Buffer.from(videoBase64, 'base64');
-      }
-      
+      const videoBuffer = Buffer.from(videoBase64, 'base64');
       const audioBuffer = Buffer.from(audioBase64, 'base64');
 
       await writeFilePromise(videoPath, videoBuffer);
@@ -1280,7 +1204,7 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // 1. programmatic calibration and strict sequential cleanup of timestamps
+        // 1. Programmatic calibration and strict sequential cleanup of timestamps
         const sanitizedChunks: { text: string; start: number; end: number }[] = [];
         let runningEndRaw = 0.0;
         const audioSpeedFactor = (typeof speed === 'number' && speed > 0) ? speed : 1.0;
@@ -1297,9 +1221,13 @@ async function startServer() {
           if (rawStart < 0) rawStart = 0;
           if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
 
-          // Mathematically scale original audio timestamps using the speed factor to get the exact output alignment
-          const scaledStart = rawStart / audioSpeedFactor;
-          const scaledEnd = rawEnd / audioSpeedFactor;
+          // Apply a professional 150ms calibration offset to account for model acoustic onset latency,
+          // then scale the timeframe mathematically by the speed factor.
+          const calibratedStart = Math.max(0, rawStart - 0.150);
+          const calibratedEnd = Math.max(calibratedStart + 0.5, rawEnd - 0.150);
+
+          const scaledStart = calibratedStart / audioSpeedFactor;
+          const scaledEnd = calibratedEnd / audioSpeedFactor;
 
           sanitizedChunks.push({
             text: chunk.text.trim(),
@@ -1310,44 +1238,39 @@ async function startServer() {
           runningEndRaw = rawEnd;
         }
 
-        // 2. Resolve overlaps, enforce logical progression, and prevent subtitles from sticking
-        const maxVideoDur = (vDur && vDur > 0) ? vDur : 9999.0;
+        // Always sort sanitized chunks chronologically to guarantee correct sequential filter mapping
+        sanitizedChunks.sort((a, b) => a.start - b.start);
 
+        // 2. Resolve overlaps, enforce logical progression
         for (let i = 0; i < sanitizedChunks.length; i++) {
           const current = sanitizedChunks[i];
           const textLen = current.text.length;
 
-          // Upper duration limit (default max 4.5s per chunk to prevent sticking forever)
-          const maxDur = Math.min(4.5, Math.max(1.5, textLen * 0.15));
+          // Upper duration limit (default max 3.5s per chunk to prevent sticking forever)
+          const maxDur = Math.min(3.5, Math.max(1.2, textLen * 0.15));
           if (current.end - current.start > maxDur) {
             current.end = current.start + maxDur;
           }
 
-          // Lower duration limit (at least 0.8s for readability)
-          if (current.end - current.start < 0.8) {
-            current.end = current.start + 0.8;
+          // Lower duration limit (at least 0.5s for readability)
+          if (current.end - current.start < 0.5) {
+            current.end = current.start + 0.5;
           }
 
-          // Sequential check: if next starts before current ends, adjust them to avoid overlap
+          // Sequential check: if next starts before current ends, truncate current's end-time.
+          // Crucially: NEVER modify next's start-time to prevent lagging cascade delays!
           if (i < sanitizedChunks.length - 1) {
             const next = sanitizedChunks[i + 1];
             if (next.start < current.end) {
-              if (next.start > current.start + 0.5) {
-                current.end = next.start - 0.05; // 50ms gaps between subtitles
-              } else {
-                next.start = current.end + 0.05;
-                if (next.end <= next.start) {
-                  next.end = next.start + 1.5;
-                }
-              }
+              current.end = Math.max(current.start + 0.3, next.start - 0.02);
             }
           }
         }
 
-        // 3. Prevent any accidental negative offsets or invalid sequence values, avoiding any timeline collapses
+        // 3. Final validation of safety limits
         for (const current of sanitizedChunks) {
           if (current.start < 0) current.start = 0;
-          if (current.end <= current.start) current.end = current.start + 1.0;
+          if (current.end <= current.start) current.end = current.start + 0.8;
         }
 
         let svIndex = 0;
@@ -1456,14 +1379,6 @@ async function startServer() {
         if (fs.existsSync(logoPath)) await unlinkPromise(logoPath);
         // Note: outputPath is kept for the download endpoint
         
-        // Clean up cached original video as well to preserve disk space
-        if (videoJobId) {
-          const cachedPath = path.join(tempDir, `video_source_${videoJobId}.bin`);
-          if (fs.existsSync(cachedPath)) {
-            await unlinkPromise(cachedPath).catch(cleanErr => console.error("Clean cached video fail:", cleanErr));
-          }
-        }
-        
         const fPath = path.join(tempDir, `filter_${tempId}.txt`);
         if (fs.existsSync(fPath)) await unlinkPromise(fPath);
         const subPath = path.join(tempDir, `subtitle_text_${tempId}.txt`);
@@ -1487,10 +1402,8 @@ async function startServer() {
   app.get("/api/status/:jobId", (req, res) => {
     const job = appJobs.get(req.params.jobId);
     if (!job) {
-      console.warn(`[STATUS CHECK] Job not found: ${req.params.jobId}`);
       return res.status(404).json({ error: "Job not found" });
     }
-    console.log(`[STATUS CHECK] Job ID: ${req.params.jobId}, Status: ${job.status}`);
     res.json(job);
   });
 
