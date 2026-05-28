@@ -1180,20 +1180,17 @@ async function startServer() {
         }
         
         const timestampPrompt = `
-          Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 3 decimal places for millisecond accuracy) for this audio based on the script.
+          Task: Provide an extremely precise JSON array of subtitle timestamps (start and end times in seconds with 2 decimal places for millisecond accuracy) for this audio based on the script.
           
           Script: "${subtitleText}"
           
           Requirements:
           1. Analyze the audio with extreme precision down to milliseconds to match the exact start and end of spoken words in the script.
-          2. TIMING PRECISION: Start times must align precisely with the exact millisecond the speech actually begins. Subtitles must appear exactly when the first phonetic sound/syllable of the chunk is heard.
-          3. CRITICAL ENDING: Do not extend past the end of speech. Subtitles must disappear as soon as that spoken chunk finishes, ensuring perfect synchronization.
-          4. CRITICAL FOR SPACELESS LANGUAGES (LIKE MYANMAR/BURMESE): Since the Myanmar language does not contain word spaces, you MUST segment the script by grammatical phrases, clauses, or natural pauses rather than 'word counts'. Splitting at natural comma-like boundaries or semantic breath boundaries (စကားစု ရပ်နားမှု) is highly recommended. Each chunk must be a short phrase that a human can read easily, lasting around 1.0 to 3.0 seconds in speech. Never let a single subtitle chunk extend too long.
-          5. For normal spaced languages, each segment text MUST be strictly 4 to 8 words, or a very short phrase (စကားစုအတိုလေးများ). It must never contain more than 1 short sentence/phrase, resulting in at most 1 short line on screen, and absolutely never 3-4 lines or paragraphs.
-          6. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
-          7. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.234, "end_time": 4.567}, ...]
-          8. Timestamps MUST be numbers in seconds with exactly 3 decimal places (e.g., 2.345) to ensure perfect synchronization.
-          9. Ensure the chunks cover the FULL script in precise sequential order without missing any text, chunk by chunk.
+          2. Break the script into small, highly readable chunks (usually around 4-8 words or a short phrase).
+          3. Detect silences, breaths, and pauses accurately, ensuring subtitles do not overlap during silent gaps.
+          4. Return ONLY a JSON array of objects: [{"text": "...", "start_time": 1.23, "end_time": 4.56}, ...]
+          5. Timestamps MUST be numbers in seconds with exactly 2 decimal places (e.g., 2.34) to ensure perfect synchronization.
+          6. Ensure the chunks cover the FULL script in precise sequential order without missing any text.
         `;
 
         svChunks = await retryWithBackoff(async (client) => {
@@ -1218,76 +1215,10 @@ async function startServer() {
 
         console.log(`Successfully received and parsed ${svChunks.length} AI subtitle segments.`);
 
-        // 1. programmatic calibration and strict sequential cleanup of timestamps
-        const sanitizedChunks: { text: string; start: number; end: number }[] = [];
-        let runningEnd = 0.0;
-
-        for (const chunk of svChunks) {
-          if (!chunk || !chunk.text || typeof chunk.text !== "string" || !chunk.text.trim()) continue;
-          
-          let rawStart = parseFloat(chunk.start_time as any);
-          let rawEnd = parseFloat(chunk.end_time as any);
-          if (isNaN(rawStart)) rawStart = runningEnd;
-          if (isNaN(rawEnd)) rawEnd = rawStart + 1.5;
-
-          if (rawStart < 0) rawStart = 0;
-          if (rawEnd < rawStart + 0.1) rawEnd = rawStart + 1.5;
-
-          sanitizedChunks.push({
-            text: chunk.text.trim(),
-            start: rawStart,
-            end: rawEnd
-          });
-
-          runningEnd = rawEnd;
-        }
-
-        // 2. Resolve overlaps, enforce logical progression, and prevent subtitles from sticking
-        const maxVideoDur = (vDur && vDur > 0) ? vDur : 9999.0;
-
-        for (let i = 0; i < sanitizedChunks.length; i++) {
-          const current = sanitizedChunks[i];
-          const textLen = current.text.length;
-
-          // Upper duration limit (default max 4.5s per chunk to prevent sticking forever)
-          const maxDur = Math.min(4.5, Math.max(1.5, textLen * 0.15));
-          if (current.end - current.start > maxDur) {
-            current.end = current.start + maxDur;
-          }
-
-          // Lower duration limit (at least 0.8s for readability)
-          if (current.end - current.start < 0.8) {
-            current.end = current.start + 0.8;
-          }
-
-          // Sequential check: if next starts before current ends, adjust them to avoid overlap
-          if (i < sanitizedChunks.length - 1) {
-            const next = sanitizedChunks[i + 1];
-            if (next.start < current.end) {
-              if (next.start > current.start + 0.5) {
-                current.end = next.start - 0.05; // 50ms gaps between subtitles
-              } else {
-                next.start = current.end + 0.05;
-                if (next.end <= next.start) {
-                  next.end = next.start + 1.5;
-                }
-              }
-            }
-          }
-        }
-
-        // 3. Bound-check timestamps within total video duration so they disappear elegantly at the end
-        for (const current of sanitizedChunks) {
-          if (current.start >= maxVideoDur) {
-            current.start = Math.max(0, maxVideoDur - 0.5);
-          }
-          if (current.end > maxVideoDur) {
-            current.end = maxVideoDur;
-          }
-        }
-
         let svIndex = 0;
-        for (const chunk of sanitizedChunks) {
+        for (const chunk of svChunks) {
+          if (!chunk.text.trim()) continue;
+          
           const wrapText = (text: string, maxLen: number) => {
             const words = text.split(/\s+/);
             let lines = [];
@@ -1309,7 +1240,7 @@ async function startServer() {
             return str.replace(/[\u102B-\u103E\u105A-\u105D\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D]/g, '').length;
           };
 
-          const lines = wrapText(chunk.text, 40);
+          const lines = wrapText(chunk.text.trim(), 40);
           const visualLengths = lines.map(getVisualLength);
           const maxWidth = Math.max(...visualLengths);
           
@@ -1324,7 +1255,7 @@ async function startServer() {
           const chunkPath = path.join(tempDir, `chunk_${tempId}_${svIndex}.txt`);
           await writeFilePromise(chunkPath, wrapped);
           
-          const enableArg = `:enable='between(t,${chunk.start.toFixed(3)},${chunk.end.toFixed(3)})'`;
+          const enableArg = `:enable='between(t,${chunk.start_time.toFixed(2)},${chunk.end_time.toFixed(2)})'`;
           const boxCol = (subtitleBoxColor || "#000000").replace('#', '0x');
           const subYPercent = typeof subtitleY === "number" ? subtitleY : 75;
           const subYFact = (subYPercent / 100).toFixed(3);
