@@ -1345,19 +1345,19 @@ function AccessDeniedView({ onBack, lang }: { onBack: () => void, lang: Language
       </div>
       <div className="space-y-2">
         <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
-          {lang === "EN" ? "Access Denied" : "ဝင်ရောက်ခွင့်မရှိပါ"}
+          {lang === "EN" ? "Access Denied" : "Access Denied"}
         </h2>
         <p className="text-slate-500 text-xs font-bold tracking-[0.2em] uppercase max-w-xs mx-auto">
           {lang === "EN" 
             ? "You do not have administrative privileges to access this neural sector."
-            : "ဤနေရာသို့ ဝင်ရောက်ရန် သင့်တွင် လုပ်ပိုင်ခွင့် (Admin Role) မရှိပါ။"}
+            : "You do not have administrative privileges to access this neural sector."}
         </p>
       </div>
       <button 
         onClick={onBack}
         className="flex items-center gap-3 px-8 h-14 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all border border-white/10"
       >
-        <ArrowLeft className="w-4 h-4" /> {lang === "EN" ? "Return to Portal" : "ပင်မစာမျက်နှာသို့ ပြန်သွားမည်"}
+        <ArrowLeft className="w-4 h-4" /> {lang === "EN" ? "Return to Portal" : "Return to Portal"}
       </button>
     </div>
   );
@@ -1391,10 +1391,10 @@ function AdminSecondaryLoginView({ onSuccess, onBack, lang }: { onSuccess: () =>
             <Lock className="w-8 h-8 text-blue-500" />
           </div>
           <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">
-            {lang === "EN" ? "Neural Verification" : "Admin အတည်ပြုခြင်း"}
+            {lang === "EN" ? "Neural Verification" : "Neural Verification"}
           </h2>
           <p className="text-slate-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-2">
-            {lang === "EN" ? "Secondary authentication required" : "ဒုတိယအဆင့် အတည်ပြုရန် လိုအပ်သည်"}
+            {lang === "EN" ? "Secondary authentication required" : "Secondary authentication required"}
           </p>
         </div>
 
@@ -1435,7 +1435,7 @@ function AdminSecondaryLoginView({ onSuccess, onBack, lang }: { onSuccess: () =>
             type="submit"
             className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
           >
-            {lang === "EN" ? "Authorize Access" : "အတည်ပြုမည်"}
+            {lang === "EN" ? "Authorize Access" : "Authorize Access"}
           </button>
 
           <button 
@@ -1591,7 +1591,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.size > 300 * 1024 * 1024) {
-        setError(lang === "EN" ? "File size must be under 300MB for this demo." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
+        setError(lang === "EN" ? "File size must be under 300MB for this demo." : "File size must be under 300MB for this demo.");
         return;
       }
       setFile(selectedFile);
@@ -1733,7 +1733,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       }
     } catch (err: any) {
       console.error(err);
-      const errMsg = err?.message || (lang === "EN" ? "Failed to generate recap. Please try again." : "Recap ထုတ်လုပ်ရန် အဆင်မပြေပါ။ ပြန်လည်ကြိုးစားပေးပါ။");
+      const errMsg = err?.message || (lang === "EN" ? "Failed to generate recap. Please try again." : "Failed to generate recap. Please try again.");
       setError(errMsg);
       
       if (activeHistoryId) {
@@ -2074,7 +2074,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Ratio Setting" : "Frame ချိန်ညှိမှုများ"}
+                  {lang === "EN" ? "Ratio Setting" : "Ratio Setting"}
                 </label>
                 <button 
                   onClick={() => setShowRatioSettings(true)}
@@ -2095,7 +2095,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               {/* Upload Button */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Upload Logo" : "Logo တင်ရန်"}
+                  {lang === "EN" ? "Upload Logo" : "Upload Logo"}
                 </label>
                 <input 
                   type="file" 
@@ -2112,7 +2112,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 >
                   <CloudUpload className="w-4 h-4" />
                   <span className="text-[10px] font-black uppercase tracking-widest">
-                    {logoFile ? "Logo Ready" : (lang === "EN" ? "Select Logo" : "Logo ရွေးချယ်ပါ")}
+                    {logoFile ? "Logo Ready" : (lang === "EN" ? "Select Logo" : "Select Logo")}
                   </span>
                 </button>
               </div>
@@ -2121,14 +2121,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               {logoFile && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                    {lang === "EN" ? "Overlay Adjust" : "Logo ချိန်ညှိမှုများ"}
+                    {lang === "EN" ? "Overlay Adjust" : "Overlay Adjust"}
                   </label>
                   <button 
                     onClick={() => setShowLogoSettings(true)}
                     className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                   >
                     <Star className="w-4 h-4" />
-                    {lang === "EN" ? "Logo Settings" : "Logo Setting"}
+                    {lang === "EN" ? "Logo Settings" : "Logo Settings"}
                   </button>
                 </div>
               )}
@@ -2149,7 +2149,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Blur Overlay" : "Blur အုပ်မည်"}
+                  {lang === "EN" ? "Blur Overlay" : "Blur Overlay"}
                 </label>
                 <div className="flex items-center gap-3">
                   <button 
@@ -2160,7 +2160,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   >
                     <Sparkles className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
-                      {blurEnabled ? (lang === "EN" ? "Blur Enabled" : "Blur ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Blur" : "Blur ဖွင့်ရန်")}
+                      {blurEnabled ? (lang === "EN" ? "Blur Enabled" : "Blur Enabled") : (lang === "EN" ? "Enable Blur" : "Enable Blur")}
                     </span>
                   </button>
 
@@ -2170,7 +2170,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                     >
                       <Star className="w-4 h-4" />
-                      {lang === "EN" ? "Blur Settings" : "နေရာညှိရန်"}
+                      {lang === "EN" ? "Blur Settings" : "Blur Settings"}
                     </button>
                   )}
                 </div>
@@ -2192,7 +2192,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">
-                  {lang === "EN" ? "Subtitle" : "စာတန်းထိုး"}
+                  {lang === "EN" ? "Subtitle" : "Subtitle"}
                 </label>
                 <div className="flex items-center gap-3">
                   <button 
@@ -2203,7 +2203,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   >
                     <Subtitles className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
-                      {subtitleEnabled ? (lang === "EN" ? "Subtitle Enabled" : "စာတန်းထိုး ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Subtitle" : "စာတန်းထိုး ဖွင့်ရန်")}
+                      {subtitleEnabled ? (lang === "EN" ? "Subtitle Enabled" : "Subtitle Enabled") : (lang === "EN" ? "Enable Subtitle" : "Enable Subtitle")}
                     </span>
                   </button>
 
@@ -2213,7 +2213,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       className="flex items-center gap-3 px-6 h-12 rounded-xl border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black text-[10px] uppercase tracking-widest"
                     >
                       <Star className="w-4 h-4" />
-                      {lang === "EN" ? "Settings" : "Setting ချိန်ရန်"}
+                      {lang === "EN" ? "Settings" : "Settings"}
                     </button>
                   )}
                 </div>
@@ -2245,7 +2245,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   >
                     <Maximize className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
-                      {freezeFrameZoomEnabled ? (lang === "EN" ? "Freeze Zoom Enabled" : "Freeze Zoom ဖွင့်ထားသည်") : (lang === "EN" ? "Enable Freeze Zoom" : "Freeze Zoom ဖွင့်ရန်")}
+                      {freezeFrameZoomEnabled ? (lang === "EN" ? "Freeze Zoom Enabled" : "Freeze Zoom Enabled") : (lang === "EN" ? "Enable Freeze Zoom" : "Enable Freeze Zoom")}
                     </span>
                   </button>
                 </div>
@@ -2338,7 +2338,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Aspect Ratio" : "Ratio ရွေးချယ်ပါ"}
+                            {lang === "EN" ? "Aspect Ratio" : "Aspect Ratio"}
                           </label>
                           <div className="grid grid-cols-1 gap-1.5">
                             {[
@@ -2364,7 +2364,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Content Scale" : "ဗီဒီယို Zoom"}
+                              {lang === "EN" ? "Content Scale" : "Content Scale"}
                             </label>
                             <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{videoScale}%</span>
                           </div>
@@ -2381,7 +2381,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Crop Top" : "အပေါ်မှ ဖြတ်ရန်"}
+                              {lang === "EN" ? "Crop Top" : "Crop Top"}
                             </label>
                             <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropTop}%</span>
                           </div>
@@ -2398,7 +2398,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Crop Bottom" : "အောက်မှ ဖြတ်ရန်"}
+                              {lang === "EN" ? "Crop Bottom" : "Crop Bottom"}
                             </label>
                             <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropBottom}%</span>
                           </div>
@@ -2415,7 +2415,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Crop Left" : "ဘယ်ဘက်မှ ဖြတ်ရန်"}
+                              {lang === "EN" ? "Crop Left" : "Crop Left"}
                             </label>
                             <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropLeft}%</span>
                           </div>
@@ -2432,7 +2432,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Crop Right" : "ညာဘက်မှ ဖြတ်ရန်"}
+                              {lang === "EN" ? "Crop Right" : "Crop Right"}
                             </label>
                             <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{cropRight}%</span>
                           </div>
@@ -2449,7 +2449,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Background Color" : "နောက်ခံအရောင်"}
+                              {lang === "EN" ? "Background Color" : "Background Color"}
                             </label>
                             <input 
                               type="color" 
@@ -2463,7 +2463,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Background Blur" : "နောက်ခံ ဝါးရန်"}
+                              {lang === "EN" ? "Background Blur" : "Background Blur"}
                             </label>
                             <button 
                               onClick={() => setBgBlurEnabled(!bgBlurEnabled)}
@@ -2479,7 +2479,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         onClick={() => setShowRatioSettings(false)}
                         className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
                       >
-                        {lang === "EN" ? "Apply Changes" : "သိမ်းဆည်းမည်"}
+                        {lang === "EN" ? "Apply Changes" : "Apply Changes"}
                       </button>
                     </div>
                   </motion.div>
@@ -2582,14 +2582,14 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Position" : "တည်နေရာ"}
+                            {lang === "EN" ? "Position" : "Position"}
                           </label>
                           <div className="grid grid-cols-2 gap-2">
                             {[
-                              { id: "top-left", label: lang === "EN" ? "Top Left" : "အပေါ် ဘယ်" },
-                              { id: "top-right", label: lang === "EN" ? "Top Right" : "အပေါ် ညာ" },
-                              { id: "bottom-left", label: lang === "EN" ? "Bottom Left" : "အောက် ဘယ်" },
-                              { id: "bottom-right", label: lang === "EN" ? "Bottom Right" : "အောက် ညာ" },
+                              { id: "top-left", label: lang === "EN" ? "Top Left" : "Top Left" },
+                              { id: "top-right", label: lang === "EN" ? "Top Right" : "Top Right" },
+                              { id: "bottom-left", label: lang === "EN" ? "Bottom Left" : "Bottom Left" },
+                              { id: "bottom-right", label: lang === "EN" ? "Bottom Right" : "Bottom Right" },
                             ].map((pos) => (
                               <button
                                 key={pos.id}
@@ -2609,7 +2609,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Logo Scale" : "အရွယ်အစား"}
+                              {lang === "EN" ? "Logo Scale" : "Logo Scale"}
                             </label>
                             <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">{logoSize}px</span>
                           </div>
@@ -2628,7 +2628,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         onClick={() => setShowLogoSettings(false)}
                         className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
                       >
-                        {lang === "EN" ? "Save & Close" : "သိမ်းဆည်းမည်"}
+                        {lang === "EN" ? "Save & Close" : "Save & Close"}
                       </button>
                     </div>
                   </motion.div>
@@ -2727,7 +2727,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Blur Width" : "အကျယ်"}
+                              {lang === "EN" ? "Blur Width" : "Blur Width"}
                             </label>
                             <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurWidth}</span>
                           </div>
@@ -2744,7 +2744,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Blur Height" : "အမြင့်"}
+                              {lang === "EN" ? "Blur Height" : "Blur Height"}
                             </label>
                             <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurHeight}</span>
                           </div>
@@ -2761,7 +2761,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Vertical Position" : "အပေါ်အောက် ရွှေ့ရန်"}
+                              {lang === "EN" ? "Vertical Position" : "Vertical Position"}
                             </label>
                             <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurY}</span>
                           </div>
@@ -2778,7 +2778,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Blur Intensity" : "ဝါးနှုန်း (Blur Strength)"}
+                              {lang === "EN" ? "Blur Intensity" : "Blur Intensity"}
                             </label>
                              <span className="text-[9px] font-black text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{blurIntensity}</span>
                           </div>
@@ -2797,7 +2797,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         onClick={() => setShowBlurSettings(false)}
                         className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
                       >
-                        {lang === "EN" ? "Apply Blur" : "သိမ်းဆည်းမည်"}
+                        {lang === "EN" ? "Apply Blur" : "Apply Blur"}
                       </button>
                     </div>
                   </motion.div>
@@ -2912,7 +2912,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                       <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         <div className="space-y-4">
                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Subtitle Color" : "စာသားအရောင်"}
+                            {lang === "EN" ? "Subtitle Color" : "Subtitle Color"}
                           </label>
                           <div className="flex flex-wrap gap-2">
                             {["#ffffff", "#FFEB3B", "#4CAF50", "#2196F3", "#F44336", "#E91E63"].map((color) => (
@@ -2934,7 +2934,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
                         <div className="space-y-4">
                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Box Color" : "နောက်ခံဘောက်စ်အရောင်"}
+                            {lang === "EN" ? "Box Color" : "Box Color"}
                           </label>
                           <div className="flex flex-wrap gap-2">
                             {["#000000", "#1a1a1a", "#2c3e50", "#c0392b", "#27ae60", "#2980b9"].map((color) => (
@@ -2957,7 +2957,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Font Size" : "အရွယ်အစား"}
+                              {lang === "EN" ? "Font Size" : "Font Size"}
                             </label>
                             <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">{subtitleFontSize}px</span>
                           </div>
@@ -2974,7 +2974,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                              {lang === "EN" ? "Vertical Position" : "စာတန်းထိုး အပေါ်အောက် နေရာ"}
+                              {lang === "EN" ? "Vertical Position" : "Vertical Position"}
                             </label>
                             <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">{subtitleY}%</span>
                           </div>
@@ -2990,7 +2990,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
                         <div className="space-y-4">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                            {lang === "EN" ? "Font Family" : "Font အမျိုးအစား"}
+                            {lang === "EN" ? "Font Family" : "Font Family"}
                           </label>
                           <div className="relative">
                             <select
@@ -3016,7 +3016,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                         onClick={() => setShowSubtitleSettings(false)}
                         className="w-full h-14 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5"
                       >
-                        {lang === "EN" ? "Apply Subtitles" : "သိမ်းဆည်းမည်"}
+                        {lang === "EN" ? "Apply Subtitles" : "Apply Subtitles"}
                       </button>
                     </div>
                   </motion.div>
