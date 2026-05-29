@@ -183,30 +183,30 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.recapMaster.title,
     description: translations[lang].tools.recapMaster.desc,
     icon: Zap,
-    color: "bg-red-500",
+    color: "bg-gradient-to-r from-purple-600 to-[#6D3DF3]",
     iconColor: "text-white",
-    borderColor: "border-red-500/20 hover:border-red-500/50",
-    shadowColor: "shadow-red-500/20",
+    borderColor: "border-purple-500/20 hover:border-[#6D3DF3]/50",
+    shadowColor: "shadow-purple-500/20",
   },
   {
     id: "subtitle-editor",
     title: translations[lang].tools.subtitleEditor.title,
     description: translations[lang].tools.subtitleEditor.desc,
     icon: Subtitles,
-    color: "bg-cyan-500",
+    color: "bg-indigo-600",
     iconColor: "text-white",
-    borderColor: "border-cyan-500/20 hover:border-cyan-500/50",
-    shadowColor: "shadow-cyan-500/20",
+    borderColor: "border-indigo-500/20 hover:border-indigo-500/50",
+    shadowColor: "shadow-indigo-500/20",
   },
   {
     id: "videotranscribe",
     title: translations[lang].tools.videoTranscribe.title,
     description: translations[lang].tools.videoTranscribe.desc,
     icon: Type,
-    color: "bg-teal-500",
+    color: "bg-violet-600",
     iconColor: "text-white",
-    borderColor: "border-teal-500/20 hover:border-teal-500/50",
-    shadowColor: "shadow-teal-500/20",
+    borderColor: "border-violet-500/20 hover:border-violet-500/50",
+    shadowColor: "shadow-violet-500/20",
     badge: "NEW"
   },
   {
@@ -214,10 +214,10 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.aiVoiceover.title,
     description: translations[lang].tools.aiVoiceover.desc,
     icon: Music,
-    color: "bg-amber-500",
+    color: "bg-fuchsia-600",
     iconColor: "text-white",
-    borderColor: "border-amber-500/20 hover:border-amber-500/50",
-    shadowColor: "shadow-amber-500/20"
+    borderColor: "border-fuchsia-500/20 hover:border-fuchsia-500/50",
+    shadowColor: "shadow-fuchsia-500/20"
   }
 ];
 
