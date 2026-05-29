@@ -447,7 +447,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
           <button 
             onClick={handleLogin}
             disabled={isLoggingIn}
-            className="flex items-center gap-2 px-4 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+            className="flex items-center gap-2 px-4 h-10 rounded-xl bg-purple-600 hover:bg-[#6D3DF3] text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-purple-500/20"
           >
             {isLoggingIn ? (
               <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -634,7 +634,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
                           handleLogin();
                         }}
                         disabled={isLoggingIn}
-                        className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/10 flex items-center justify-center gap-3"
+                        className="w-full h-14 rounded-2xl bg-purple-600 hover:bg-[#6D3DF3] disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-purple-500/10 flex items-center justify-center gap-3"
                       >
                         {isLoggingIn ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3195,10 +3195,10 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
           <button
             onClick={handleLogin}
             disabled={isLoggingIn}
-            className="w-full h-16 bg-white dark:bg-white/10 hover:bg-slate-50 dark:hover:bg-white/15 text-slate-950 dark:text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-white/10"
+            className="w-full h-16 bg-gradient-to-r from-purple-600 to-[#6D3DF3] hover:from-purple-700 hover:to-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-xl shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] border border-purple-500/20"
           >
             {isLoggingIn ? (
-              <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <LogIn className="w-5 h-5" />
             )}
@@ -3335,16 +3335,16 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
   return (
     <div 
       onClick={() => setIsOpen(!isOpen)}
-      className="py-4.5 border-b border-white/[0.08] cursor-pointer transition-all duration-300 select-none group bg-transparent text-left"
+      className="py-4.5 border-b border-slate-200 dark:border-white/[0.08] cursor-pointer transition-all duration-300 select-none group bg-transparent text-left"
     >
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-xs md:text-sm font-medium tracking-tight text-slate-200 group-hover:text-purple-400 transition-colors">
+        <h3 className="text-xs md:text-sm font-medium tracking-tight text-slate-800 dark:text-slate-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
           {faq.q}
         </h3>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="w-5 h-5 flex items-center justify-center text-slate-400 group-hover:text-white transition-all"
+          className="w-5 h-5 flex items-center justify-center text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-all"
         >
           <ChevronDown className="w-3.5 h-3.5" />
         </motion.div>
@@ -3358,7 +3358,7 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <p className="text-xs text-slate-400 leading-relaxed font-sans mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans mt-1">
               {faq.a}
             </p>
           </motion.div>
@@ -3780,7 +3780,7 @@ function AppContent() {
                           whileInView={{ opacity: 1 }}
                           viewport={{ once: true }}
                           transition={{ duration: 0.15, delay: index * 0.015 }}
-                          className="group bg-[#0A0713]/60 hover:bg-[#120E1F]/90 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6.5 flex items-center justify-between gap-4 transition-all duration-300 cursor-pointer shadow-lg active:scale-98 select-none"
+                          className="group bg-white hover:bg-slate-50/80 dark:bg-[#0A0713]/60 dark:hover:bg-[#120E1F]/90 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl p-6.5 flex items-center justify-between gap-4 transition-all duration-300 cursor-pointer shadow-lg active:scale-98 select-none"
                           onClick={() => handleToolClick(tool.id)}
                         >
                           <div className="flex items-center gap-4.5">
@@ -3789,7 +3789,7 @@ function AppContent() {
                               <tool.icon className={`w-5 h-5 ${tool.iconColor || 'text-white'}`} />
                             </div>
                             <div className="space-y-0.5">
-                              <h3 className="text-sm md:text-base font-black text-white group-hover:brand-gradient transition-all uppercase tracking-wide">
+                              <h3 className="text-sm md:text-base font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-all uppercase tracking-wide">
                                 {tool.title}
                               </h3>
                               {tool.badge && (
@@ -3800,7 +3800,7 @@ function AppContent() {
                             </div>
                           </div>
 
-                          <div className="w-7 h-7 bg-white/[0.03] group-hover:bg-[#6D3DF3]/20 border border-white/[0.05] rounded-lg flex items-center justify-center text-slate-400 group-hover:text-white transition-all">
+                          <div className="w-7 h-7 bg-slate-100 group-hover:bg-purple-100 dark:bg-white/[0.03] dark:group-hover:bg-[#6D3DF3]/20 border border-slate-200 dark:border-white/[0.05] rounded-lg flex items-center justify-center text-slate-400 group-hover:text-purple-600 dark:group-hover:text-white transition-all">
                             <ArrowRight className="w-3.5 h-3.5" />
                           </div>
                         </motion.div>
@@ -3810,7 +3810,7 @@ function AppContent() {
                 </div>
 
                 {/* Our Goal & FAQ Sections */}
-                <div className="mt-20 pt-16 border-t border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start text-left">
+                <div className="mt-20 pt-16 border-t border-slate-200 dark:border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start text-left">
                   {/* Our Goal Section */}
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -3820,10 +3820,10 @@ function AppContent() {
                     className="relative flex flex-col justify-between group h-full space-y-6"
                   >
                     <div className="space-y-5 relative z-10">
-                      <h2 className="text-base md:text-lg font-bold text-white tracking-tight">
+                      <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                         Our Goal
                       </h2>
-                      <p className="text-xs md:text-sm text-slate-400 leading-relaxed font-sans font-medium">
+                      <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
                         To solve video editing, translation, and subtitling workflows for Myanmar Content Creators in seconds using AI technology, providing the easiest and most time-saving solution.
                       </p>
                     </div>
@@ -3843,8 +3843,8 @@ function AppContent() {
                   >
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <h2 className="text-base md:text-lg font-bold text-white tracking-tight">
-                          Frequently Asked Questions (FAQs)
+                        <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                           Frequently Asked Questions (FAQs)
                         </h2>
                       </div>
 
@@ -3858,12 +3858,12 @@ function AppContent() {
                 </div>
 
                 {/* Pricing Section */}
-                <div id="pricing" className="mt-24 pt-16 border-t border-white/[0.05] w-full max-w-4xl scroll-mt-24 text-left">
+                <div id="pricing" className="mt-24 pt-16 border-t border-slate-200 dark:border-white/[0.05] w-full max-w-4xl scroll-mt-24 text-left">
                   <div className="space-y-2 mb-12 text-center">
-                    <h2 className="text-xl md:text-2xl font-black text-white tracking-tight uppercase">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
                       Premium Diamond Packages
                     </h2>
-                    <p className="text-xs text-slate-400 max-w-md font-sans mx-auto">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md font-sans mx-auto">
                       Get more diamonds to unlock advanced features, generate epic voiceovers, and transcribe videos instantly.
                     </p>
                   </div>
@@ -3872,27 +3872,27 @@ function AppContent() {
                     {/* Tier 1 */}
                     <motion.div 
                       whileHover={{ y: -5 }}
-                      className="relative overflow-hidden bg-[#0A0713]/40 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group"
+                      className="relative overflow-hidden bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-md"
                     >
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-400 font-tech">Starter</span>
-                          <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-slate-400 font-tech uppercase">Popular</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-tech">Starter</span>
+                          <span className="text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-2.5 py-0.5 rounded-full text-slate-600 dark:text-slate-400 font-tech uppercase">Popular</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-black text-white">30,000</span>
-                          <span className="text-xs text-slate-400 font-bold">MMK</span>
+                          <span className="text-3xl font-black text-slate-900 dark:text-white">30,000</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">MMK</span>
                         </div>
-                        <div className="space-y-2.5 pt-4 border-t border-white/[0.05]">
-                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                        <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.05]">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                             <span><strong>300</strong> Diamonds</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
                             <span>Full Tool Suite Access</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
                             <span>Lifetime Support</span>
                           </div>
@@ -3902,7 +3902,7 @@ function AppContent() {
                         href="https://t.me/akhptn" 
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-8 py-3 rounded-xl bg-white/[0.03] hover:bg-[#6D3DF3]/20 border border-white/[0.05] hover:border-[#6D3DF3]/30 text-slate-300 hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all"
+                        className="mt-8 py-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 dark:bg-white/[0.03] dark:hover:bg-[#6D3DF3]/20 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xs"
                       >
                         Purchase Now
                       </a>
@@ -3911,29 +3911,29 @@ function AppContent() {
                     {/* Tier 2 */}
                     <motion.div 
                       whileHover={{ y: -5 }}
-                      className="relative overflow-hidden bg-[#0A0713]/80 border border-[#6D3DF3]/40 hover:border-[#6D3DF3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-[0_0_30px_rgba(109,61,243,0.1)]"
+                      className="relative overflow-hidden bg-slate-50/80 dark:bg-[#0A0713]/80 border border-purple-500/50 dark:border-[#6D3DF3]/40 hover:border-purple-600 dark:hover:border-[#6D3DF3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-lg shadow-purple-500/5 dark:shadow-[0_0_30px_rgba(109,61,243,0.1)]"
                     >
                       <div className="absolute top-0 right-0">
                         <span className="text-[8px] bg-[#6D3DF3] text-white font-black uppercase px-3 py-1 rounded-bl-xl tracking-widest">Best Value</span>
                       </div>
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-400 font-tech">Premium</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-tech">Premium</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-black text-white">50,000</span>
-                          <span className="text-xs text-purple-300 font-bold">MMK</span>
+                          <span className="text-3xl font-black text-slate-900 dark:text-white">50,000</span>
+                          <span className="text-xs text-purple-700 dark:text-purple-300 font-bold">MMK</span>
                         </div>
-                        <div className="space-y-2.5 pt-4 border-t border-white/[0.05]">
-                          <div className="flex items-center gap-2.5 text-xs text-slate-200 font-bold">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                        <div className="space-y-2.5 pt-4 border-t border-slate-200 dark:border-white/[0.05]">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-800 dark:text-slate-200 font-bold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
                             <span><strong>600</strong> Diamonds</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                             <span>Priority Server Access</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                             <span>Full Tool Suite Access</span>
                           </div>
@@ -3952,26 +3952,26 @@ function AppContent() {
                     {/* Tier 3 */}
                     <motion.div 
                       whileHover={{ y: -5 }}
-                      className="relative overflow-hidden bg-[#0A0713]/40 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group"
+                      className="relative overflow-hidden bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-md"
                     >
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-400 font-tech">Elite</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-tech">Elite</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-black text-white">70,000</span>
-                          <span className="text-xs text-slate-400 font-bold">MMK</span>
+                          <span className="text-3xl font-black text-slate-900 dark:text-white">70,000</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">MMK</span>
                         </div>
-                        <div className="space-y-2.5 pt-4 border-t border-white/[0.05]">
-                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                        <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.05]">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                             <span><strong>900</strong> Diamonds</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
                             <span>VIP Support line</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
                             <span>Full Tool Suite Access</span>
           </div>
@@ -3981,7 +3981,7 @@ function AppContent() {
                         href="https://t.me/akhptn" 
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-8 py-3 rounded-xl bg-white/[0.03] hover:bg-[#6D3DF3]/20 border border-white/[0.05] hover:border-[#6D3DF3]/30 text-slate-300 hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all"
+                        className="mt-8 py-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 dark:bg-white/[0.03] dark:hover:bg-[#6D3DF3]/20 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xs"
                       >
                         Purchase Now
                       </a>
