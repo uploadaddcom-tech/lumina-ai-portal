@@ -1466,6 +1466,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   // Load history based on user
   useEffect(() => {
@@ -3109,13 +3110,13 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             <div className="flex items-center gap-2.5">
               <History className="w-5 h-5 text-blue-500" />
               <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">
-                {lang === "EN" ? "Recap History" : "လုပ်ဆောင်ခဲ့မှု မှတ်တမ်း"}
+                {lang === "EN" ? "Recap History" : "Recap History"}
               </h2>
             </div>
             {history.length > 0 && (
               <button
                 onClick={() => {
-                  if (confirm(lang === "EN" ? "Are you sure you want to clear all history?" : "မှတ်တမ်းအားလုံးကို ဖြတ်ပစ်ရန် သေချာပါသလား။")) {
+                  if (confirm(lang === "EN" ? "Are you sure you want to clear all history?" : "Are you sure you want to clear all history?")) {
                     const userKey = user?.uid || "guest";
                     setHistory([]);
                     localStorage.removeItem(`recap_history_${userKey}`);
@@ -3125,7 +3126,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                 className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {lang === "EN" ? "CLEAR ALL" : "မှတ်တမ်းအားလုံးဖျက်မည်"}
+                {lang === "EN" ? "CLEAR ALL" : "CLEAR ALL"}
               </button>
             )}
           </div>
@@ -3135,56 +3136,71 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 {lang === "EN" 
                   ? "No creations logged yet. Begin syncing to save logs!" 
-                  : "မှတ်တမ်းများ မရှိသေးပါ၊ Recap အသစ်များ စတင်ထုတ်လုပ်သောအခါ ဤနေရာတွင် သိမ်းဆည်းပေးမည်ဖြစ်ပါသည်။"}
+                  : "No creations logged yet. Begin syncing to save logs!"}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {(() => {
-                const handleRestoreHistory = (histItem: HistoryItem) => {
-                  setResult(histItem.recapResult);
-                  setVoiceoverAudioUrl(histItem.voiceoverAudioUrl || null);
-                  setMergedVideoUrl(histItem.mergedVideoUrl || null);
-                  setCurrentHistoryId(histItem.id);
-                  setSelectedStyle(histItem.style);
-                  
-                  window.scrollTo({ top: 300, behavior: "smooth" });
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                {(() => {
+                  const handleRestoreHistory = (histItem: HistoryItem) => {
+                    setResult(histItem.recapResult);
+                    setVoiceoverAudioUrl(histItem.voiceoverAudioUrl || null);
+                    setMergedVideoUrl(histItem.mergedVideoUrl || null);
+                    setCurrentHistoryId(histItem.id);
+                    setSelectedStyle(histItem.style);
+                    
+                    window.scrollTo({ top: 300, behavior: "smooth" });
 
-                  if (!file) {
-                    alert(lang === "EN" 
-                      ? `Restored generated records for "${histItem.fileName}". You can view/download resources or upload original file to perform new merges.` 
-                      : `"${histItem.fileName}" အတွက် ထုတ်ယူထားသော မှတ်တမ်းများကို Workspace သို့ ပြန်သွင်းပေးထားပါသည်။ standard operations များလုပ်ဆောင်ရန် မူရင်းဗီဒီယိုဖိုင်အား ပြန်လည်ရွေးချယ်ပေးပါ။`);
-                  }
-                };
+                    if (!file) {
+                      alert(lang === "EN" 
+                        ? `Restored generated records for "${histItem.fileName}". You can view/download resources or upload original file to perform new merges.` 
+                        : `Restored generated records for "${histItem.fileName}". You can view/download resources or upload original file to perform new merges.`);
+                    }
+                  };
 
-                const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  const userKey = user?.uid || "guest";
-                  setHistory(prev => {
-                    const updated = prev.filter(item => item.id !== id);
-                    localStorage.setItem(`recap_history_${userKey}`, JSON.stringify(updated));
-                    return updated;
+                  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    const userKey = user?.uid || "guest";
+                    setHistory(prev => {
+                      const updated = prev.filter(item => item.id !== id);
+                      localStorage.setItem(`recap_history_${userKey}`, JSON.stringify(updated));
+                      return updated;
+                    });
+                    if (id === currentHistoryId) {
+                      setCurrentHistoryId(null);
+                    }
+                  };
+
+                  const displayedHistory = showAllHistory ? history : history.slice(0, 5);
+
+                  return displayedHistory.map((item) => {
+                    const styleObj = styles.find(s => s.id === item.style);
+                    const styleLabel = styleObj?.title || item.style;
+                    return (
+                      <HistoryCard 
+                        key={item.id} 
+                        item={item} 
+                        styleLabel={styleLabel} 
+                        lang={lang} 
+                        onRestore={() => handleRestoreHistory(item)}
+                        onDelete={(e) => deleteHistoryItem(item.id, e)}
+                      />
+                    );
                   });
-                  if (id === currentHistoryId) {
-                    setCurrentHistoryId(null);
-                  }
-                };
+                })()}
+              </div>
 
-                return history.map((item) => {
-                  const styleObj = styles.find(s => s.id === item.style);
-                  const styleLabel = styleObj?.title || item.style;
-                  return (
-                    <HistoryCard 
-                      key={item.id} 
-                      item={item} 
-                      styleLabel={styleLabel} 
-                      lang={lang} 
-                      onRestore={() => handleRestoreHistory(item)}
-                      onDelete={(e) => deleteHistoryItem(item.id, e)}
-                    />
-                  );
-                });
-              })()}
+              {history.length > 5 && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => setShowAllHistory(!showAllHistory)}
+                    className="px-6 h-11 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-blue-400 hover:text-blue-300 font-bold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    {showAllHistory ? "See Less" : "See More"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

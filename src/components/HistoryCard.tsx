@@ -23,7 +23,10 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
   const activeStatus = item.status || (item.mergedVideoUrl ? "completed" : "completed");
 
   return (
-    <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-xl border border-border dark:border-white/5 rounded-2xl p-5 hover:border-blue-500/20 transition-all space-y-4">
+    <div 
+      onClick={onRestore}
+      className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-xl border border-border dark:border-white/5 rounded-2xl p-5 hover:border-blue-500/20 hover:bg-white/[0.02] dark:hover:bg-[#0f172a]/60 transition-all space-y-4 cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20 text-blue-400">
@@ -42,9 +45,12 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
           </div>
         </div>
         <button
-          onClick={onDelete}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(e);
+          }}
           className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all active:scale-95 cursor-pointer ml-auto"
-          title={lang === "EN" ? "Delete from history" : "မှတ်တမ်းမှ ဖျက်မည်"}
+          title={lang === "EN" ? "Delete from history" : "Delete from history"}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -54,22 +60,27 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
         <div className="flex flex-wrap gap-2 items-center">
           {activeStatus === "recap" && (
             <span className="text-[11px] font-black uppercase text-yellow-500 animate-pulse bg-yellow-500/10 px-3 py-1.5 rounded-xl border border-yellow-500/20">
-              Recap Scriptထုတ်နေသည်
+              Generating Recap...
             </span>
           )}
           {activeStatus === "voiceover" && (
             <span className="text-[11px] font-black uppercase text-orange-500 animate-pulse bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/20">
-              အသံထုတ်နေသည်
+              Generating Neural Voice...
             </span>
           )}
           {activeStatus === "merge" && (
             <span className="text-[11px] font-black uppercase text-blue-500 animate-pulse bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20">
-              Final Video ထုတ်နေသည်
+              Generating Final Video...
             </span>
           )}
           {activeStatus === "failed" && (
             <span className="text-[11px] font-black uppercase text-red-500 bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20">
-              {lang === "EN" ? "Failed" : "အဆင်မပြေပါ"}
+              {lang === "EN" ? "Failed" : "Failed"}
+            </span>
+          )}
+          {activeStatus === "completed" && (
+            <span className="text-[11px] font-black uppercase text-green-500 bg-green-500/10 px-3 py-1.5 rounded-xl border border-green-500/20">
+              Completed
             </span>
           )}
         </div>
@@ -79,10 +90,11 @@ export function HistoryCard({ item, styleLabel, lang, onRestore, onDelete }: His
             <a
               href={item.mergedVideoUrl}
               download="recap_master_final.mp4"
+              onClick={(e) => e.stopPropagation()}
               className="h-9 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white transition-all text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 cursor-pointer"
             >
               <CloudUpload className="w-3.5 h-3.5" />
-              {lang === "EN" ? "Final Video Download" : "Final Video ဒေါင်းလုဒ်လုပ်မည်"}
+              {lang === "EN" ? "Final Video Download" : "Download Final Video"}
             </a>
           )}
         </div>
