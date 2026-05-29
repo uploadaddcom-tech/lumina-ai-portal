@@ -180,9 +180,9 @@ export const translations = {
     recapMaster: {
       headline: "Recap Master",
       uploadTitle: "ဗီဒီယိုတင်ပါ",
-      browseFiles: "ဖိုင်ရွေးရန် နှိပ်ပါ",
-      fileLimit: "MP4, MOV (အများဆုံး 300MB)",
-      selectStyle: "Recap ပုံစံရွေးချယ်ပါ",
+      browseFiles: "Click to browse files",
+      fileLimit: "MP4, MOV (Max 300MB)",
+      selectStyle: "Select Recap Style",
       generate: "Recap ထုတ်လုပ်ပါ",
       voiceoverTitle: "AI Voiceover ထုတ်လုပ်မည်",
       mergeWithVideo: "မူရင်းဗီဒီယိုနှင့်ပေါင်းမည်",
@@ -237,40 +237,40 @@ export const translations = {
     },
     styles: {
       stepByStep: {
-        title: "အဆင့်ဆင့်လမ်းညွှန်",
-        desc: "ရှင်းလင်းသော အဆင့်များဖြင့် နံပါတ်စဉ်တပ်၍ ဖော်ပြပေးမည်။",
+        title: "Step-by-Step Guide",
+        desc: "A structured, numbered list of instructions with clear phases.",
       },
       materialList: {
-        title: "လိုအပ်သောပစ္စည်းများ",
-        desc: "ဗီဒီယိုထဲတွင် အသုံးပြုထားသော ကိရိယာများနှင့် ပစ္စည်းများကိုသာ ဖော်ပြမည်။",
+        title: "Material List",
+        desc: "Focus solely on the tools and supplies needed for the project.",
       },
       funnyCommentary: {
-        title: "ဟာသဆန်ဆန်နောက်ကလိုက်ပြောခြင်း",
-        desc: "ရယ်စရာကောင်းပြီး ခပ်နောက်နောက် အသံနေအထားဖြင့် ပြန်လည်ပြောပြပေးမည်။",
+        title: "Funny Commentary",
+        desc: "A hilarious, slightly sarcastic recap that pokes fun at the process.",
       },
       epicExaggerated: {
-        title: "အမွမ်းတင် အက်ပတ် Recap",
-        desc: "ဗီဒီယိုထဲက လုပ်ဆောင်ချက်လေးတွေကို ကမ္ဘာကျော်အောင်မြင်မှုကြီးတစ်ခုလို အမွမ်းတင်ပြီး စိတ်လှုပ်ရှားစရာကောင်းအောင် ပြန်ပြောပြပေးမှာပါ။",
+        title: "Epic/Exaggerated Recap",
+        desc: "Treats the project like a world-changing masterpiece with intense praise.",
       },
       projectStory: {
-        title: "ပုံပြင်ကဲ့သို့ပြောပြချက်",
-        desc: "ဖန်တီးမှုခရီးစဉ်တစ်ခုကဲ့သို့ စိတ်ဝင်စားဖွယ် ဖော်ပြပေးမည်။",
+        title: "Project Story",
+        desc: "A narrative recap focusing on the creative journey and the \"why\".",
       },
       proTips: {
-        title: "ကျွမ်းကျင်အကြံပြုချက်များ",
-        desc: "သတိထားရမည့်အချက်များနှင့် အသုံးဝင်သော နည်းလမ်းများကို အဓိကဖော်ပြမည်။",
+        title: "Pro Tips & Tricks",
+        desc: "Focuses on the expert techniques and potential pitfalls shown.",
       },
       quickSummary: {
-        title: "အကျဉ်းချုပ်",
-        desc: "အမြန်ဖတ်ရှုနိုင်ရန်အတွက် အကျဉ်းချုပ် ဖော်ပြပေးမည်။",
+        title: "Quick Summary",
+        desc: "A high-level 30-second read for someone in a hurry.",
       },
       realTimeNarration: {
-        title: "ဗီဒီယိုအတိုင်းလိုက်ပြောပြချက်",
-        desc: "ဗီဒီယိုထဲက အချိန်အပိုင်းအခြားနဲ့ လုပ်ဆောင်ချက်တွေအတိုင်း တဆင့်ချင်းစီ လိုက်လံပြောပြပေးမည်။",
+        title: "Real-Time Narration",
+        desc: "A chronological narrative following the exact timeline and actions of the video.",
       },
       fairytaleHumor: {
-        title: "ဟာသနှောသော ပုံပြင်ဆန်ဆန်",
-        desc: "ဗီဒီယိုကို ပုံပြင်အရမ်းဆန်ပြီး ဟာသများများပြောပြသော ပုံစံဖြင့် Recap ထုတ်ပေးမည်။",
+        title: "Humorous Fairytale",
+        desc: "A fairytale-style story with lots of jokes and humor.",
       },
     },
     tools: {
