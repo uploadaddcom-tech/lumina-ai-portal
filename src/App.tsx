@@ -3597,71 +3597,174 @@ function AppContent() {
               </header>
 
               {/* Main Content */}
-              <main className="pt-36 pb-32 px-6 max-w-7xl mx-auto relative z-10">
-                {/* Dashboard Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                  {tools.map((tool, index) => {
-                    const glowClass = 
-                      tool.id === 'recapmaster' ? 'card-glow-red' :
-                      tool.id === 'subtitle-editor' ? 'card-glow-blue' :
-                      tool.id === 'videotranscribe' ? 'card-glow-teal' :
-                      tool.id === 'aivoiceover' ? 'card-glow-orange' : 'card-glow-blue';
+              <main className="pt-32 pb-32 px-6 max-w-7xl mx-auto relative z-10 flex flex-col items-center">
+                {/* Hero section resembling the first mockup */}
+                <div className="w-full max-w-4xl mx-auto text-center mt-8 mb-20">
+                  {/* Glowing Badge resembling 'NEW Latest integration' */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-[#6D3DF3]/30 mb-8 shadow-[0_0_20px_rgba(109,61,243,0.15)]"
+                  >
+                    <span className="text-[9px] font-black bg-purple-600 text-white px-2 py-0.5 rounded-full font-tech tracking-wider uppercase">NEW</span>
+                    <span className="text-[10px] text-purple-300 font-medium tracking-wide">Latest Integration</span>
+                  </motion.div>
 
-                    return (
-                      <motion.div
-                        key={tool.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: index * 0.05 }}
-                        className={`group relative bg-white dark:bg-[#0f172a]/40 backdrop-blur-md border ${tool.borderColor || 'border-border'} rounded-[2rem] p-7 flex flex-col h-full cursor-pointer transition-all duration-500 hover:bg-white dark:hover:bg-white/[0.02] hover:-translate-y-3 ${tool.shadowColor || ''} hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden`}
-                        onClick={() => handleToolClick(tool.id)}
-                      >
-                        {/* Background Glow */}
-                        <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ${glowClass}`} />
-                        <div className="scanline group-hover:block hidden" />
+                  {/* High impact display typography headline */}
+                  <motion.h1 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    className="text-4xl sm:text-5.5xl md:text-6.5xl lg:text-7xl font-sans font-black text-center text-white tracking-tight leading-[1.08] mb-8"
+                  >
+                    Boost your <br />
+                    <span className="bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">content with AI.</span>
+                  </motion.h1>
+
+                  {/* Elegant professional subtitle */}
+                  <motion.p 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    className="text-sm sm:text-base md:text-lg text-slate-400 text-center max-w-2xl mx-auto mb-10 leading-relaxed font-sans px-4"
+                  >
+                    Elevate your video's reach effortlessly with AI, where smart technology meets user-friendly translation & transcription tools.
+                  </motion.p>
+
+                  {/* Call to action start button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.3 }}
+                    className="flex justify-center mb-16"
+                  >
+                    <button 
+                      onClick={() => document.getElementById('workspace-tools')?.scrollIntoView({ behavior: 'smooth' })}
+                      className="px-8 py-3.5 bg-white hover:bg-slate-100 text-slate-950 text-sm font-black rounded-lg transition-all shadow-[0_4px_30px_rgba(255,255,255,0.2)] hover:scale-[1.03] active:scale-[0.98] duration-200"
+                    >
+                      Start For Free
+                    </button>
+                  </motion.div>
+
+                  {/* Realistic screen/workspace mockup card with backdrop glow */}
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.8, delay: 0.4 }}
+                    className="relative max-w-3.5xl mx-auto group"
+                  >
+                    {/* Glowing Purple lens flare background behind the window */}
+                    <div className="absolute -inset-10 bg-purple-600/10 rounded-[3rem] blur-3xl pointer-events-none group-hover:bg-purple-600/15 transition-all duration-700" />
+                    
+                    <div className="relative border border-white/[0.08] bg-[#0A0713]/90 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-3xl">
+                      {/* Window header */}
+                      <div className="flex items-center justify-between px-5 h-11 border-b border-white/[0.05] bg-white/[0.01]">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+                          <span className="text-[9px] text-slate-500 font-mono ml-3">workspace.io/mmrecap</span>
+                        </div>
+                        <div className="w-32 h-4.5 rounded bg-white/[0.02] border border-white/[0.05]" />
+                      </div>
+                      
+                      {/* Window contents */}
+                      <div className="grid grid-cols-4 text-left">
+                        {/* Sidebar Mock */}
+                        <div className="col-span-1 border-r border-white/[0.05] bg-white/[0.01] p-4 hidden sm:block space-y-4">
+                          <div className="h-3 w-4/5 rounded bg-white/[0.06]" />
+                          <div className="space-y-2 pt-3 border-t border-white/[0.03]">
+                            <div className="h-2.5 w-11/12 rounded bg-purple-500/20 border border-purple-500/20" />
+                            <div className="h-2.5 w-4/5 rounded bg-white/[0.02]" />
+                            <div className="h-2.5 w-5/6 rounded bg-white/[0.02]" />
+                            <div className="h-2.5 w-3/4 rounded bg-white/[0.02]" />
+                          </div>
+                        </div>
                         
-                        {tool.badge && (
-                          <div className="absolute top-0 right-0 p-4 z-20">
-                            <div className={`flex items-center gap-2 text-[9px] ${tool.badge === 'PRO' ? 'bg-linear-to-br from-amber-400 to-amber-600' : 'bg-linear-to-br from-blue-400 to-indigo-600'} text-white px-3 py-1 rounded-bl-2xl rounded-tr-xl font-tech font-black tracking-widest uppercase shadow-2xl`}>
-                              {tool.badge}
+                        {/* Work Area Mock */}
+                        <div className="col-span-4 sm:col-span-3 p-5 space-y-5">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <div className="h-3.5 w-24 rounded bg-white/[0.08]" />
+                              <div className="h-2.5 w-14 rounded bg-white/[0.03]" />
+                            </div>
+                            <div className="h-5.5 w-16 rounded bg-white/[0.04] border border-white/[0.04]" />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white/[0.01] border border-white/[0.04] p-3 rounded-xl space-y-1.5">
+                              <div className="h-2.5 w-12 rounded bg-slate-500/30" />
+                              <div className="h-5 w-16 rounded bg-white/[0.08]" />
+                              <div className="h-2 w-10 rounded bg-green-500/20" />
+                            </div>
+                            <div className="bg-white/[0.01] border border-white/[0.04] p-3 rounded-xl space-y-1.5">
+                              <div className="h-2.5 w-16 rounded bg-slate-500/30" />
+                              <div className="h-5 w-20 rounded bg-white/[0.08]" />
+                              <div className="h-2 w-12 rounded bg-red-500/20" />
                             </div>
                           </div>
-                        )}
-
-                        <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-50 transition-all translate-x-4 group-hover:translate-x-0 hidden md:block">
-                          <ArrowRight className="w-5 h-5 text-white" />
-                        </div>
-                        
-                        <div className={`w-14 h-14 rounded-2xl ${tool.color} flex items-center justify-center mb-8 shadow-xl shadow-black/10 dark:shadow-black/40 ring-1 ring-white/20 relative z-10 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-700`}>
-                          <tool.icon className={`w-6 h-6 ${tool.iconColor} drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]`} />
-                        </div>
-
-                        <div className="relative z-10">
-                          <h3 className="text-xl font-black text-text-primary dark:text-white mb-3 tracking-tighter group-hover:brand-gradient transition-all leading-none">
-                            {tool.title}
-                          </h3>
-                          <p className="text-[10px] text-text-secondary dark:text-slate-500 line-clamp-3 mb-10 leading-relaxed font-tech font-bold uppercase tracking-widest group-hover:text-text-primary dark:group-hover:text-slate-400 transition-colors">
-                            {tool.description}
-                          </p>
-                        </div>
-
-                        <div className="mt-auto relative z-10">
-                          <div className="relative w-full h-12 rounded-xl overflow-hidden group/btn transition-all active:scale-[0.98] border border-white/5">
-                            <div className="absolute inset-0 bg-white/5 group-hover/btn:bg-white/10 transition-all duration-300" />
-                            <div className="relative flex items-center justify-between px-4 h-full">
-                              <span className="text-[10px] font-tech font-black uppercase tracking-[0.2em] text-slate-400 group-hover/btn:text-white transition-colors">Initialize Tool</span>
-                              <div className="w-6 h-6 bg-white/5 rounded-lg flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
-                                 <ArrowRight className="w-3 h-3 text-slate-500 group-hover/btn:text-white transition-all" />
-                              </div>
-                            </div>
+                          
+                          {/* Sparkline simulation graph */}
+                          <div className="h-20 bg-white/[0.005] border border-white/[0.04] rounded-xl flex items-end px-3 py-1.5 relative overflow-hidden">
+                            <div className="absolute top-3 left-3"><div className="h-2.5 w-14 rounded bg-white/[0.03]" /></div>
+                            <svg className="w-full h-12 text-purple-500/35" viewBox="0 0 100 20" preserveAspectRatio="none">
+                              <path d="M0,15 Q15,4 30,12 T60,5 T90,14 T100,10" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                              <path d="M0,15 Q15,4 30,12 T60,5 T90,14 T100,10 L100,20 L0,20 Z" fill="rgba(147, 51, 234, 0.03)" />
+                            </svg>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
 
-                        {/* Side decoration */}
-                        <div className="absolute top-1/2 left-0 h-8 w-1 bg-blue-600 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all rounded-r-full" />
-                      </motion.div>
-                    );
-                  })}
+                {/* Second Section: Workspace Tools */}
+                <div id="workspace-tools" className="w-full max-w-4xl pt-12 scroll-mt-24">
+                  {/* Title of tools resembling second mockup */}
+                  <div className="text-center mb-10">
+                    <h2 className="text-sm font-black tracking-[0.2em] font-tech text-slate-500 uppercase">
+                      Select an AI Tool to Begin
+                    </h2>
+                  </div>
+
+                  {/* Grid of Tools, designed exactly like the second mockup */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {tools.map((tool, index) => {
+                      return (
+                        <motion.div
+                          key={tool.id}
+                          initial={{ opacity: 0, y: 15 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.5, delay: index * 0.05 }}
+                          className="group bg-[#0A0713]/60 hover:bg-[#120E1F]/90 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6.5 flex items-center justify-between gap-4 transition-all duration-300 cursor-pointer shadow-lg active:scale-98 select-none"
+                          onClick={() => handleToolClick(tool.id)}
+                        >
+                          <div className="flex items-center gap-4.5">
+                            {/* Simple dynamic icon styling */}
+                            <div className={`w-11 h-11 rounded-xl ${tool.color} flex items-center justify-center border border-white/10 shadow-md group-hover:scale-105 transition-all text-white`}>
+                              <tool.icon className={`w-5 h-5 ${tool.iconColor || 'text-white'}`} />
+                            </div>
+                            <div className="space-y-0.5">
+                              <h3 className="text-sm md:text-base font-black text-white group-hover:brand-gradient transition-all uppercase tracking-wide">
+                                {tool.title}
+                              </h3>
+                              {tool.badge && (
+                                <span className={`inline-block text-[8px] font-black ${tool.badge === 'PRO' ? 'text-amber-400 border border-amber-500/30 bg-amber-500/10' : 'text-blue-400 border border-blue-500/30 bg-blue-500/10'} px-1.5 py-0.5 rounded font-tech tracking-wider uppercase`}>
+                                  {tool.badge}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="w-7 h-7 bg-white/[0.03] group-hover:bg-[#6D3DF3]/20 border border-white/[0.05] rounded-lg flex items-center justify-center text-slate-400 group-hover:text-white transition-all">
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Our Goal & FAQ Sections */}
