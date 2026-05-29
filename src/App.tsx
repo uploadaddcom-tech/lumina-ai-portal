@@ -42,7 +42,9 @@ import {
   History,
   FileVideo,
   Mic,
-  Download
+  Download,
+  LayoutGrid,
+  CreditCard
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -553,7 +555,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
 
                   {/* 2. Top Profile Details with Large Avatar (aligned with mockup) */}
                   <div className="flex flex-col items-start mt-6 w-full">
-                    <div className="w-20 h-20 rounded-full p-[3px] bg-linear-to-tr from-cyan-400 to-blue-600 shadow-2xl mb-5">
+                    <div className="w-20 h-20 rounded-full p-[3px] bg-gradient-to-tr from-purple-500 via-[#6D3DF3] to-cyan-400 shadow-[0_0_20px_rgba(109,61,243,0.30)] mb-5">
                       <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center overflow-hidden border-2 border-slate-950">
                         <img 
                           src={user?.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
@@ -581,6 +583,7 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
                       onClick={() => {
                         setIsOpen(false);
                         navigate('/');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className="w-full flex items-center gap-4 px-4 h-14 rounded-2xl text-slate-300 hover:bg-white/5 active:bg-white/10 transition-all font-sans font-medium text-[15px] tracking-wide"
                     >
@@ -590,15 +593,49 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
                       <span>Home</span>
                     </button>
 
+                    {/* Tools Option */}
+                    <button 
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate('/');
+                        setTimeout(() => {
+                          document.getElementById('workspace-tools')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                      className="w-full flex items-center gap-4 px-4 h-14 rounded-2xl text-slate-300 hover:bg-white/5 active:bg-white/10 transition-all font-sans font-medium text-[15px] tracking-wide"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-400">
+                        <LayoutGrid className="w-4.5 h-4.5" />
+                      </div>
+                      <span>Tools</span>
+                    </button>
+
+                    {/* Pricing Option */}
+                    <button 
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate('/');
+                        setTimeout(() => {
+                          document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                      className="w-full flex items-center gap-4 px-4 h-14 rounded-2xl text-slate-300 hover:bg-white/5 active:bg-white/10 transition-all font-sans font-medium text-[15px] tracking-wide"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-400">
+                        <CreditCard className="w-4.5 h-4.5" />
+                      </div>
+                      <span>Pricing</span>
+                    </button>
+
                     {/* Diamond Balance Segment */}
-                    <div className="w-full flex items-center justify-between px-4 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)] font-sans font-medium text-[15px] tracking-wide">
+                    <div className="w-full flex items-center justify-between px-4 h-14 rounded-2xl bg-[#0E1524]/60 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.06)] font-sans font-medium text-[15px] tracking-wide">
                       <div className="flex items-center gap-4">
                         <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-400">
-                          <DiamondIcon className="w-5 h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
+                          <DiamondIcon className="w-5 h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.4)] animate-pulse" />
                         </div>
                         <span className="text-slate-300">Diamonds</span>
                       </div>
-                      <span className="font-tech font-black text-blue-400 text-[14px]">{diamonds}</span>
+                      <span className="font-tech font-black text-blue-400 text-[14px] pr-1">{diamonds}</span>
                     </div>
 
                     {/* Admin dashboard action (guarded) */}
@@ -3175,38 +3212,38 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6">
-      <div className="hero-glow" />
-      <div className="absolute inset-0 noise-overlay" />
-      
+    <div className="fixed inset-0 z-[200] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] p-12 text-center shadow-3xl"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-[340px] bg-[#0E1524] border border-white/[0.08] rounded-3xl p-8 text-center shadow-[0_0_30px_rgba(0,0,0,0.5)]"
       >
-        <div className="w-20 h-20 bg-gradient-to-br from-[#7C3AED] via-[#6D3DF3] to-[#4F46E5] rounded-3xl flex items-center justify-center shadow-2xl shadow-purple-500/30 mx-auto mb-8 animate-pulse">
-          <Clapperboard className="w-10 h-10 text-white" />
+        <div className="w-14 h-14 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center mx-auto mb-5">
+          <Clapperboard className="w-7 h-7" />
         </div>
         
-        <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">MM RECAP</h1>
-        <p className="text-[10px] font-tech font-black tracking-[0.4em] text-purple-400 uppercase mb-8">{t.authRequired}</p>
+        <h1 className="text-2xl font-black tracking-tight text-white mb-2">MM RECAP</h1>
+        <p className="text-[10px] font-semibold tracking-[0.15em] text-purple-400 uppercase mb-6">
+          Access Denied - Login Required
+        </p>
         
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <button
             onClick={handleLogin}
             disabled={isLoggingIn}
-            className="w-full h-16 bg-gradient-to-r from-purple-600 to-[#6D3DF3] hover:from-purple-700 hover:to-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-xl shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] border border-purple-500/20"
+            className="w-full h-12 bg-gradient-to-r from-purple-600 to-[#6D3DF3] hover:from-purple-700 hover:to-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-[0.99] border border-purple-500/20"
           >
             {isLoggingIn ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <LogIn className="w-5 h-5" />
+              <LogIn className="w-4 h-4" />
             )}
-            {isLoggingIn ? t.authenticating : t.loginWithGoogle}
+            {isLoggingIn ? "Authenticating..." : "CONTINUE WITH GOOGLE"}
           </button>
 
           {error && (
-            <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+            <p className="text-[9px] text-red-500 font-bold uppercase tracking-wider bg-red-500/10 p-2.5 rounded-lg border border-red-500/20">
               {error}
             </p>
           )}
@@ -3214,15 +3251,15 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
           {onCancel && (
             <button
               onClick={onCancel}
-              className="w-full h-12 text-slate-500 hover:text-slate-400 font-black text-[10px] uppercase tracking-widest transition-all"
+              className="w-full h-10 text-slate-500 hover:text-slate-300 font-bold text-[10px] uppercase tracking-wider transition-all"
             >
               Cancel
             </button>
           )}
         </div>
         
-        <p className="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
-          {t.authPrompt}
+        <p className="mt-5 text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-relaxed max-w-[280px] mx-auto">
+          Please sign in with a Google Account to use MM Recap.
         </p>
       </motion.div>
     </div>
@@ -3378,6 +3415,9 @@ function AppContent() {
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
+      if (!saved) {
+        return true;
+      }
       return saved !== 'light';
     }
     return true;
@@ -3886,7 +3926,7 @@ function AppContent() {
                         <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.05]">
                           <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            <span><strong>300</strong> Diamonds</span>
+                            <span><strong>200</strong> Diamonds</span>
                           </div>
                           <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
@@ -3895,6 +3935,10 @@ function AppContent() {
                           <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
                             <span>Lifetime Support</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            <span>1-min Recap Video = 6 Diamonds (Includes all AI tools)</span>
                           </div>
                         </div>
                       </div>
@@ -3927,7 +3971,7 @@ function AppContent() {
                         <div className="space-y-2.5 pt-4 border-t border-slate-200 dark:border-white/[0.05]">
                           <div className="flex items-center gap-2.5 text-xs text-slate-800 dark:text-slate-200 font-bold">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
-                            <span><strong>600</strong> Diamonds</span>
+                            <span><strong>400</strong> Diamonds</span>
                           </div>
                           <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
@@ -3936,6 +3980,10 @@ function AppContent() {
                           <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                             <span>Full Tool Suite Access</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            <span>1-min Recap Video = 6 Diamonds (Includes all AI tools)</span>
                           </div>
                         </div>
                       </div>
@@ -3965,7 +4013,7 @@ function AppContent() {
                         <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.05]">
                           <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            <span><strong>900</strong> Diamonds</span>
+                            <span><strong>600</strong> Diamonds</span>
                           </div>
                           <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
@@ -3974,7 +4022,11 @@ function AppContent() {
                           <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
                             <span>Full Tool Suite Access</span>
-          </div>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            <span>1-min Recap Video = 6 Diamonds (Includes all AI tools)</span>
+                          </div>
                         </div>
                       </div>
                       <a 
