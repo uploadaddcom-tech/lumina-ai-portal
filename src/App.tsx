@@ -3335,16 +3335,16 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
   return (
     <div 
       onClick={() => setIsOpen(!isOpen)}
-      className="bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:border-blue-500/30 transition-all duration-300 shadow-sm select-none group"
+      className="py-4.5 border-b border-white/[0.08] cursor-pointer transition-all duration-300 select-none group bg-transparent text-left"
     >
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 group-hover:text-blue-600 transition-colors">
+        <h3 className="text-xs md:text-sm font-medium tracking-tight text-slate-200 group-hover:text-purple-400 transition-colors">
           {faq.q}
         </h3>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all"
+          className="w-5 h-5 flex items-center justify-center text-slate-400 group-hover:text-white transition-all"
         >
           <ChevronDown className="w-3.5 h-3.5" />
         </motion.div>
@@ -3353,12 +3353,12 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
         {isOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0, marginTop: 0 }}
-            animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+            animate={{ height: "auto", opacity: 1, marginTop: 10 }}
             exit={{ height: 0, opacity: 0, marginTop: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed font-sans mt-1">
               {faq.a}
             </p>
           </motion.div>
@@ -3591,6 +3591,12 @@ function AppContent() {
                   </div>
 
                   <div className="flex items-center gap-8">
+                    <button 
+                      onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                      className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-colors duration-200 cursor-pointer hidden sm:block"
+                    >
+                      Pricing
+                    </button>
                     <UserHeader onAdminClick={handleAdminClick} />
                   </div>
                 </div>
@@ -3768,33 +3774,30 @@ function AppContent() {
                 </div>
 
                 {/* Our Goal & FAQ Sections */}
-                <div className="mt-20 pt-16 border-t border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-start">
+                <div className="mt-20 pt-16 border-t border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start text-left">
                   {/* Our Goal Section */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="relative overflow-hidden bg-white/5 dark:bg-[#0f172a]/20 backdrop-blur-md rounded-[2rem] p-8 border border-white/[0.05] shadow-2xl h-full flex flex-col justify-between"
+                    className="relative flex flex-col justify-between group h-full space-y-6"
                   >
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-                    <div className="space-y-4 relative z-10">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest font-tech">
-                        <Sparkles className="w-3.5 h-3.5" />
+                    <div className="space-y-5 relative z-10">
+                      <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-[#6D3DF3]/30 text-purple-300 text-[10px] font-black uppercase tracking-widest font-tech shadow-[0_0_15px_rgba(109,61,243,0.15)]">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
                         Mission & Vision
                       </div>
-                      <h2 className="text-lg md:text-xl font-black text-text-primary dark:text-white tracking-tight">
-                        {lang === "EN" ? "Our Goal" : "ကျွန်ုပ်တို့၏ ရည်မှန်းချက်"}
+                      <h2 className="text-base md:text-lg font-bold text-white tracking-tight">
+                        Our Goal
                       </h2>
-                      <p className="text-xs text-text-secondary dark:text-slate-400 leading-relaxed font-semibold font-sans">
-                        {lang === "EN" 
-                          ? "To empower Burmese content creators and businesses with cutting-edge AI tools, allowing them to effortlessly generate video recaps, extract high-quality subtitles, and create professional AI voiceovers in seconds."
-                          : "မြန်မာ Content Creator များအတွက် ဗီဒီယိုတည်းဖြတ်ခြင်း၊ ဘာသာပြန်ခြင်းနှင့် စာတန်းထိုးခြင်း လုပ်ငန်းစဉ်များကို AI နည်းပညာအသုံးပြုပြီး စက္ကန့်ပိုင်းအတွင်း အလွယ်ကူဆုံးနှင့် အချိန်ကုန်အသက်သာဆုံး ဖြေရှင်းပေးနိုင်ရန် ရည်ရွယ်ပါသည်။"
-                        }
+                      <p className="text-xs md:text-sm text-slate-400 leading-relaxed font-sans font-medium">
+                        To solve video editing, translation, and subtitling workflows for Myanmar Content Creators in seconds using AI technology, providing the easiest and most time-saving solution.
                       </p>
                     </div>
-                    <div className="mt-8 relative z-10 p-5 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-xl flex items-center justify-center text-center font-black font-tech text-[10px] uppercase tracking-widest leading-none">
-                      {lang === "EN" ? "INNOVATE" : "တီထွင်ဆန်းသစ်မှု"}
+                    
+                    <div className="mt-6 relative z-10 inline-flex px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black font-tech text-[10px] uppercase tracking-widest leading-none text-center shadow-[0_4px_15px_rgba(109,61,243,0.25)] transition-all duration-300 border border-white/10 self-start">
+                      INNOVATE
                     </div>
                   </motion.div>
 
@@ -3804,20 +3807,161 @@ function AppContent() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: 0.1 }}
-                    className="space-y-6"
+                    className="space-y-6 lg:pl-4 flex flex-col justify-between"
                   >
-                    <div className="text-center lg:text-left space-y-2">
-                      <h2 className="text-lg md:text-xl font-black text-text-primary dark:text-white tracking-tight">
-                        {lang === "EN" ? "Frequently Asked Questions" : "အမေးများသော မေးခွန်းများ (FAQs)"}
-                      </h2>
-                    </div>
-
                     <div className="space-y-4">
-                      {faqData[lang].map((faq, index) => (
-                        <FAQItem key={index} faq={faq} />
-                      ))}
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-white/[0.05] text-slate-400 text-[10px] font-black uppercase tracking-widest font-tech">
+                          SUPPORT
+                        </div>
+                        <h2 className="text-base md:text-lg font-bold text-white tracking-tight">
+                          Frequently Asked Questions (FAQs)
+                        </h2>
+                      </div>
+
+                      <div className="space-y-4">
+                        {faqData.EN.map((faq, index) => (
+                          <FAQItem key={index} faq={faq} />
+                        ))}
+                      </div>
                     </div>
                   </motion.div>
+                </div>
+
+                {/* Pricing Section */}
+                <div id="pricing" className="mt-24 pt-16 border-t border-white/[0.05] w-full max-w-4xl scroll-mt-24 text-left">
+                  <div className="space-y-2 mb-12 text-center lg:text-left">
+                    <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-[#6D3DF3]/30 text-purple-300 text-[10px] font-black uppercase tracking-widest font-tech shadow-[0_0_15px_rgba(109,61,243,0.15)]">
+                      <Zap className="w-3.5 h-3.5 text-purple-400" />
+                      PLANS & TOP-UPS
+                    </div>
+                    <h2 className="text-xl md:text-2xl font-black text-white tracking-tight uppercase">
+                      Premium Diamond Packages
+                    </h2>
+                    <p className="text-xs text-slate-400 max-w-md font-sans">
+                      Get more diamonds to unlock advanced features, generate epic voiceovers, and transcribe videos instantly.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Tier 1 */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="relative overflow-hidden bg-[#0A0713]/40 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-400 font-tech">Starter</span>
+                          <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-slate-400 font-tech uppercase">Popular</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-white">30,000</span>
+                          <span className="text-xs text-slate-400 font-bold">MMK</span>
+                        </div>
+                        <div className="space-y-2.5 pt-4 border-t border-white/[0.05]">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            <span><strong>300</strong> Diamonds</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            <span>Full Tool Suite Access</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            <span>Lifetime Support</span>
+                          </div>
+                        </div>
+                      </div>
+                      <a 
+                        href="https://t.me/akhptn" 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-8 py-3 rounded-xl bg-white/[0.03] hover:bg-[#6D3DF3]/20 border border-white/[0.05] hover:border-[#6D3DF3]/30 text-slate-300 hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all"
+                      >
+                        Purchase Now
+                      </a>
+                    </motion.div>
+
+                    {/* Tier 2 */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="relative overflow-hidden bg-[#0A0713]/80 border border-[#6D3DF3]/40 hover:border-[#6D3DF3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-[0_0_30px_rgba(109,61,243,0.1)]"
+                    >
+                      <div className="absolute top-0 right-0">
+                        <span className="text-[8px] bg-[#6D3DF3] text-white font-black uppercase px-3 py-1 rounded-bl-xl tracking-widest">Best Value</span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-400 font-tech">Premium</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-white">50,000</span>
+                          <span className="text-xs text-purple-300 font-bold">MMK</span>
+                        </div>
+                        <div className="space-y-2.5 pt-4 border-t border-white/[0.05]">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-200 font-bold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                            <span><strong>600</strong> Diamonds</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            <span>Priority Server Access</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            <span>Full Tool Suite Access</span>
+                          </div>
+                        </div>
+                      </div>
+                      <a 
+                        href="https://t.me/akhptn" 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-8 py-3 rounded-xl bg-[#6D3DF3] hover:bg-[#5B30D6] text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-lg shadow-[#6D3DF3]/25 border border-white/10"
+                      >
+                        Purchase Now
+                      </a>
+                    </motion.div>
+
+                    {/* Tier 3 */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="relative overflow-hidden bg-[#0A0713]/40 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-400 font-tech">Elite</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-white">70,000</span>
+                          <span className="text-xs text-slate-400 font-bold">MMK</span>
+                        </div>
+                        <div className="space-y-2.5 pt-4 border-t border-white/[0.05]">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            <span><strong>900</strong> Diamonds</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            <span>VIP Support line</span>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                            <span>Full Tool Suite Access</span>
+          </div>
+                        </div>
+                      </div>
+                      <a 
+                        href="https://t.me/akhptn" 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-8 py-3 rounded-xl bg-white/[0.03] hover:bg-[#6D3DF3]/20 border border-white/[0.05] hover:border-[#6D3DF3]/30 text-slate-300 hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all"
+                      >
+                        Purchase Now
+                      </a>
+                    </motion.div>
+                  </div>
                 </div>
               </main>
 
