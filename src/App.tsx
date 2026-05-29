@@ -1657,14 +1657,20 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
       const newHistoryId = Date.now().toString();
       activeHistoryId = newHistoryId;
-      const timestampStr = new Date().toLocaleString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true
-      });
+      const genEngTimestamp = () => {
+        const d = new Date();
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const year = d.getFullYear();
+        const month = months[d.getMonth()];
+        const day = d.getDate();
+        let hours = d.getHours();
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = d.getMinutes().toString().padStart(2, "0");
+        return `${month} ${day}, ${year}, ${hours.toString().padStart(2, "0")}:${minutes} ${ampm}`;
+      };
+      const timestampStr = genEngTimestamp();
       const newHistoryItem: HistoryItem = {
         id: newHistoryId,
         timestamp: timestampStr,
