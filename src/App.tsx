@@ -1657,7 +1657,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
       const newHistoryId = Date.now().toString();
       activeHistoryId = newHistoryId;
-      const timestampStr = new Date().toLocaleString(lang === "EN" ? "en-US" : "my-MM", {
+      const timestampStr = new Date().toLocaleString("en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -3151,12 +3151,6 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     setSelectedStyle(histItem.style);
                     
                     window.scrollTo({ top: 300, behavior: "smooth" });
-
-                    if (!file) {
-                      alert(lang === "EN" 
-                        ? `Restored generated records for "${histItem.fileName}". You can view/download resources or upload original file to perform new merges.` 
-                        : `Restored generated records for "${histItem.fileName}". You can view/download resources or upload original file to perform new merges.`);
-                    }
                   };
 
                   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
