@@ -61,9 +61,9 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Outfit", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
-  --font-tech: "Space Grotesk", sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-tech: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-brand-cyan: #22d3ee;
   --color-brand-blue: #3b82f6;

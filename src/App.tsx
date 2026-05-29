@@ -3184,12 +3184,12 @@ function LoginView({ lang, onCancel }: { lang: Language; onCancel?: () => void }
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="relative z-10 w-full max-w-md bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] p-12 text-center shadow-3xl"
       >
-        <div className="w-20 h-20 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 mx-auto mb-8 animate-pulse">
+        <div className="w-20 h-20 bg-gradient-to-br from-[#7C3AED] via-[#6D3DF3] to-[#4F46E5] rounded-3xl flex items-center justify-center shadow-2xl shadow-purple-500/30 mx-auto mb-8 animate-pulse">
           <Clapperboard className="w-10 h-10 text-white" />
         </div>
         
         <h1 className="text-4xl font-black tracking-tighter text-text-primary dark:text-white mb-4">MM RECAP</h1>
-        <p className="text-[10px] font-tech font-black tracking-[0.4em] text-blue-500 uppercase mb-8">{t.authRequired}</p>
+        <p className="text-[10px] font-tech font-black tracking-[0.4em] text-purple-400 uppercase mb-8">{t.authRequired}</p>
         
         <div className="space-y-3">
           <button
@@ -3494,10 +3494,10 @@ function AppContent() {
               ) : (
                 <motion.div
                   key="admin-dashboard"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  transition={{ duration: 0.4 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.05 }}
                 >
                   <AdminDashboard onBack={() => navigate('/')} />
                 </motion.div>
@@ -3514,10 +3514,10 @@ function AppContent() {
           <Route path="/videorecapper" element={
             <motion.div
               key="video-recapper"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.05 }}
             >
               <VideoRecapperView 
                 onBack={() => navigate('/')} 
@@ -3531,10 +3531,10 @@ function AppContent() {
           <Route path="/aivoiceover" element={
             <motion.div
               key="ai-voiceover"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.05 }}
             >
               <VoiceoverView 
                 onBack={() => navigate('/')} 
@@ -3548,10 +3548,10 @@ function AppContent() {
           <Route path="/videotranscribe" element={
             <motion.div
               key="video-transcribe"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.05 }}
             >
               <TranscribeView 
                 onBack={() => navigate('/')} 
@@ -3568,7 +3568,7 @@ function AppContent() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.05 }}
               id="lumina-portal"
               className="text-text-secondary relative overflow-hidden"
             >
@@ -3580,19 +3580,55 @@ function AppContent() {
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                   <div className="flex items-center gap-12">
                     <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80" onClick={() => navigate('/')}>
-                      <div className="w-10 h-10 bg-linear-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#7C3AED] via-[#6D3DF3] to-[#4F46E5] rounded-xl flex items-center justify-center shadow-2xl shadow-purple-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
                         <Clapperboard className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex flex-col -gap-1">
                         <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">MM RECAP</span>
-                        <span className="text-[7.5px] font-tech font-black tracking-[0.25em] text-blue-500/80 uppercase ml-1 block mt-0.5">One Click Ai Tool</span>
+                        <span className="text-[7.5px] font-tech font-black tracking-[0.25em] text-purple-400 uppercase ml-1 block mt-0.5">One Click Ai Tool</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-8">
                     <button 
-                      onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                      onClick={() => {
+                        if (location.pathname === '/') {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        } else {
+                          navigate('/');
+                        }
+                      }}
+                      className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-colors duration-200 cursor-pointer hidden sm:block"
+                    >
+                      Home
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (location.pathname === '/') {
+                          document.getElementById('workspace-tools')?.scrollIntoView({ behavior: 'smooth' });
+                        } else {
+                          navigate('/');
+                          setTimeout(() => {
+                            document.getElementById('workspace-tools')?.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }
+                      }}
+                      className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-colors duration-200 cursor-pointer hidden sm:block"
+                    >
+                      Tool
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (location.pathname === '/') {
+                          document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                        } else {
+                          navigate('/');
+                          setTimeout(() => {
+                            document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                          }, 150);
+                        }
+                      }}
                       className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-colors duration-200 cursor-pointer hidden sm:block"
                     >
                       Pricing
@@ -3607,10 +3643,10 @@ function AppContent() {
                 {/* Hero section resembling the first mockup */}
                 <div className="w-full max-w-4xl mx-auto text-center mt-8 mb-20">
                   {/* Glowing Badge resembling 'NEW Latest integration' */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
+                   <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.1 }}
                     className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-[#6D3DF3]/30 mb-8 shadow-[0_0_20px_rgba(109,61,243,0.15)]"
                   >
                     <span className="text-[9px] font-black bg-purple-600 text-white px-2 py-0.5 rounded-full font-tech tracking-wider uppercase">NEW</span>
@@ -3619,9 +3655,9 @@ function AppContent() {
 
                   {/* High impact display typography headline */}
                   <motion.h1 
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.15 }}
                     className="text-4xl sm:text-5.5xl md:text-6.5xl lg:text-7xl font-sans font-black text-center text-white tracking-tight leading-[1.08] mb-8"
                   >
                     Boost your <br />
@@ -3630,9 +3666,9 @@ function AppContent() {
 
                   {/* Elegant professional subtitle */}
                   <motion.p 
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.15 }}
                     className="text-sm sm:text-base md:text-lg text-slate-400 text-center max-w-2xl mx-auto mb-10 leading-relaxed font-sans px-4"
                   >
                     Elevate your video's reach effortlessly with AI, where smart technology meets user-friendly translation & transcription tools.
@@ -3640,9 +3676,9 @@ function AppContent() {
 
                   {/* Call to action start button */}
                   <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.3 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.15 }}
                     className="flex justify-center mb-16"
                   >
                     <button 
@@ -3655,9 +3691,9 @@ function AppContent() {
 
                   {/* Realistic screen/workspace mockup card with backdrop glow */}
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, delay: 0.4 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
                     className="relative max-w-3.5xl mx-auto group"
                   >
                     {/* Glowing Purple lens flare background behind the window */}
@@ -3740,10 +3776,10 @@ function AppContent() {
                       return (
                         <motion.div
                           key={tool.id}
-                          initial={{ opacity: 0, y: 15 }}
-                          whileInView={{ opacity: 1, y: 0 }}
+                          initial={{ opacity: 0 }}
+                          whileInView={{ opacity: 1 }}
                           viewport={{ once: true }}
-                          transition={{ duration: 0.5, delay: index * 0.05 }}
+                          transition={{ duration: 0.15, delay: index * 0.015 }}
                           className="group bg-[#0A0713]/60 hover:bg-[#120E1F]/90 border border-white/[0.05] hover:border-[#6D3DF3]/30 rounded-2xl p-6.5 flex items-center justify-between gap-4 transition-all duration-300 cursor-pointer shadow-lg active:scale-98 select-none"
                           onClick={() => handleToolClick(tool.id)}
                         >
@@ -3777,17 +3813,13 @@ function AppContent() {
                 <div className="mt-20 pt-16 border-t border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start text-left">
                   {/* Our Goal Section */}
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.6 }}
+                    transition={{ duration: 0.15 }}
                     className="relative flex flex-col justify-between group h-full space-y-6"
                   >
                     <div className="space-y-5 relative z-10">
-                      <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-[#6D3DF3]/30 text-purple-300 text-[10px] font-black uppercase tracking-widest font-tech shadow-[0_0_15px_rgba(109,61,243,0.15)]">
-                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                        Mission & Vision
-                      </div>
                       <h2 className="text-base md:text-lg font-bold text-white tracking-tight">
                         Our Goal
                       </h2>
@@ -3803,17 +3835,14 @@ function AppContent() {
 
                   {/* FAQs Section */}
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
+                    transition={{ duration: 0.15 }}
                     className="space-y-6 lg:pl-4 flex flex-col justify-between"
                   >
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-white/[0.05] text-slate-400 text-[10px] font-black uppercase tracking-widest font-tech">
-                          SUPPORT
-                        </div>
                         <h2 className="text-base md:text-lg font-bold text-white tracking-tight">
                           Frequently Asked Questions (FAQs)
                         </h2>
@@ -3830,15 +3859,11 @@ function AppContent() {
 
                 {/* Pricing Section */}
                 <div id="pricing" className="mt-24 pt-16 border-t border-white/[0.05] w-full max-w-4xl scroll-mt-24 text-left">
-                  <div className="space-y-2 mb-12 text-center lg:text-left">
-                    <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#120D1E]/90 border border-[#6D3DF3]/30 text-purple-300 text-[10px] font-black uppercase tracking-widest font-tech shadow-[0_0_15px_rgba(109,61,243,0.15)]">
-                      <Zap className="w-3.5 h-3.5 text-purple-400" />
-                      PLANS & TOP-UPS
-                    </div>
+                  <div className="space-y-2 mb-12 text-center">
                     <h2 className="text-xl md:text-2xl font-black text-white tracking-tight uppercase">
                       Premium Diamond Packages
                     </h2>
-                    <p className="text-xs text-slate-400 max-w-md font-sans">
+                    <p className="text-xs text-slate-400 max-w-md font-sans mx-auto">
                       Get more diamonds to unlock advanced features, generate epic voiceovers, and transcribe videos instantly.
                     </p>
                   </div>
