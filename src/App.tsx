@@ -3156,7 +3156,7 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     setCurrentHistoryId(histItem.id);
                     setSelectedStyle(histItem.style);
                     
-                    window.scrollTo({ top: 300, behavior: "smooth" });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
                   };
 
                   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
@@ -3439,6 +3439,10 @@ function AppContent() {
     return true;
   });
   const [isAdminVerified, setIsAdminVerified] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (darkMode) {
