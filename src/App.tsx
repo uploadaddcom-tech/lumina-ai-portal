@@ -3312,20 +3312,20 @@ const faqData = {
   ],
   MY: [
     {
-      q: "ဗီဒီယိုဖိုင်ကန့်သတ်ချက် ရှိပါသလား?",
-      a: "ဟုတ်ကဲ့၊ လောလောဆယ်တွင် MP4 နှင့် MOV format များကို အများဆုံး 300MB အထိ လက်ခံဆောင်ရွက်ပေးပါသည်။"
+      q: "Are there any video file size limits?",
+      a: "Yes, currently we support MP4 and MOV video files of up to 300MB."
     },
     {
-      q: "စာတန်းထိုး (SRT) ဖိုင်များကို ဘယ်လိုထုတ်ယူနိုင်မလဲ?",
-      a: "Video Transcribe ကဏ္ဍတွင် ဗီဒီယိုကို တင်ပြီးပါက 'Download Subtitles (.SRT)' ခလုတ်ကို နှိပ်၍ အချိန်ကိုက်စာတန်းထိုးဖိုင်ကို ဒေါင်းလုဒ်ရယူနိုင်ပါသည်။"
+      q: "How can I download subtitle (.SRT) files?",
+      a: "After processing your video in the Video Transcribe section, a download button will appear allowing you to export the time-synced .SRT file directly."
     },
     {
-      q: "AI Recap ကို အခြားပုံစံတွေနဲ့ ထုတ်လို့ရပါသလား?",
-      a: "ဟုတ်ကဲ့၊ Step-by-Step, Material List, Funny Commentary, Epic Exaggerated စသည့် စိတ်ကြိုက်စတိုင်လ် ၉ မျိုးအထိ ရွေးချယ်နိုင်ပါသည်။"
+      q: "Can I receive the AI Recap in different styles?",
+      a: "Yes! You can choose from 9 custom styles including Step-by-Step, Funny Commentary, and Epic Exaggerated to match your video's niche."
     },
     {
-      q: "ကိုယ်ပိုင် API Key သုံးလို့ရနိုင်သလား?",
-      a: "ဟုတ်ကဲ့ ရနိုင်ပါတယ်။ Option ကဏ္ဍအောက်ရှိ API Settings တွင် 'Own API Key' ကို ရွေးချယ်ပြီး သင့်ကိုယ်ပိုင် Gemini API Key ကို အသုံးပြုနိုင်ပါသည်။"
+      q: "Can I use my own API Key?",
+      a: "Absolutely. Under API Settings, select 'Own API Key' and enter your own Gemini API Key to continue processing."
     }
   ]
 };
@@ -3335,7 +3335,7 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
   return (
     <div 
       onClick={() => setIsOpen(!isOpen)}
-      className="py-4.5 border-b border-slate-200 dark:border-white/[0.08] cursor-pointer transition-all duration-300 select-none group bg-transparent text-left"
+      className="py-4.5 border-b border-slate-200 dark:border-white/[0.08] cursor-pointer transition-colors duration-75 select-none group bg-transparent text-left"
     >
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-xs md:text-sm font-medium tracking-tight text-slate-800 dark:text-slate-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
@@ -3343,8 +3343,8 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
         </h3>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="w-5 h-5 flex items-center justify-center text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-all"
+          transition={{ duration: 0.05 }}
+          className="w-5 h-5 flex items-center justify-center text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-75"
         >
           <ChevronDown className="w-3.5 h-3.5" />
         </motion.div>
@@ -3355,10 +3355,10 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
             initial={{ height: 0, opacity: 0, marginTop: 0 }}
             animate={{ height: "auto", opacity: 1, marginTop: 10 }}
             exit={{ height: 0, opacity: 0, marginTop: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.05 }}
             className="overflow-hidden"
           >
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans mt-0.5">
               {faq.a}
             </p>
           </motion.div>
@@ -3849,7 +3849,7 @@ function AppContent() {
                       </div>
 
                       <div className="space-y-4">
-                        {faqData.EN.map((faq, index) => (
+                        {faqData[lang].map((faq, index) => (
                           <FAQItem key={index} faq={faq} />
                         ))}
                       </div>
@@ -3986,6 +3986,53 @@ function AppContent() {
                         Purchase Now
                       </a>
                     </motion.div>
+                  </div>
+                </div>
+
+                {/* Why Choose MM Recap? Section */}
+                <div className="mt-24 pt-16 border-t border-slate-200 dark:border-white/[0.05] w-full max-w-4xl text-left">
+                  <div className="space-y-2 mb-12 text-center">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+                      Why Choose MM Recap?
+                    </h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Card 1 */}
+                    <div className="p-6 bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl flex flex-col justify-between transition-all duration-300 group shadow-md hover:shadow-lg">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">Myanmar-Optimized AI</span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                          A localized AI system that deeply understands Myanmar spoken pronunciation, dialects, and cultural nuances.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Card 2 */}
+                    <div className="p-6 bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl flex flex-col justify-between transition-all duration-300 group shadow-md hover:shadow-lg">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">Lightning-Fast Speed</span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                          Generate high-quality video summaries, voiceovers, and subtitles in seconds instead of waiting for hours.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Card 3 */}
+                    <div className="p-6 bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl flex flex-col justify-between transition-all duration-300 group shadow-md hover:shadow-lg">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">All-in-One Workflow</span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                          Seamlessly handle your video summarizing, transcribing, and localized voiceover processes in a single unified workspace.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </main>
