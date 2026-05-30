@@ -4529,32 +4529,32 @@ function AppContent() {
                     {/* Tier 1 */}
                     <motion.div 
                       whileHover={{ y: -5 }}
-                      className="relative overflow-hidden bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-md"
+                      className="relative overflow-hidden bg-white dark:bg-[#130E26]/90 border border-slate-200 dark:border-[#6D3DF3]/40 hover:border-purple-500 dark:hover:border-[#6D3DF3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-md dark:shadow-[0_0_20px_rgba(109,61,243,0.05)]"
                     >
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-tech">Starter</span>
-                          <span className="text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-2.5 py-0.5 rounded-full text-slate-600 dark:text-slate-400 font-tech uppercase">Popular</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-[#A78BFA] font-tech">Starter</span>
+                          <span className="text-[10px] bg-slate-100 dark:bg-[#2E1065]/40 border border-slate-200 dark:border-[#A78BFA]/20 px-2.5 py-0.5 rounded-full text-slate-600 dark:text-[#C084FC] font-tech uppercase font-black">Popular</span>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-black text-slate-900 dark:text-white">30,000</span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">MMK</span>
+                          <span className="text-xs text-slate-500 dark:text-[#A78BFA] font-bold">MMK</span>
                         </div>
-                        <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.05]">
-                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                        <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/10">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-200">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-[#A78BFA]" />
                             <span><strong>200</strong> Diamonds</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70 dark:bg-[#A78BFA]/70" />
                             <span>Full Tool Suite Access</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70 dark:bg-[#A78BFA]/70" />
                             <span>Lifetime Support</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70 dark:bg-[#A78BFA]/70" />
                             <span>1-min Recap Video = 6 Diamonds (Includes all AI tools)</span>
                           </div>
                         </div>
@@ -4563,7 +4563,7 @@ function AppContent() {
                         href="https://t.me/akhptn" 
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-8 py-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 dark:bg-white/[0.03] dark:hover:bg-[#6D3DF3]/20 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xs"
+                        className="mt-8 py-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 dark:bg-[#2E1065]/20 dark:hover:bg-[#6D3DF3]/30 border border-slate-200 dark:border-[#6D3DF3]/30 hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/60 text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xs"
                       >
                         Purchase Now
                       </a>
@@ -4572,34 +4572,34 @@ function AppContent() {
                     {/* Tier 2 */}
                     <motion.div 
                       whileHover={{ y: -5 }}
-                      className="relative overflow-hidden bg-slate-50/80 dark:bg-[#0A0713]/80 border border-purple-500/50 dark:border-[#6D3DF3]/40 hover:border-purple-600 dark:hover:border-[#6D3DF3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-lg shadow-purple-500/5 dark:shadow-[0_0_30px_rgba(109,61,243,0.1)]"
+                      className="relative overflow-hidden bg-slate-50 dark:bg-[#1E124C]/95 border-2 border-purple-500 dark:border-[#8B5CF6] md:scale-105 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-2xl dark:shadow-[0_0_40px_rgba(139,92,246,0.3)] z-10"
                     >
                       <div className="absolute top-0 right-0">
-                        <span className="text-[8px] bg-[#6D3DF3] text-white font-black uppercase px-3 py-1 rounded-bl-xl tracking-widest">Best Value</span>
+                        <span className="text-[8px] bg-purple-600 dark:bg-[#8B5CF6] text-white font-black uppercase px-3 py-1 rounded-bl-xl tracking-widest">Best Value</span>
                       </div>
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-tech">Premium</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-[#C084FC] font-tech">Premium</span>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-black text-slate-900 dark:text-white">50,000</span>
-                          <span className="text-xs text-purple-700 dark:text-purple-300 font-bold">MMK</span>
+                          <span className="text-xs text-purple-700 dark:text-[#A78BFA] font-bold">MMK</span>
                         </div>
-                        <div className="space-y-2.5 pt-4 border-t border-slate-200 dark:border-white/[0.05]">
-                          <div className="flex items-center gap-2.5 text-xs text-slate-800 dark:text-slate-200 font-bold">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
+                        <div className="space-y-2.5 pt-4 border-t border-slate-200 dark:border-white/10">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-800 dark:text-slate-100 font-bold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-[#C084FC] animate-pulse" />
                             <span><strong>400</strong> Diamonds</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-200 font-medium">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-[#A78BFA]" />
                             <span>Priority Server Access</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-200 font-medium">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-[#A78BFA]" />
                             <span>Full Tool Suite Access</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-200 font-medium">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-[#A78BFA]" />
                             <span>1-min Recap Video = 6 Diamonds (Includes all AI tools)</span>
                           </div>
                         </div>
@@ -4608,7 +4608,7 @@ function AppContent() {
                         href="https://t.me/akhptn" 
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-8 py-3 rounded-xl bg-[#6D3DF3] hover:bg-[#5B30D6] text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-lg shadow-[#6D3DF3]/25 border border-white/10"
+                        className="mt-8 py-3 rounded-xl bg-purple-600 dark:bg-[#8B5CF6] hover:bg-purple-700 dark:hover:bg-[#7C3AED] text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-lg shadow-purple-500/25 border border-white/10"
                       >
                         Purchase Now
                       </a>
@@ -4617,31 +4617,31 @@ function AppContent() {
                     {/* Tier 3 */}
                     <motion.div 
                       whileHover={{ y: -5 }}
-                      className="relative overflow-hidden bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-md"
+                      className="relative overflow-hidden bg-white dark:bg-[#130E26]/90 border border-slate-200 dark:border-[#6D3DF3]/40 hover:border-purple-500 dark:hover:border-[#6D3DF3] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-md dark:shadow-[0_0_20px_rgba(109,61,243,0.05)]"
                     >
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-tech">Elite</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-[#A78BFA] font-tech">Elite</span>
                         </div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-black text-slate-900 dark:text-white">70,000</span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">MMK</span>
+                          <span className="text-xs text-slate-500 dark:text-[#A78BFA] font-bold">MMK</span>
                         </div>
-                        <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.05]">
-                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                        <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-white/10">
+                          <div className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-200">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-[#A78BFA]" />
                             <span><strong>600</strong> Diamonds</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70 dark:bg-[#A78BFA]/70" />
                             <span>VIP Support line</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70 dark:bg-[#A78BFA]/70" />
                             <span>Full Tool Suite Access</span>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
+                          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70 dark:bg-[#A78BFA]/70" />
                             <span>1-min Recap Video = 6 Diamonds (Includes all AI tools)</span>
                           </div>
                         </div>
@@ -4650,7 +4650,7 @@ function AppContent() {
                         href="https://t.me/akhptn" 
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-8 py-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 dark:bg-white/[0.03] dark:hover:bg-[#6D3DF3]/20 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xs"
+                        className="mt-8 py-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 dark:bg-[#2E1065]/20 dark:hover:bg-[#6D3DF3]/30 border border-slate-200 dark:border-[#6D3DF3]/30 hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/60 text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xs"
                       >
                         Purchase Now
                       </a>
