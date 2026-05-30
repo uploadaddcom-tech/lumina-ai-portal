@@ -1849,39 +1849,39 @@ function OutOfDiamondsModal({ isOpen, onClose, lang, requiredCost = 10 }: { isOp
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm"
       >
         <motion.div 
-          initial={{ scale: 0.9, y: 20 }}
+          initial={{ scale: 0.9, y: 15 }}
           animate={{ scale: 1, y: 0 }}
-          exit={{ scale: 0.9, y: 20 }}
-          className="bg-[#0f172a] border border-blue-500/30 rounded-[32px] p-8 max-w-sm w-full text-center space-y-6 shadow-[0_0_50px_rgba(59,130,246,0.2)]"
+          exit={{ scale: 0.9, y: 15 }}
+          className="bg-white dark:bg-[#130E26]/95 border border-slate-200 dark:border-[#6D3DF3]/35 rounded-2xl p-6 max-w-[310px] w-full text-center space-y-4 shadow-2xl dark:shadow-[0_0_40px_rgba(109,61,243,0.15)]"
         >
-          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-            <DiamondIcon className="w-14 h-14 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] animate-bounce" />
+          <div className="w-14 h-14 bg-purple-500/10 dark:bg-[#6D3DF3]/15 rounded-xl flex items-center justify-center mx-auto border border-purple-500/20 dark:border-[#6D3DF3]/20 shadow-[0_0_20px_rgba(109,61,243,0.1)]">
+            <DiamondIcon className="w-8 h-8 drop-shadow-[0_0_10px_rgba(109,61,243,0.35)] animate-pulse text-purple-600 dark:text-[#A78BFA]" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-white italic tracking-tighter">
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-black text-slate-900 dark:text-[#A78BFA] uppercase tracking-wide">
               {lang === "EN" ? "Diamond Required" : "Diamond လိုအပ်နေပါသည်"}
             </h2>
-            <p className="text-slate-400 text-xs font-bold tracking-widest leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-300 text-[11px] font-bold tracking-wide leading-relaxed">
               {lang === "EN" 
                 ? `You need at least ${requiredCost} diamonds to generate a recap. Please contact us to buy more.` 
                 : `Recap ထုတ်လုပ်ရန် Diamond ${requiredCost} ခု လိုအပ်ပါသည်။ Diamond ထပ်ဝယ်ရန် ကျွန်ုပ်တို့ကို ဆက်သွယ်ပါ။`}
             </p>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2 pt-1">
             <a 
               href="https://t.me/akhptn" 
               target="_blank" 
               rel="noreferrer"
-              className="flex items-center justify-center gap-3 w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-500/20"
+              className="flex items-center justify-center gap-2 w-full h-11 bg-[#6D3DF3] hover:bg-[#5B30D6] text-white rounded-xl font-black text-[10px] uppercase tracking-[0.15em] transition-all shadow-md shadow-purple-500/10 hover:scale-[1.02]"
             >
               Telegram @akhptn
             </a>
             <button 
               onClick={onClose}
-              className="w-full h-12 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+              className="w-full h-10 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all"
             >
               Maybe Later
             </button>
@@ -4671,9 +4671,9 @@ function AppContent() {
                     <div className="p-6 bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl flex flex-col justify-between transition-all duration-300 group shadow-md hover:shadow-lg">
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">Myanmar-Optimized AI</span>
+                          <span className="text-[13px] font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">Myanmar-Optimized AI</span>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                        <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
                           A localized AI system that deeply understands Myanmar spoken pronunciation, dialects, and cultural nuances.
                         </p>
                       </div>
@@ -4683,9 +4683,9 @@ function AppContent() {
                     <div className="p-6 bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl flex flex-col justify-between transition-all duration-300 group shadow-md hover:shadow-lg">
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">Lightning-Fast Speed</span>
+                          <span className="text-[13px] font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">Lightning-Fast Speed</span>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                        <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
                           Generate high-quality video summaries, voiceovers, and subtitles in seconds instead of waiting for hours.
                         </p>
                       </div>
@@ -4695,9 +4695,9 @@ function AppContent() {
                     <div className="p-6 bg-white dark:bg-[#0A0713]/40 border border-slate-200 dark:border-white/[0.05] hover:border-purple-500/30 dark:hover:border-[#6D3DF3]/30 rounded-2xl flex flex-col justify-between transition-all duration-300 group shadow-md hover:shadow-lg">
                       <div className="space-y-4">
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">All-in-One Workflow</span>
+                          <span className="text-[13px] font-black uppercase tracking-wider text-purple-650 dark:text-purple-400 font-tech">All-in-One Workflow</span>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                        <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
                           Seamlessly handle your video summarizing, transcribing, and localized voiceover processes in a single unified workspace.
                         </p>
                       </div>
