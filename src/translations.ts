@@ -272,31 +272,31 @@ export const translations = {
     },
     videoToSrt: {
       headline: "SRT Generator",
-      uploadTitle: "ဗီဒီယို တင်ရန်",
+      uploadTitle: "Upload Video",
       generate: "Generate SRT",
-      actionsTitle: "လုပ်ဆောင်ချက်များ:",
-      usageTitle: "အသုံးပြုနည်း",
+      actionsTitle: "Actions Performed:",
+      usageTitle: "How to Use",
       actions: [
-        "ဗီဒီယိုမှ အသံကို ပြန်လည်ခွဲထုတ်ခြင်း",
-        "ပြောစကားများကို နားထောင်ပြီး ခွဲခြမ်းစိတ်ဖြာခြင်း",
-        "မြန်မာဘာသာပြန် .srt စာတန်းထိုးဖိုင် ထုတ်လုပ်ခြင်း"
+        "Extracting audio from video",
+        "Listening and analyzing speech",
+        "Translating and generating Myanmar SRT file"
       ],
-      usage: "သင့်ဗီဒီယိုကို တင်ထားပေးပါ၊ AI က အလိုအလျောက် အသံခွဲထုတ်ပြီး မြန်မာဘာသာပြန် စာတန်းထိုး .srt ဖိုင်အဖြစ် တိကျစွာ ပြောင်းလဲပေးပါလိမ့်မည်။"
+      usage: "Upload your video file, and AI will automatically split audio, translate the dialogue and generate precise Myanmar .srt subtitles."
     },
     aiVideoVoiceActor: {
       headline: "AI Video Voice Actor",
-      uploadTitle: "ဗီဒီယို တင်ရန်",
-      selectVoice: "AI အပြောအသံကို ရွေးချယ်ပါ",
-      generate: "မြန်မာလို အသံဆန်းသွင်းပြီး ဗီဒီယိုပေါင်းထုတ်ရန်",
-      actionsTitle: "လုပ်ဆောင်ချက်များ:",
-      usageTitle: "အသုံးပြုနည်း",
+      uploadTitle: "Upload Video",
+      selectVoice: "Select AI Voice Actor",
+      generate: "Generate Burmese Voice Actor Overlay",
+      actionsTitle: "Actions Performed:",
+      usageTitle: "How to Use",
       actions: [
-        "ဗီဒီယိုထဲမှ အသံလှိုင်း သီးခြားထုတ်ယူခြင်း",
-        "ပြောစကားများကို တိကျသော မြန်မာဘာသာပြန်ချက် ပြောင်းလဲခြင်း",
-        "Timestamp အတိုင်း အသံခဏနားစနစ်ဖြင့် မြန်မာအသံ နောက်ခံသွင်းပေးခြင်း",
-        "ရရှိလာသော အသံကို မူရင်းဗီဒီယိုထဲသို့ ထည့်သွင်းပြီး အဆင်သင့် ဒေါင်းလုဒ်လုပ်ခွင့်ပေးခြင်း"
+        "Extracting audio from video",
+        "Converting dialog to precise Burmese translations",
+        "Generating timestamp-aligned professional Burmese vocals",
+        "Compositing voiceover layer into final movie output"
       ],
-      usage: "ဗီဒီယို သို့မဟုတ် ဖိုင်ဖော်မတ်ကို တင်ပါ၊ အသံရွေးချယ်ပြီး ဆန်းသွင်းရန် နှိပ်ပါ။ AI က စကားပြောချိန်နှင့် အသံနားချိန်များကို တိကျစွာ တွက်ချက်ကာ မြန်မာသံဖြင့် သရုပ်ဆောင်ပြောကြားထားသော ဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်ခွင့် ပေးပါမည်။"
+      usage: "Upload your video, pick a starting voice, and hit generate. The AI will translate, voice-act dialogues with dramatic pauses, and yield a combined Burmese video download."
     },
     styles: {
       stepByStep: {

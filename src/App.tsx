@@ -1361,7 +1361,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.size > 300 * 1024 * 1024) {
-        setError(lang === "EN" ? "File size must be under 300MB." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
+        setError("File size must be under 300MB.");
         return;
       }
       setFile(selectedFile);
@@ -1419,7 +1419,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setSrtResult(jobResult.srt || null);
     } catch (err: any) {
       console.error(err);
-      setError(lang === "EN" ? `Translation failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
+      setError(`Translation failed: ${err.message}`);
       
       if (deducted && requiredCost > 0) {
         console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
@@ -1471,10 +1471,10 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </div>
             <div className="space-y-0.5 text-center">
               <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-teal-600 dark:group-hover:text-teal-400"}`}>
-                {file ? file.name : translations[lang].recapMaster.browseFiles}
+                {file ? file.name : "CLICK TO BROWSE FILES"}
               </h3>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
-                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : "MP4, MOV (MAX 300MB)"}
               </p>
             </div>
           </div>
@@ -1496,7 +1496,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
+            {isGenerating ? "SYNCING..." : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
           </button>
         </div>
 
@@ -1523,7 +1523,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   className="h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-teal-500/20 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  {lang === "EN" ? "Download Subtitles (.SRT)" : ".SRT စာတန်းထိုးဖိုင် ဒေါင်းလုဒ်ဆွဲရန်"}
+                  Download Subtitles (.SRT)
                 </button>
               </div>
             </motion.div>
@@ -1573,7 +1573,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.size > 300 * 1024 * 1024) {
-        setError(lang === "EN" ? "File size must be under 300MB." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
+        setError("File size must be under 300MB.");
         return;
       }
       setFile(selectedFile);
@@ -1631,7 +1631,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
       setDownloadUrl(jobResult.downloadUrl || null);
     } catch (err: any) {
       console.error(err);
-      setError(lang === "EN" ? `Voice acting generation failed: ${err.message}` : `အသံသွင်း ဗီဒီယို ပြုလုပ်ရန် အဆင်မပြေပါ။ ${err.message}`);
+      setError(`Voice acting generation failed: ${err.message}`);
       
       if (deducted && requiredCost > 0) {
         console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
@@ -1643,11 +1643,11 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
   };
 
   const voiceOptions = [
-    { name: "Kore", label: lang === "EN" ? "Kore (Friendly/Bright)" : "Kore (တက်ကြွ/ဖော်ရွေသော)" },
-    { name: "Puck", label: lang === "EN" ? "Puck (Deep/Bold)" : "Puck (တည်ငြိမ်/ခန့်ညားသော)" },
-    { name: "Charon", label: lang === "EN" ? "Charon (Technical/Clear)" : "Charon (ရှင်းလင်း/နည်းပညာဆန်သော)" },
-    { name: "Fenrir", label: lang === "EN" ? "Fenrir (Rugged/Warm)" : "Fenrir (နွေးထွေး/အသံစူးရှသော)" },
-    { name: "Zephyr", label: lang === "EN" ? "Zephyr (Soft/Calm)" : "Zephyr (ညင်သာ/အေးဆေးသော)" }
+    { name: "Kore", label: "Kore (Friendly/Bright)" },
+    { name: "Puck", label: "Puck (Deep/Bold)" },
+    { name: "Charon", label: "Charon (Technical/Clear)" },
+    { name: "Fenrir", label: "Fenrir (Rugged/Warm)" },
+    { name: "Zephyr", label: "Zephyr (Soft/Calm)" }
   ];
 
   return (
@@ -1693,10 +1693,10 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
             </div>
             <div className="space-y-0.5 text-center">
               <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"}`}>
-                {file ? file.name : translations[lang].recapMaster.browseFiles}
+                {file ? file.name : "CLICK TO BROWSE FILES"}
               </h3>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
-                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : "MP4, MOV (MAX 300MB)"}
               </p>
             </div>
           </div>
@@ -1764,7 +1764,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
+            {isGenerating ? "SYNCING..." : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
           </button>
         </div>
 
@@ -1780,7 +1780,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
                 </div>
                 
                 <h2 className="text-sm font-black uppercase tracking-widest text-emerald-500/80 mb-6">
-                  {lang === "EN" ? "Translated Burmese Script" : "မြန်မာဘာသာပြန် ဇာတ်ညွှန်း"}
+                  Translated Burmese Script
                 </h2>
 
                 <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-emerald-500/30">
@@ -1807,7 +1807,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
                     className="h-14 px-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-emerald-500/20 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    {lang === "EN" ? "Download Final Video (.mp4)" : "မြန်မာအသံနောက်ခံပါ ဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်ရန်"}
+                    Download Final Video (.mp4)
                   </button>
                 </div>
               )}
