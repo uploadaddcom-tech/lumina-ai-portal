@@ -41,6 +41,7 @@ import {
   Trash2,
   History,
   FileVideo,
+  FileText,
   Mic,
   Download,
   LayoutGrid,
@@ -76,6 +77,24 @@ const api = {
       body: JSON.stringify({ videoBase64, mimeType, lang, apiKey }),
     });
     if (!res.ok) throw new Error("Transcription request failed");
+    return (await res.json()).jobId;
+  },
+  async videotosrt(videoBase64: string, mimeType: string, apiKey?: string) {
+    const res = await fetch("/api/videotosrt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType, apiKey }),
+    });
+    if (!res.ok) throw new Error("Video to SRT translation request failed");
+    return (await res.json()).jobId;
+  },
+  async voiceactor(videoBase64: string, mimeType: string, voiceName: string, apiKey?: string) {
+    const res = await fetch("/api/voiceactor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType, voiceName, apiKey }),
+    });
+    if (!res.ok) throw new Error("AI Video Voice Actor request failed");
     return (await res.json()).jobId;
   },
   async voiceover(text: string, voiceName: string, apiKey?: string) {
@@ -209,7 +228,6 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-violet-500/20 hover:border-violet-500/50",
     shadowColor: "shadow-violet-500/20",
-    badge: "NEW"
   },
   {
     id: "aivoiceover",
@@ -220,6 +238,27 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-fuchsia-500/20 hover:border-fuchsia-500/50",
     shadowColor: "shadow-fuchsia-500/20"
+  },
+  {
+    id: "videotosrt",
+    title: translations[lang].tools.videoToSrt.title,
+    description: translations[lang].tools.videoToSrt.desc,
+    icon: FileText,
+    color: "bg-teal-600",
+    iconColor: "text-white",
+    borderColor: "border-teal-500/20 hover:border-teal-500/50",
+    shadowColor: "shadow-teal-500/20",
+  },
+  {
+    id: "aivideovoiceactor",
+    title: translations[lang].tools.aiVideoVoiceActor.title,
+    description: translations[lang].tools.aiVideoVoiceActor.desc,
+    icon: Mic,
+    color: "bg-emerald-600",
+    iconColor: "text-white",
+    borderColor: "border-emerald-500/20 hover:border-emerald-500/50",
+    shadowColor: "shadow-emerald-500/20",
+    badge: "AI EXCLUSIVE"
   }
 ];
 
@@ -1273,6 +1312,494 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                   >
                     <Download className="w-4 h-4" />
                     {lang === "EN" ? "Download Subtitles (.SRT)" : ".SRT စာတမ်းထိုးဖိုင် ဒေါင်းလုဒ်ဆွဲရန်"}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
+      </div>
+    </div>
+  );
+}
+
+function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
+  const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [srtResult, setSrtResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[lang].videoToSrt;
+
+  // Load duration of video
+  useEffect(() => {
+    if (!file) {
+      setDuration(null);
+      return;
+    }
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      setDuration(video.duration);
+    };
+    video.src = URL.createObjectURL(file);
+    return () => {
+      URL.revokeObjectURL(video.src);
+    };
+  }, [file]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 300 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 300MB." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+      setSrtResult(null);
+    }
+  };
+
+  const isAppApiKey = apiKeyConfig.source === "app";
+  const requiredCost = isAppApiKey && file ? Math.max(2, Math.ceil((duration || 0) / 60) * 2) : 0;
+
+  const fileToBase64 = (f: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.readAsDataURL(f);
+      r.onload = () => resolve((r.result as string).split(",")[1]);
+      r.onerror = (e) => reject(e);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!file) return;
+
+    if (requiredCost > 0 && diamonds < requiredCost) {
+      setShowDiamondModal(true);
+      return;
+    }
+    
+    setIsGenerating(true);
+    setError(null);
+    setResult(null);
+    setSrtResult(null);
+
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+    let deducted = false;
+
+    try {
+      if (requiredCost > 0) {
+        const success = await deductDiamonds(requiredCost);
+        if (!success) {
+          setShowDiamondModal(true);
+          setIsGenerating(false);
+          return;
+        }
+        deducted = true;
+      }
+
+      const base64 = await fileToBase64(file);
+      const jobId = await api.videotosrt(base64, file.type, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      
+      await incrementUsage();
+      setResult(jobResult.text || "");
+      setSrtResult(jobResult.srt || null);
+    } catch (err: any) {
+      console.error(err);
+      setError(lang === "EN" ? `Translation failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
+      
+      if (deducted && requiredCost > 0) {
+        console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
+        await refundDiamonds(requiredCost);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-teal-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-90 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-teal-600 to-emerald-700 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <UserHeader onAdminClick={onAdminClick} />
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <div className="max-w-sm mx-auto">
+          <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
+        </div>
+        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-teal-500/30 transition-all">
+          <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+              file ? "border-teal-500/50 bg-teal-50 dark:bg-teal-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-teal-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              file ? "bg-teal-600 shadow-xl shadow-teal-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/30"
+            }`}>
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-teal-500 dark:group-hover:text-teal-400" />}
+            </div>
+            <div className="space-y-0.5 text-center">
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-teal-600 dark:group-hover:text-teal-400"}`}>
+                {file ? file.name : translations[lang].recapMaster.browseFiles}
+              </h3>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+              </p>
+            </div>
+          </div>
+          {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
+        </section>
+
+        <div className="flex justify-center pt-2">
+          <button 
+            onClick={handleGenerate}
+            disabled={!file || isGenerating}
+            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+              !file || isGenerating 
+                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                : "bg-linear-to-r from-teal-600 to-emerald-700 hover:scale-105 text-white shadow-teal-500/30"
+            }`}
+          >
+            {isGenerating ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {result && (
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-border dark:border-white/5 shadow-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                    <Sparkles className="w-6 h-6 text-teal-400/50" />
+                  </div>
+                </div>
+                
+                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-teal-500/30">
+                  <Markdown>{result}</Markdown>
+                </div>
+              </div>
+
+              {srtResult && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([srtResult], { type: "text/srt;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      const originalName = file?.name || "subtitles.srt";
+                      const baseName = originalName.includes(".") 
+                        ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                        : originalName;
+                      a.download = `${baseName}.srt`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-teal-500/20 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    {lang === "EN" ? "Download Subtitles (.SRT)" : ".SRT စာတန်းထိုးဖိုင် ဒေါင်းလုဒ်ဆွဲရန်"}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+         </AnimatePresence>
+
+         <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
+       </div>
+     </div>
+   );
+ }
+
+function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
+  const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState<string>("Kore");
+  const [result, setResult] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[lang].aiVideoVoiceActor;
+
+  // Load duration of video
+  useEffect(() => {
+    if (!file) {
+      setDuration(null);
+      return;
+    }
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      setDuration(video.duration);
+    };
+    video.src = URL.createObjectURL(file);
+    return () => {
+      URL.revokeObjectURL(video.src);
+    };
+  }, [file]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 300 * 1024 * 1024) {
+        setError(lang === "EN" ? "File size must be under 300MB." : "ဖိုင်အရွယ်အစားသည် 300MB အောက်သာ ဖြစ်ရပါမည်။");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+      setDownloadUrl(null);
+    }
+  };
+
+  const isAppApiKey = apiKeyConfig.source === "app";
+  const requiredCost = isAppApiKey && file ? Math.max(2, Math.ceil((duration || 0) / 60) * 2) : 0;
+
+  const fileToBase64 = (f: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.readAsDataURL(f);
+      r.onload = () => resolve((r.result as string).split(",")[1]);
+      r.onerror = (e) => reject(e);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!file) return;
+
+    if (requiredCost > 0 && diamonds < requiredCost) {
+      setShowDiamondModal(true);
+      return;
+    }
+    
+    setIsGenerating(true);
+    setError(null);
+    setResult(null);
+    setDownloadUrl(null);
+
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+    let deducted = false;
+
+    try {
+      if (requiredCost > 0) {
+        const success = await deductDiamonds(requiredCost);
+        if (!success) {
+          setShowDiamondModal(true);
+          setIsGenerating(false);
+          return;
+        }
+        deducted = true;
+      }
+
+      const base64 = await fileToBase64(file);
+      const jobId = await api.voiceactor(base64, file.type, selectedVoice, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      
+      await incrementUsage();
+      setResult(jobResult.text || "");
+      setDownloadUrl(jobResult.downloadUrl || null);
+    } catch (err: any) {
+      console.error(err);
+      setError(lang === "EN" ? `Voice acting generation failed: ${err.message}` : `အသံသွင်း ဗီဒီယို ပြုလုပ်ရန် အဆင်မပြေပါ။ ${err.message}`);
+      
+      if (deducted && requiredCost > 0) {
+        console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
+        await refundDiamonds(requiredCost);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const voiceOptions = [
+    { name: "Kore", label: lang === "EN" ? "Kore (Friendly/Bright)" : "Kore (တက်ကြွ/ဖော်ရွေသော)" },
+    { name: "Puck", label: lang === "EN" ? "Puck (Deep/Bold)" : "Puck (တည်ငြိမ်/ခန့်ညားသော)" },
+    { name: "Charon", label: lang === "EN" ? "Charon (Technical/Clear)" : "Charon (ရှင်းလင်း/နည်းပညာဆန်သော)" },
+    { name: "Fenrir", label: lang === "EN" ? "Fenrir (Rugged/Warm)" : "Fenrir (နွေးထွေး/အသံစူးရှသော)" },
+    { name: "Zephyr", label: lang === "EN" ? "Zephyr (Soft/Calm)" : "Zephyr (ညင်သာ/အေးဆေးသော)" }
+  ];
+
+  return (
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-emerald-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-95 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-emerald-600 to-teal-700 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <Mic className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <UserHeader onAdminClick={onAdminClick} />
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <div className="max-w-sm mx-auto">
+          <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
+        </div>
+
+        {/* Video Upload Section */}
+        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-emerald-500/30 transition-all">
+          <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+              file ? "border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-emerald-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              file ? "bg-emerald-600 shadow-xl shadow-emerald-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/30"
+            }`}>
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />}
+            </div>
+            <div className="space-y-0.5 text-center">
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"}`}>
+                {file ? file.name : translations[lang].recapMaster.browseFiles}
+              </h3>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+              </p>
+            </div>
+          </div>
+          {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
+        </section>
+
+        {/* Voice Option Picker */}
+        <section className="max-w-md mx-auto space-y-3">
+          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 text-center">
+            {t.selectVoice}
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {voiceOptions.map((v) => (
+              <button
+                key={v.name}
+                onClick={() => setSelectedVoice(v.name)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                  selectedVoice === v.name
+                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/5 font-black"
+                    : "border-slate-200 dark:border-white/5 hover:border-emerald-500/20 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 font-medium"
+                }`}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full transition-all ${selectedVoice === v.name ? "bg-emerald-500" : "bg-slate-300 dark:bg-white/20"}`} />
+                <span className="text-xs tracking-tight">{v.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Generate / Processing Actions */}
+        <div className="flex flex-col items-center gap-4 justify-center pt-2">
+          <button 
+            onClick={handleGenerate}
+            disabled={!file || isGenerating}
+            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+              !file || isGenerating 
+                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                : "bg-linear-to-r from-emerald-600 to-teal-700 hover:scale-105 text-white shadow-emerald-500/30"
+            }`}
+          >
+            {isGenerating ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {result && (
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              {/* Transcript Display */}
+              <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-border dark:border-white/5 shadow-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                    <Sparkles className="w-6 h-6 text-emerald-400/50" />
+                  </div>
+                </div>
+                
+                <h2 className="text-sm font-black uppercase tracking-widest text-emerald-500/80 mb-6">
+                  {lang === "EN" ? "Translated Burmese Script" : "မြန်မာဘာသာပြန် ဇာတ်ညွှန်း"}
+                </h2>
+
+                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-emerald-500/30">
+                  <Markdown>{result}</Markdown>
+                </div>
+              </div>
+
+              {/* Download Combos */}
+              {downloadUrl && (
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-2">
+                  <button
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = downloadUrl;
+                      const originalName = file?.name || "voice_acted_video.mp4";
+                      const baseName = originalName.includes(".") 
+                        ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                        : originalName;
+                      a.download = `${baseName}_BurmeseVoice.mp4`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="h-14 px-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    {lang === "EN" ? "Download Final Video (.mp4)" : "မြန်မာအသံနောက်ခံပါ ဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်ရန်"}
                   </button>
                 </div>
               )}
@@ -3468,6 +3995,8 @@ function AppContent() {
     "video-recapper": "videorecapper",
     "ai-voiceover": "voiceover",
     "video-transcribe": "transcribe",
+    "videotosrt": "videotosrt",
+    "aivideovoiceactor": "aivideovoiceactor",
   };
 
   useEffect(() => {
@@ -3614,6 +4143,40 @@ function AppContent() {
               transition={{ duration: 0.05 }}
             >
               <TranscribeView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/videotosrt" element={
+            <motion.div
+              key="video-to-srt"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.05 }}
+            >
+              <VideoToSrtView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/aivideovoiceactor" element={
+            <motion.div
+              key="ai-video-voice-actor"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.05 }}
+            >
+              <AIVideoVoiceActorView 
                 onBack={() => navigate('/')} 
                 lang={lang}
                 setLang={setLang}

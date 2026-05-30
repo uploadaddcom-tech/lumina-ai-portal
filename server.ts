@@ -396,6 +396,330 @@ Do not include any greeting or explanation. Only return a JSON object with these
     })();
   });
 
+  app.post("/api/videotosrt", async (req, res) => {
+    const jobId = crypto.randomBytes(12).toString("hex");
+    appJobs.set(jobId, { status: "processing" });
+    res.json({ jobId });
+
+    (async () => {
+      const tempDir = path.join(process.cwd(), "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const tempId = crypto.randomBytes(8).toString("hex");
+      const inputVideoPath = path.join(tempDir, `videotosrt_input_${tempId}.mp4`);
+      const outputAudioPath = path.join(tempDir, `videotosrt_output_${tempId}.wav`);
+
+      try {
+        const { videoBase64, mimeType, apiKey: customKey } = req.body;
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        const model = "gemini-3.5-flash";
+
+        let audioBase64 = "";
+        let audioExtracted = false;
+
+        try {
+          await writeFilePromise(inputVideoPath, Buffer.from(videoBase64, "base64"));
+          await execPromise(`ffmpeg -i "${inputVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${outputAudioPath}" -y`);
+          const audioBuffer = await readFilePromise(outputAudioPath);
+          audioBase64 = audioBuffer.toString("base64");
+          audioExtracted = true;
+        } catch (ffmpegErr) {
+          console.warn("FFmpeg audio extraction failed, falling back to direct video processing:", ffmpegErr);
+        }
+
+        const prompt = `You are an expert translator and subtitle captioner. Listen carefully to the speech/audio provided.
+First, transcribe everything spoken.
+Second, translate the full transcription into Burmese (Myanmar language) so it is clear, natural, and accurate.
+Third, generate a standard SubRip (.srt) subtitle file matching the audio timeline with the translated Burmese text.
+
+Provide your response in JSON format containing two keys:
+1. "transcript": The complete, continuous paragraph-style Burmese translated text suitable for reading.
+2. "srt": The raw content of an SRT subtitle file containing sequential indexes, timestamp lines (format: HH:MM:SS,mmm --> HH:MM:SS,mmm), and the translated Burmese subtitle strings.
+
+Do not include any greeting or explanation. Only return a JSON object with these two keys: "transcript" and "srt".`;
+
+        const inlinePart = audioExtracted 
+          ? { inlineData: { data: audioBase64, mimeType: "audio/wav" } }
+          : { inlineData: { data: videoBase64, mimeType } };
+
+        const response = await retryWithBackoff((client) => client.models.generateContent({
+          model: model,
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                inlinePart
+              ]
+            }
+          ],
+          config: {
+            responseMimeType: "application/json"
+          }
+        }), customKey);
+        
+        let parsed = { transcript: "", srt: "" };
+        try {
+          const textResponse = response.text || "{}";
+          parsed = JSON.parse(textResponse);
+        } catch (jsonErr) {
+          console.error("Failed to parse JSON from Gemini videotosrt", jsonErr);
+          parsed = {
+            transcript: response.text || "",
+            srt: ""
+          };
+        }
+
+        appJobs.set(jobId, { status: "completed", text: parsed.transcript, srt: parsed.srt });
+      } catch (error: any) {
+        console.error("VideoToSrt Error Background:", error);
+        appJobs.set(jobId, { status: "error", error: error.message });
+      } finally {
+        if (fs.existsSync(inputVideoPath)) {
+          await unlinkPromise(inputVideoPath).catch(err => console.error("Clean videotosrt input fail:", err));
+        }
+        if (fs.existsSync(outputAudioPath)) {
+          await unlinkPromise(outputAudioPath).catch(err => console.error("Clean videotosrt audio fail:", err));
+        }
+      }
+    })();
+  });
+
+  app.post("/api/voiceactor", async (req, res) => {
+    const jobId = crypto.randomBytes(12).toString("hex");
+    appJobs.set(jobId, { status: "processing" });
+    res.json({ jobId });
+
+    (async () => {
+      const tempDir = path.join(process.cwd(), "temp");
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const tempId = crypto.randomBytes(8).toString("hex");
+      const inputVideoPath = path.join(tempDir, `voiceactor_input_${tempId}.mp4`);
+      const outputAudioPath = path.join(tempDir, `voiceactor_output_${tempId}.wav`);
+      const finalOutputPath = path.join(tempDir, `output_${tempId}.mp4`);
+      const chunkFiles: string[] = [];
+
+      try {
+        const { videoBase64, mimeType, voiceName, apiKey: customKey } = req.body;
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        const model = "gemini-3.5-flash";
+
+        await writeFilePromise(inputVideoPath, Buffer.from(videoBase64, "base64"));
+        
+        // 1. Extract audio using FFmpeg
+        await execPromise(`ffmpeg -i "${inputVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${outputAudioPath}" -y`);
+        const audioBuffer = await readFilePromise(outputAudioPath);
+        const audioBase64 = audioBuffer.toString("base64");
+
+        // 2. Query Gemini for Segmented Dialogue with Timestamps
+        const prompt = `You are an expert voice-acting translator and video director. Listen to the audio/speech in this file extremely carefully and do the following:
+1. Divide the speech into individual dialogue segments or sentences based on natural pauses or speaker turns.
+2. For each segment, output the exact start and end timestamps in seconds (as numeric decimals, e.g. 1.25 and 4.5).
+3. Translate the spoken text of each segment into extremely natural, fluid, and expressive spoken Burmese (Myanmar language) suitable for a professional voice actor. Avoid formal Burmese words like "သည်" or "သနည်း"; instead use spoken forms like "တယ်", "နေတယ်", "ပါး", "ဦးမလို့".
+4. Adjust the length of the Burmese translation so that it matches the duration of the segment (cannot exceed the segment's duration when spoken naturally).
+
+Return your response in JSON format containing a "segments" key, which is an array of objects. Each object MUST have:
+- "start": a number representing the start time of this dialog in seconds.
+- "end": a number representing the end time of this dialog in seconds.
+- "original": the transcription of the original language.
+- "translated": the translated Burmese text to be spoken by the voice actor.
+
+Do not include any greeting or explanation. Only return a JSON object with this exact structure:
+{
+  "segments": [
+    {
+      "start": 1.25,
+      "end": 4.5,
+      "original": "Hello, welcome to our channel",
+      "translated": "မင်္ဂလာပါ၊ ကျွန်တော်တို့ရဲ့ ချန်နယ်ကနေ ကြိုဆိုလိုက်ပါတယ်။"
+    }
+  ]
+}
+Make sure all dialogue lines in the video are fully covered and captured sequentially.`;
+
+        const response = await retryWithBackoff((client) => client.models.generateContent({
+          model: model,
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                { inlineData: { data: audioBase64, mimeType: "audio/wav" } }
+              ]
+            }
+          ],
+          config: {
+            responseMimeType: "application/json"
+          }
+        }), customKey);
+
+        let parsed: { segments: Array<{ start: number; end: number; original: string; translated: string }> } = { segments: [] };
+        try {
+          const textResponse = response.text || "{}";
+          parsed = JSON.parse(textResponse);
+        } catch (jsonErr) {
+          console.error("Failed to parse JSON from Gemini voiceactor transcription:", jsonErr);
+          throw new Error("Failed to parse timestamped dialogue structure from AI.");
+        }
+
+        const segments = parsed.segments || [];
+        if (segments.length === 0) {
+          throw new Error("No speech or dialogue segments detected in the video.");
+        }
+
+        // Apply colloquial transformations to Burmese translations
+        for (const seg of segments) {
+          if (seg.translated) {
+            seg.translated = seg.translated.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1');
+            seg.translated = seg.translated.replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1');
+            seg.translated = seg.translated.replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1');
+          }
+        }
+
+        // For each segment, generate its TTS speech file
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          let audioBase64Result: string | undefined = undefined;
+          let lastErr: any = null;
+          
+          const ttsModels = ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"];
+          
+          for (const currentModel of ttsModels) {
+            try {
+              const ttsResponse = await retryWithBackoff((client) => client.models.generateContent({
+                model: currentModel,
+                contents: [{ parts: [{ text: seg.translated }] }],
+                config: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: voiceName || "Kore" }
+                    }
+                  }
+                } as any
+              }), customKey, 2, 800);
+              
+              const chunkData = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+              if (chunkData) {
+                audioBase64Result = chunkData;
+                break;
+              }
+            } catch (err: any) {
+              console.warn(`[Voice Actor TTS Fallback] Segment ${i} failed with ${currentModel}:`, err.message || err);
+              lastErr = err;
+            }
+          }
+
+          if (!audioBase64Result) {
+            console.error(`All TTS models failed for segment ${i}: "${seg.translated}". Creating a brief 1-sec silence fallback.`);
+            const pcmDataFallback = Buffer.alloc(48000);
+            const chunkPath = path.join(tempDir, `voiceactor_chunk_${tempId}_${i}.wav`);
+            
+            const sampleRate = 24000;
+            const numChannels = 1;
+            const byteRate = sampleRate * numChannels * 2;
+            const blockAlign = numChannels * 2;
+            
+            const header = Buffer.alloc(44);
+            header.write('RIFF', 0);
+            header.writeUInt32LE(36 + pcmDataFallback.length, 4);
+            header.write('WAVE', 8);
+            header.write('fmt ', 12);
+            header.writeUInt32LE(16, 16);
+            header.writeUInt16LE(1, 20); // PCM
+            header.writeUInt16LE(numChannels, 22);
+            header.writeUInt32LE(sampleRate, 24);
+            header.writeUInt32LE(byteRate, 28);
+            header.writeUInt16LE(blockAlign, 32);
+            header.writeUInt16LE(16, 34); // 16-bit
+            header.write('data', 36);
+            header.writeUInt32LE(pcmDataFallback.length, 40);
+
+            const finalAudioFallback = Buffer.concat([header, pcmDataFallback]);
+            await writeFilePromise(chunkPath, finalAudioFallback);
+            chunkFiles.push(chunkPath);
+          } else {
+            const pcmData = Buffer.from(audioBase64Result, "base64");
+            const chunkPath = path.join(tempDir, `voiceactor_chunk_${tempId}_${i}.wav`);
+            
+            const sampleRate = 24000;
+            const numChannels = 1;
+            const byteRate = sampleRate * numChannels * 2;
+            const blockAlign = numChannels * 2;
+            
+            const header = Buffer.alloc(44);
+            header.write('RIFF', 0);
+            header.writeUInt32LE(36 + pcmData.length, 4);
+            header.write('WAVE', 8);
+            header.write('fmt ', 12);
+            header.writeUInt32LE(16, 16);
+            header.writeUInt16LE(1, 20); // PCM
+            header.writeUInt16LE(numChannels, 22);
+            header.writeUInt32LE(sampleRate, 24);
+            header.writeUInt32LE(byteRate, 28);
+            header.writeUInt16LE(blockAlign, 32);
+            header.writeUInt16LE(16, 34); // 16-bit
+            header.write('data', 36);
+            header.writeUInt32LE(pcmData.length, 40);
+
+            const finalAudio = Buffer.concat([header, pcmData]);
+            await writeFilePromise(chunkPath, finalAudio);
+            chunkFiles.push(chunkPath);
+          }
+        }
+
+        // Assemble the delayed mix filter
+        const inputsStr = chunkFiles.map(p => `-i "${p}"`).join(" ");
+        const delayFilters = segments.map((seg, idx) => {
+          const delayMs = Math.max(0, Math.round(seg.start * 1000));
+          return `[${idx + 1}:a]aresample=40000,adelay=${delayMs}|${delayMs}[a${idx}]`;
+        }).join("; ");
+        
+        const mixFilter = segments.map((_, idx) => `[a${idx}]`).join("") + `amix=inputs=${segments.length}:normalize=0[mixeda]`;
+        const filterComplex = `${delayFilters}; ${mixFilter}`;
+
+        const mergeCmd = `ffmpeg -i "${inputVideoPath}" ${inputsStr} -filter_complex "${filterComplex}" -map 0:v -map "[mixeda]" -c:v copy -c:a aac "${finalOutputPath}" -y`;
+        
+        console.log("Executing voice actor merge CMD:", mergeCmd);
+        await execPromise(mergeCmd);
+
+        // Format a lovely markdown readout of dialogues with timestamps
+        const transcriptReadout = segments.map(seg => {
+          const formatTime = (secs: number) => {
+            const m = Math.floor(secs / 60).toString().padStart(2, "0");
+            const s = Math.floor(secs % 60).toString().padStart(2, "0");
+            const ms = Math.floor((secs % 1) * 100).toString().padStart(2, "0");
+            return `${m}:${s}.${ms}`;
+          };
+          return `**[${formatTime(seg.start)} - ${formatTime(seg.end)}]** \n&nbsp;&nbsp;*Original:* ${seg.original} \n&nbsp;&nbsp;*Voice acted:* **${seg.translated}**`;
+        }).join("\n\n");
+
+        appJobs.set(jobId, {
+          status: "completed",
+          text: transcriptReadout,
+          downloadUrl: `/api/download/output_${tempId}.mp4`
+        });
+
+      } catch (error: any) {
+        console.error("AI Video Voice Actor Error background:", error);
+        appJobs.set(jobId, { status: "error", error: error.message });
+      } finally {
+        if (fs.existsSync(inputVideoPath)) {
+          await unlinkPromise(inputVideoPath).catch(err => console.error("Clean voiceactor video input fail:", err));
+        }
+        if (fs.existsSync(outputAudioPath)) {
+          await unlinkPromise(outputAudioPath).catch(err => console.error("Clean voiceactor audio fail:", err));
+        }
+        for (const file of chunkFiles) {
+          if (fs.existsSync(file)) {
+            await unlinkPromise(file).catch(err => console.error("Clean voiceactor chunk fail:", err));
+          }
+        }
+      }
+    })();
+  });
+
   app.post("/api/voiceover", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });
