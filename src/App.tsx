@@ -1406,13 +1406,13 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
              <div className="flex items-center gap-2.5">
                <History className="w-5 h-5 text-purple-500" />
                <h2 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">
-                 {lang === "EN" ? "Transcription History" : "စာသားပြောင်းလဲခြင်း ရာဇဝင်"}
+                 Transcription History
                </h2>
              </div>
              {history.length > 0 && (
                <button
                  onClick={() => {
-                   if (confirm(lang === "EN" ? "Are you sure you want to clear transcription history?" : "ဘာသာပြန်ရာဇဝင်အားလုံးကို ဖျက်ရန် သေချာပါသလား?")) {
+                   if (confirm("Are you sure you want to clear transcription history?")) {
                      const userKey = user?.uid || "guest";
                      setHistory([]);
                      localStorage.removeItem(`transcribe_history_${userKey}`);
@@ -1421,7 +1421,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                  className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
                >
                  <Trash2 className="w-3.5 h-3.5" />
-                 {lang === "EN" ? "CLEAR ALL" : "အားလုံးဖျက်မည်"}
+                 CLEAR ALL
                </button>
              )}
            </div>
@@ -1429,9 +1429,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
            {history.length === 0 ? (
              <div className="text-center p-6 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
                <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                 {lang === "EN" 
-                   ? "No transcriptions logged yet. Upload a video to begin!" 
-                   : "မှတ်တမ်းတင်ထားသော ရာဇဝင်မရှိသေးပါ။ စတင်ရန် ဗီဒီယိုတင်ပါ။"}
+                 No transcriptions logged yet. Upload a video to begin!
                </p>
              </div>
            ) : (
@@ -1537,12 +1535,12 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                                      onClick={(e) => {
                                        e.stopPropagation();
                                        navigator.clipboard.writeText(item.textResult);
-                                       alert(lang === "EN" ? "Copied to clipboard!" : "ကူးယူပြီးပါပြီ!");
+                                       alert("Copied to clipboard!");
                                      }}
                                      className="h-8 px-3 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-purple-500/10"
                                    >
                                      <Check className="w-3.5 h-3.5" />
-                                     {lang === "EN" ? "Copy Text" : "စာသားကူးယူရန်"}
+                                     Copy Text
                                    </button>
 
                                    {item.srtResult && (
@@ -1566,7 +1564,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                                        className="h-8 px-3 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-300 hover:bg-teal-500/20 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-teal-500/10"
                                      >
                                        <Download className="w-3.5 h-3.5" />
-                                       {lang === "EN" ? "Download SRT" : "SRT ဒေါင်းလုဒ်ဆွဲရန်"}
+                                       Download SRT
                                      </button>
                                    )}
                                  </div>
@@ -1912,13 +1910,13 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
              <div className="flex items-center gap-2.5">
                <History className="w-5 h-5 text-purple-500" />
                <h2 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">
-                 {lang === "EN" ? "SRT Generation History" : "Subtitle (.SRT) ရာဇဝင်"}
+                 SRT Generation History
                </h2>
              </div>
              {history.length > 0 && (
                <button
                  onClick={() => {
-                   if (confirm(lang === "EN" ? "Are you sure you want to clear SRT generation history?" : "SRT ရာဇဝင်အားလုံးကို ဖျက်ရန် သေချာပါသလား?")) {
+                   if (confirm("Are you sure you want to clear SRT generation history?")) {
                      const userKey = user?.uid || "guest";
                      setHistory([]);
                      localStorage.removeItem(`srt_history_${userKey}`);
@@ -1927,7 +1925,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                  className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
                >
                  <Trash2 className="w-3.5 h-3.5" />
-                 {lang === "EN" ? "CLEAR ALL" : "အားလုံးဖျက်မည်"}
+                 CLEAR ALL
                </button>
              )}
            </div>
@@ -1937,7 +1935,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                  {lang === "EN" 
                    ? "No subtitles logged yet. Upload a video to begin!" 
-                   : "မှတ်တမ်းတင်ထားသော ရာဇဝင်မရှိသေးပါ။ စတင်ရန် ဗီဒီယိုတင်ပါ။"}
+                   : "No subtitles logged yet. Upload a video to begin!"}
                </p>
              </div>
            ) : (
