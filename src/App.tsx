@@ -1107,6 +1107,11 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [srtResult, setSrtResult] = useState<string | null>(null);
+  const [freeUsesToday, setFreeUsesToday] = useState(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const stored = localStorage.getItem(`free_transcribe_uses_${todayStr}`);
+    return stored ? parseInt(stored, 10) : 0;
+  });
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   const [showDiamondModal, setShowDiamondModal] = useState(false);
@@ -1147,7 +1152,9 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   };
 
   const isAppApiKey = apiKeyConfig.source === "app";
-  const requiredCost = isAppApiKey && file ? Math.max(2, Math.ceil((duration || 0) / 60) * 2) : 0;
+  const requiredCost = isAppApiKey && file 
+    ? (freeUsesToday < 3 ? 0 : Math.max(2, Math.ceil((duration || 0) / 60) * 2)) 
+    : 0;
 
   const fileToBase64 = (f: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1192,6 +1199,13 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       await incrementUsage();
       setResult(jobResult.text || "");
       setSrtResult(jobResult.srt || null);
+
+      if (isAppApiKey && freeUsesToday < 3) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nextVal = freeUsesToday + 1;
+        localStorage.setItem(`free_transcribe_uses_${todayStr}`, String(nextVal));
+        setFreeUsesToday(nextVal);
+      }
     } catch (err: any) {
       console.error(err);
       setError(lang === "EN" ? `Transcription failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
@@ -1256,7 +1270,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
         </section>
 
-        <div className="flex justify-center pt-2">
+        <div className="flex flex-col items-center justify-center pt-2 gap-2">
           <button 
             onClick={handleGenerate}
             disabled={!file || isGenerating}
@@ -1271,8 +1285,16 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
+            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : `${t.generate} (FREE)`)}
           </button>
+          
+          {isAppApiKey && file && (
+            <p className="text-[10px] text-blue-500 font-extrabold uppercase tracking-wider">
+              {lang === "EN" 
+                ? `Daily App API Key Free Uses: ${Math.max(0, 3 - freeUsesToday)} of 3 left`
+                : `တစ်ရက်လျှင် App API Key ဖြင့် အခမဲ့သုံးနိုင်ခွင့်: ၃ ကြိမ်အနက် ${Math.max(0, 3 - freeUsesToday)} ကြိမ် ကျန်ပါသည်`}
+            </p>
+          )}
         </div>
 
         <AnimatePresence>
@@ -1332,6 +1354,11 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [srtResult, setSrtResult] = useState<string | null>(null);
+  const [freeUsesToday, setFreeUsesToday] = useState(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const stored = localStorage.getItem(`free_srt_uses_${todayStr}`);
+    return stored ? parseInt(stored, 10) : 0;
+  });
   const [error, setError] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   const [showDiamondModal, setShowDiamondModal] = useState(false);
@@ -1372,7 +1399,9 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   };
 
   const isAppApiKey = apiKeyConfig.source === "app";
-  const requiredCost = isAppApiKey && file ? Math.max(2, Math.ceil((duration || 0) / 60) * 2) : 0;
+  const requiredCost = isAppApiKey && file 
+    ? (freeUsesToday < 3 ? 0 : Math.max(2, Math.ceil((duration || 0) / 60) * 2)) 
+    : 0;
 
   const fileToBase64 = (f: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1417,6 +1446,13 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       await incrementUsage();
       setResult(jobResult.text || "");
       setSrtResult(jobResult.srt || null);
+
+      if (isAppApiKey && freeUsesToday < 3) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nextVal = freeUsesToday + 1;
+        localStorage.setItem(`free_srt_uses_${todayStr}`, String(nextVal));
+        setFreeUsesToday(nextVal);
+      }
     } catch (err: any) {
       console.error(err);
       setError(`Translation failed: ${err.message}`);
@@ -1481,7 +1517,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
         </section>
 
-        <div className="flex justify-center pt-2">
+        <div className="flex flex-col items-center justify-center pt-2 gap-2">
           <button 
             onClick={handleGenerate}
             disabled={!file || isGenerating}
@@ -1496,8 +1532,16 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {isGenerating ? "SYNCING..." : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : t.generate)}
+            {isGenerating ? "SYNCING..." : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : `${t.generate} (FREE)`)}
           </button>
+          
+          {isAppApiKey && file && (
+            <p className="text-[10px] text-blue-500 font-extrabold uppercase tracking-wider">
+              {lang === "EN" 
+                ? `Daily App API Key Free Uses: ${Math.max(0, 3 - freeUsesToday)} of 3 left`
+                : `တစ်ရက်လျှင် App API Key ဖြင့် အခမဲ့သုံးနိုင်ခွင့်: ၃ ကြိမ်အနက် ${Math.max(0, 3 - freeUsesToday)} ကြိမ် ကျန်ပါသည်`}
+            </p>
+          )}
         </div>
 
         <AnimatePresence>
