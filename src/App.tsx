@@ -1084,6 +1084,15 @@ function VideoRecapperView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   );
 }
 
+interface TranscribeHistoryItem {
+  id: string;
+  timestamp: string;
+  fileName: string;
+  textResult: string;
+  srtResult?: string | null;
+  status: "completed" | "failed" | "processing";
+}
+
 function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
@@ -1100,6 +1109,9 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   const [showDiamondModal, setShowDiamondModal] = useState(false);
   
+  const [history, setHistory] = useState<TranscribeHistoryItem[]>([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[lang].transcribe;
@@ -1110,6 +1122,8 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setDuration(null);
       return;
     }
+    if (file.size === 0 && !file.type) return;
+
     const video = document.createElement("video");
     video.preload = "metadata";
     video.onloadedmetadata = () => {
@@ -1120,6 +1134,21 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       URL.revokeObjectURL(video.src);
     };
   }, [file]);
+
+  // Load history based on user
+  useEffect(() => {
+    const userKey = user?.uid || "guest";
+    try {
+      const saved = localStorage.getItem(`transcribe_history_${userKey}`);
+      if (saved) {
+        setHistory(JSON.parse(saved));
+      } else {
+        setHistory([]);
+      }
+    } catch (e) {
+      console.error("Failed to load transcribe history:", e);
+    }
+  }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -1136,7 +1165,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   };
 
   const isAppApiKey = apiKeyConfig.source === "app";
-  const requiredCost = isAppApiKey && file 
+  const requiredCost = isAppApiKey && file && file.size > 0
     ? (freeUsesToday < 3 ? 0 : Math.max(2, Math.ceil((duration || 0) / 60) * 2)) 
     : 0;
 
@@ -1164,6 +1193,17 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
     let deducted = false;
+    const newHistoryId = Date.now().toString();
+    const userKey = user?.uid || "guest";
+
+    const newHistoryItem: TranscribeHistoryItem = {
+      id: newHistoryId,
+      timestamp: new Date().toISOString(),
+      fileName: file.name,
+      textResult: "",
+      srtResult: null,
+      status: "processing"
+    };
 
     try {
       if (requiredCost > 0) {
@@ -1176,6 +1216,12 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         deducted = true;
       }
 
+      setHistory(prev => {
+        const updated = [newHistoryItem, ...prev];
+        localStorage.setItem(`transcribe_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
       const base64 = await fileToBase64(file);
       const jobId = await api.transcribe(base64, file.type, lang, apiKey);
       const jobResult = await pollForCompletion(jobId);
@@ -1183,6 +1229,22 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       await incrementUsage();
       setResult(jobResult.text || "");
       setSrtResult(jobResult.srt || null);
+
+      setHistory(prev => {
+        const updated = prev.map(item => {
+          if (item.id === newHistoryId) {
+            return {
+              ...item,
+              textResult: jobResult.text || "",
+              srtResult: jobResult.srt || null,
+              status: "completed" as const
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(`transcribe_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
 
       if (isAppApiKey && freeUsesToday < 3) {
         const todayStr = new Date().toISOString().split('T')[0];
@@ -1194,6 +1256,20 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       console.error(err);
       setError(lang === "EN" ? `Transcription failed: ${err.message}` : `ဘာသာပြန်ရန် အဆင်မပြေပါ။ ${err.message}`);
       
+      setHistory(prev => {
+        const updated = prev.map(item => {
+          if (item.id === newHistoryId) {
+            return {
+              ...item,
+              status: "failed" as const
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(`transcribe_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
       if (deducted && requiredCost > 0) {
         console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
         await refundDiamonds(requiredCost);
@@ -1329,6 +1405,15 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   );
 }
 
+interface SrtHistoryItem {
+  id: string;
+  timestamp: string;
+  fileName: string;
+  textResult: string;
+  srtResult?: string | null;
+  status: "completed" | "failed" | "processing";
+}
+
 function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
   const [file, setFile] = useState<File | null>(null);
@@ -1345,6 +1430,9 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
   const [showDiamondModal, setShowDiamondModal] = useState(false);
   
+  const [history, setHistory] = useState<SrtHistoryItem[]>([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[lang].videoToSrt;
@@ -1355,6 +1443,8 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       setDuration(null);
       return;
     }
+    if (file.size === 0 && !file.type) return;
+
     const video = document.createElement("video");
     video.preload = "metadata";
     video.onloadedmetadata = () => {
@@ -1365,6 +1455,21 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       URL.revokeObjectURL(video.src);
     };
   }, [file]);
+
+  // Load history based on user
+  useEffect(() => {
+    const userKey = user?.uid || "guest";
+    try {
+      const saved = localStorage.getItem(`srt_history_${userKey}`);
+      if (saved) {
+        setHistory(JSON.parse(saved));
+      } else {
+        setHistory([]);
+      }
+    } catch (e) {
+      console.error("Failed to load srt history:", e);
+    }
+  }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -1381,7 +1486,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   };
 
   const isAppApiKey = apiKeyConfig.source === "app";
-  const requiredCost = isAppApiKey && file 
+  const requiredCost = isAppApiKey && file && file.size > 0
     ? (freeUsesToday < 3 ? 0 : Math.max(2, Math.ceil((duration || 0) / 60) * 2)) 
     : 0;
 
@@ -1409,6 +1514,17 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
 
     const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
     let deducted = false;
+    const newHistoryId = Date.now().toString();
+    const userKey = user?.uid || "guest";
+
+    const newHistoryItem: SrtHistoryItem = {
+      id: newHistoryId,
+      timestamp: new Date().toISOString(),
+      fileName: file.name,
+      textResult: "",
+      srtResult: null,
+      status: "processing"
+    };
 
     try {
       if (requiredCost > 0) {
@@ -1421,6 +1537,12 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         deducted = true;
       }
 
+      setHistory(prev => {
+        const updated = [newHistoryItem, ...prev];
+        localStorage.setItem(`srt_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
       const base64 = await fileToBase64(file);
       const jobId = await api.videotosrt(base64, file.type, apiKey);
       const jobResult = await pollForCompletion(jobId);
@@ -1428,6 +1550,22 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       await incrementUsage();
       setResult(jobResult.text || "");
       setSrtResult(jobResult.srt || null);
+
+      setHistory(prev => {
+        const updated = prev.map(item => {
+          if (item.id === newHistoryId) {
+            return {
+              ...item,
+              textResult: jobResult.text || "",
+              srtResult: jobResult.srt || null,
+              status: "completed" as const
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(`srt_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
 
       if (isAppApiKey && freeUsesToday < 3) {
         const todayStr = new Date().toISOString().split('T')[0];
@@ -1439,6 +1577,20 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
       console.error(err);
       setError(`Translation failed: ${err.message}`);
       
+      setHistory(prev => {
+        const updated = prev.map(item => {
+          if (item.id === newHistoryId) {
+            return {
+              ...item,
+              status: "failed" as const
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(`srt_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
       if (deducted && requiredCost > 0) {
         console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
         await refundDiamonds(requiredCost);
@@ -1553,6 +1705,136 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </motion.div>
           )}
          </AnimatePresence>
+
+         {/* History Section */}
+         <div className="pt-12 border-t border-slate-200 dark:border-white/5 space-y-6 max-w-sm md:max-w-xl mx-auto md:w-full">
+           <div className="flex items-center justify-between">
+             <div className="flex items-center gap-2.5">
+               <History className="w-5 h-5 text-purple-500" />
+               <h2 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">
+                 {lang === "EN" ? "SRT Generation History" : "Subtitle (.SRT) ရာဇဝင်"}
+               </h2>
+             </div>
+             {history.length > 0 && (
+               <button
+                 onClick={() => {
+                   if (confirm(lang === "EN" ? "Are you sure you want to clear SRT generation history?" : "SRT ရာဇဝင်အားလုံးကို ဖျက်ရန် သေချာပါသလား?")) {
+                     const userKey = user?.uid || "guest";
+                     setHistory([]);
+                     localStorage.removeItem(`srt_history_${userKey}`);
+                   }
+                 }}
+                 className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
+               >
+                 <Trash2 className="w-3.5 h-3.5" />
+                 {lang === "EN" ? "CLEAR ALL" : "အားလုံးဖျက်မည်"}
+               </button>
+             )}
+           </div>
+
+           {history.length === 0 ? (
+             <div className="text-center p-6 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+               <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                 {lang === "EN" 
+                   ? "No subtitles logged yet. Upload a video to begin!" 
+                   : "မှတ်တမ်းတင်ထားသော ရာဇဝင်မရှိသေးပါ။ စတင်ရန် ဗီဒီယိုတင်ပါ။"}
+               </p>
+             </div>
+           ) : (
+             <div className="space-y-3">
+               <div className="grid grid-cols-1 gap-2">
+                 {(() => {
+                   const handleRestoreHistory = (histItem: SrtHistoryItem) => {
+                     setResult(histItem.textResult);
+                     setSrtResult(histItem.srtResult || null);
+                     if (histItem.fileName) {
+                       setFile({ name: histItem.fileName, size: 0 } as any);
+                     }
+                     window.scrollTo({ top: 300, behavior: "smooth" });
+                   };
+
+                   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+                     e.stopPropagation();
+                     const userKey = user?.uid || "guest";
+                     setHistory(prev => {
+                       const updated = prev.filter(item => item.id !== id);
+                       localStorage.setItem(`srt_history_${userKey}`, JSON.stringify(updated));
+                       return updated;
+                     });
+                   };
+
+                   const displayedHistory = showAllHistory ? history : history.slice(0, 5);
+
+                   return displayedHistory.map((item) => {
+                     const formattedTime = (() => {
+                       try {
+                         const d = new Date(item.timestamp);
+                         if (!isNaN(d.getTime())) {
+                           const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                           return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+                         }
+                       } catch (e) {}
+                       return "";
+                     })();
+
+                     return (
+                       <div 
+                         key={item.id}
+                         onClick={() => item.status === "completed" && handleRestoreHistory(item)}
+                         className={`p-3 bg-white dark:bg-[#130E26]/40 border border-slate-200 dark:border-[#6D3DF3]/20 hover:border-purple-500 dark:hover:border-[#6D3DF3]/60 rounded-xl flex items-center justify-between gap-3 text-left transition-all ${item.status === 'completed' ? 'cursor-pointer hover:shadow-md' : 'opacity-70'}`}
+                       >
+                         <div className="flex items-center gap-3 min-w-0 flex-1">
+                           <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20 text-purple-500 shrink-0">
+                             <FileVideo className="w-4 h-4" />
+                           </div>
+                           <div className="min-w-0 flex-1 space-y-0.5">
+                             <div className="flex items-center gap-2 flex-wrap">
+                               <h4 className="text-xs font-bold text-slate-700 dark:text-white truncate max-w-[150px] sm:max-w-xs">{item.fileName}</h4>
+                               <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider ${
+                                 item.status === "completed" 
+                                   ? "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20" 
+                                   : item.status === "failed" 
+                                     ? "text-red-500 bg-red-500/10 border border-red-500/20"
+                                     : "text-amber-500 bg-amber-500/10 border border-amber-500/20 animate-pulse"
+                               }`}>
+                                 {item.status}
+                               </span>
+                             </div>
+                             <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                               <span>{formattedTime}</span>
+                               {item.srtResult && <span className="bg-blue-500/10 text-blue-500 px-1 rounded text-[8px] border border-blue-500/20">SRT</span>}
+                             </div>
+                           </div>
+                         </div>
+
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             deleteHistoryItem(item.id, e);
+                           }}
+                           className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all active:scale-95 cursor-pointer shrink-0"
+                         >
+                           <Trash2 className="w-3.5 h-3.5" />
+                         </button>
+                       </div>
+                     );
+                   });
+                 })()}
+               </div>
+
+               {history.length > 5 && (
+                 <div className="flex justify-center pt-1">
+                   <button
+                     onClick={() => setShowAllHistory(!showAllHistory)}
+                     className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-purple-600 dark:text-purple-300 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all cursor-pointer"
+                   >
+                     {showAllHistory ? "See Less" : "See More"}
+                   </button>
+                 </div>
+               )}
+             </div>
+           )}
+         </div>
 
          <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
        </div>
