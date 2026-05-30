@@ -3918,7 +3918,7 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
       className="py-4.5 border-b border-slate-200 dark:border-white/[0.08] cursor-pointer transition-colors duration-75 select-none group bg-transparent text-left"
     >
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-xs md:text-sm font-medium tracking-tight text-slate-800 dark:text-slate-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+        <h3 className="text-sm sm:text-base md:text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
           {faq.q}
         </h3>
         <motion.div
@@ -3938,7 +3938,7 @@ function FAQItem({ faq }: { faq: { q: string; a: string } }) {
             transition={{ duration: 0.05 }}
             className="overflow-hidden"
           >
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans mt-0.5">
+            <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-sans mt-0.5">
               {faq.a}
             </p>
           </motion.div>
@@ -4433,7 +4433,7 @@ function AppContent() {
                 </div>
 
                 {/* Our Goal & FAQ Sections */}
-                <div className="mt-20 pt-16 border-t border-slate-200 dark:border-white/[0.05] grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start text-left">
+                <div className="mt-20 pt-16 border-t border-slate-200 dark:border-white/[0.05] w-full max-w-4xl px-4 md:px-0 mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start text-left">
                   {/* Our Goal Section */}
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -4443,10 +4443,10 @@ function AppContent() {
                     className="relative flex flex-col justify-between group h-full space-y-6"
                   >
                     <div className="space-y-5 relative z-10">
-                      <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                      <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                         Our Goal
                       </h2>
-                      <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
+                      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-sans font-medium">
                         To solve video editing, translation, and subtitling workflows for Myanmar Content Creators in seconds using AI technology, providing the easiest and most time-saving solution.
                       </p>
                     </div>
@@ -4466,7 +4466,7 @@ function AppContent() {
                   >
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                            Frequently Asked Questions (FAQs)
                         </h2>
                       </div>
