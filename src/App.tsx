@@ -228,6 +228,7 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-violet-500/20 hover:border-violet-500/50",
     shadowColor: "shadow-violet-500/20",
+    badge: "FREE"
   },
   {
     id: "aivoiceover",
@@ -248,6 +249,7 @@ const getTools = (lang: Language) => [
     iconColor: "text-white",
     borderColor: "border-blue-500/20 hover:border-blue-500/50",
     shadowColor: "shadow-blue-500/20",
+    badge: "FREE"
   },
   {
     id: "aivideovoiceactor",
@@ -4460,7 +4462,13 @@ function AppContent() {
                                 {tool.title}
                               </h3>
                               {tool.badge && (
-                                <span className={`inline-block text-[8px] font-black ${tool.badge === 'PRO' ? 'text-amber-400 border border-amber-500/30 bg-amber-500/10' : 'text-blue-400 border border-blue-500/30 bg-blue-500/10'} px-1.5 py-0.5 rounded font-tech tracking-wider uppercase`}>
+                                <span className={`inline-block text-[8px] font-black ${
+                                  tool.badge === 'PRO' 
+                                    ? 'text-amber-400 border border-amber-500/30 bg-amber-500/10' 
+                                    : tool.badge === 'FREE'
+                                      ? 'text-emerald-400 border border-emerald-500/30 bg-emerald-500/10'
+                                      : 'text-blue-400 border border-blue-500/30 bg-blue-500/10'
+                                } px-1.5 py-0.5 rounded font-tech tracking-wider uppercase`}>
                                   {tool.badge}
                                 </span>
                               )}
