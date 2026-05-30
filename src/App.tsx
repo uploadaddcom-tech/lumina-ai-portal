@@ -244,20 +244,20 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.videoToSrt.title,
     description: translations[lang].tools.videoToSrt.desc,
     icon: FileText,
-    color: "bg-teal-600",
+    color: "bg-blue-600",
     iconColor: "text-white",
-    borderColor: "border-teal-500/20 hover:border-teal-500/50",
-    shadowColor: "shadow-teal-500/20",
+    borderColor: "border-blue-500/20 hover:border-blue-500/50",
+    shadowColor: "shadow-blue-500/20",
   },
   {
     id: "aivideovoiceactor",
     title: translations[lang].tools.aiVideoVoiceActor.title,
     description: translations[lang].tools.aiVideoVoiceActor.desc,
     icon: Mic,
-    color: "bg-emerald-600",
+    color: "bg-sky-600",
     iconColor: "text-white",
-    borderColor: "border-emerald-500/20 hover:border-emerald-500/50",
-    shadowColor: "shadow-emerald-500/20",
+    borderColor: "border-sky-500/20 hover:border-sky-500/50",
+    shadowColor: "shadow-sky-500/20",
     badge: "AI EXCLUSIVE"
   }
 ];
