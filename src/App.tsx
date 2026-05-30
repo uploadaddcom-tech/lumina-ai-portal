@@ -1111,6 +1111,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   
   const [history, setHistory] = useState<TranscribeHistoryItem[]>([]);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1345,7 +1346,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {isGenerating ? (lang === "EN" ? "SYNCING..." : "ဘာသာပြန်နေသည်...") : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : `${t.generate} (FREE)`)}
+            {isGenerating ? "TRANSCRIBING..." : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : `${t.generate} (FREE)`)}
           </button>
           
           {isAppApiKey && file && (
@@ -1398,6 +1399,205 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+         {/* History Section */}
+         <div className="pt-12 border-t border-slate-200 dark:border-white/5 space-y-6 max-w-sm md:max-w-xl mx-auto md:w-full">
+           <div className="flex items-center justify-between">
+             <div className="flex items-center gap-2.5">
+               <History className="w-5 h-5 text-purple-500" />
+               <h2 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">
+                 {lang === "EN" ? "Transcription History" : "စာသားပြောင်းလဲခြင်း ရာဇဝင်"}
+               </h2>
+             </div>
+             {history.length > 0 && (
+               <button
+                 onClick={() => {
+                   if (confirm(lang === "EN" ? "Are you sure you want to clear transcription history?" : "ဘာသာပြန်ရာဇဝင်အားလုံးကို ဖျက်ရန် သေချာပါသလား?")) {
+                     const userKey = user?.uid || "guest";
+                     setHistory([]);
+                     localStorage.removeItem(`transcribe_history_${userKey}`);
+                   }
+                 }}
+                 className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
+               >
+                 <Trash2 className="w-3.5 h-3.5" />
+                 {lang === "EN" ? "CLEAR ALL" : "အားလုံးဖျက်မည်"}
+               </button>
+             )}
+           </div>
+
+           {history.length === 0 ? (
+             <div className="text-center p-6 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+               <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                 {lang === "EN" 
+                   ? "No transcriptions logged yet. Upload a video to begin!" 
+                   : "မှတ်တမ်းတင်ထားသော ရာဇဝင်မရှိသေးပါ။ စတင်ရန် ဗီဒီယိုတင်ပါ။"}
+               </p>
+             </div>
+           ) : (
+             <div className="space-y-3">
+               <div className="grid grid-cols-1 gap-2">
+                 {(() => {
+                   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+                     e.stopPropagation();
+                     const userKey = user?.uid || "guest";
+                     setHistory(prev => {
+                       const updated = prev.filter(item => item.id !== id);
+                       localStorage.setItem(`transcribe_history_${userKey}`, JSON.stringify(updated));
+                       return updated;
+                     });
+                     if (expandedHistoryId === id) {
+                       setExpandedHistoryId(null);
+                     }
+                   };
+
+                   const displayedHistory = showAllHistory ? history : history.slice(0, 5);
+
+                   return displayedHistory.map((item) => {
+                     const isExpanded = expandedHistoryId === item.id;
+                     const formattedTime = (() => {
+                       try {
+                         const d = new Date(item.timestamp);
+                         if (!isNaN(d.getTime())) {
+                           const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                           return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+                         }
+                       } catch (e) {}
+                       return "";
+                     })();
+
+                     return (
+                       <div 
+                         key={item.id}
+                         className={`bg-white dark:bg-[#130E26]/40 border rounded-xl overflow-hidden transition-all duration-300 ${isExpanded ? "border-purple-500 dark:border-[#6D3DF3]/60 shadow-lg" : "border-slate-200 dark:border-[#6D3DF3]/20 hover:border-purple-500 dark:hover:border-[#6D3DF3]/45"}`}
+                       >
+                         {/* Header Click Area */}
+                         <div 
+                           onClick={() => {
+                             if (item.status === "completed") {
+                               setExpandedHistoryId(isExpanded ? null : item.id);
+                             }
+                           }}
+                           className={`p-3 flex items-center justify-between gap-3 text-left ${item.status === 'completed' ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.02]' : 'opacity-70'}`}
+                         >
+                           <div className="flex items-center gap-3 min-w-0 flex-1">
+                             <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20 text-purple-500 shrink-0">
+                               <FileVideo className="w-4 h-4" />
+                             </div>
+                             <div className="min-w-0 flex-1 space-y-0.5">
+                               <div className="flex items-center gap-2 flex-wrap">
+                                 <h4 className="text-xs font-bold text-slate-700 dark:text-white truncate max-w-[150px] sm:max-w-xs">{item.fileName}</h4>
+                                 <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider ${
+                                   item.status === "completed" 
+                                     ? "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20" 
+                                     : item.status === "failed" 
+                                       ? "text-red-500 bg-red-500/10 border border-red-500/20"
+                                       : "text-amber-500 bg-amber-500/10 border border-amber-500/20 animate-pulse"
+                                 }`}>
+                                   {item.status}
+                                 </span>
+                               </div>
+                               <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                 <span>{formattedTime}</span>
+                                 {item.srtResult && <span className="bg-teal-500/10 text-teal-500 px-1 rounded text-[8px] border border-teal-500/20">SRT</span>}
+                               </div>
+                             </div>
+                           </div>
+
+                           <div className="flex items-center gap-1 shrink-0">
+                             {item.status === "completed" && (
+                               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
+                             )}
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 deleteHistoryItem(item.id, e);
+                               }}
+                               className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all active:scale-95 cursor-pointer shrink-0"
+                             >
+                               <Trash2 className="w-3.5 h-3.5" />
+                             </button>
+                           </div>
+                         </div>
+
+                         {/* Expanded Content */}
+                         <AnimatePresence initial={false}>
+                           {isExpanded && (
+                             <motion.div
+                               initial={{ height: 0, opacity: 0 }}
+                               animate={{ height: "auto", opacity: 1 }}
+                               exit={{ height: 0, opacity: 0 }}
+                               transition={{ duration: 0.2 }}
+                               className="border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-black/10"
+                             >
+                               <div className="p-4 space-y-3">
+                                 {/* Action Buttons */}
+                                 <div className="flex flex-wrap gap-2">
+                                   <button
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       navigator.clipboard.writeText(item.textResult);
+                                       alert(lang === "EN" ? "Copied to clipboard!" : "ကူးယူပြီးပါပြီ!");
+                                     }}
+                                     className="h-8 px-3 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-purple-500/10"
+                                   >
+                                     <Check className="w-3.5 h-3.5" />
+                                     {lang === "EN" ? "Copy Text" : "စာသားကူးယူရန်"}
+                                   </button>
+
+                                   {item.srtResult && (
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         const blob = new Blob([item.srtResult || ""], { type: "text/srt;charset=utf-8" });
+                                         const url = URL.createObjectURL(blob);
+                                         const a = document.createElement("a");
+                                         a.href = url;
+                                         const originalName = item.fileName || "subtitles.srt";
+                                         const baseName = originalName.includes(".") 
+                                           ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                                           : originalName;
+                                         a.download = `${baseName}.srt`;
+                                         document.body.appendChild(a);
+                                         a.click();
+                                         document.body.removeChild(a);
+                                         URL.revokeObjectURL(url);
+                                       }}
+                                       className="h-8 px-3 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-300 hover:bg-teal-500/20 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-teal-500/10"
+                                     >
+                                       <Download className="w-3.5 h-3.5" />
+                                       {lang === "EN" ? "Download SRT" : "SRT ဒေါင်းလုဒ်ဆွဲရန်"}
+                                     </button>
+                                   )}
+                                 </div>
+
+                                 {/* Text scroll preview */}
+                                 <div className="p-3 bg-white dark:bg-[#0A0713]/60 rounded-lg border border-slate-200/60 dark:border-white/5 text-[11px] text-slate-600 dark:text-slate-300 max-h-36 overflow-y-auto font-medium leading-relaxed whitespace-pre-wrap select-all">
+                                   {item.textResult}
+                                 </div>
+                               </div>
+                             </motion.div>
+                           )}
+                         </AnimatePresence>
+                       </div>
+                     );
+                   });
+                 })()}
+               </div>
+
+               {history.length > 5 && (
+                 <div className="flex justify-center pt-1">
+                   <button
+                     onClick={() => setShowAllHistory(!showAllHistory)}
+                     className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-purple-600 dark:text-purple-300 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all cursor-pointer"
+                   >
+                     {showAllHistory ? "See Less" : "See More"}
+                   </button>
+                 </div>
+               )}
+             </div>
+           )}
+         </div>
 
         <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
       </div>
