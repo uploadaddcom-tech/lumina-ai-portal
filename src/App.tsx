@@ -1290,9 +1290,7 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           
           {isAppApiKey && file && (
             <p className="text-[10px] text-blue-500 font-extrabold uppercase tracking-wider">
-              {lang === "EN" 
-                ? `Daily App API Key Free Uses: ${Math.max(0, 3 - freeUsesToday)} of 3 left`
-                : `တစ်ရက်လျှင် App API Key ဖြင့် အခမဲ့သုံးနိုင်ခွင့်: ၃ ကြိမ်အနက် ${Math.max(0, 3 - freeUsesToday)} ကြိမ် ကျန်ပါသည်`}
+              Free Daily Uses: {Math.max(0, 3 - freeUsesToday)} of 3 left
             </p>
           )}
         </div>
@@ -1537,9 +1535,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
           
           {isAppApiKey && file && (
             <p className="text-[10px] text-blue-500 font-extrabold uppercase tracking-wider">
-              {lang === "EN" 
-                ? `Daily App API Key Free Uses: ${Math.max(0, 3 - freeUsesToday)} of 3 left`
-                : `တစ်ရက်လျှင် App API Key ဖြင့် အခမဲ့သုံးနိုင်ခွင့်: ၃ ကြိမ်အနက် ${Math.max(0, 3 - freeUsesToday)} ကြိမ် ကျန်ပါသည်`}
+              Free Daily Uses: {Math.max(0, 3 - freeUsesToday)} of 3 left
             </p>
           )}
         </div>
