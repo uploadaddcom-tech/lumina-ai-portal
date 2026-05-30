@@ -84,9 +84,9 @@ export const translations = {
       usage: "Simply upload your video file, and AI will automatically listen and transcribe the spoken words."
     },
     videoToSrt: {
-      headline: "Video to SRT",
+      headline: "SRT Generator",
       uploadTitle: "Upload Video",
-      generate: "Convert to Myanmar SRT",
+      generate: "Generate SRT",
       actionsTitle: "Actions Performed:",
       usageTitle: "How to Use",
       actions: [
@@ -179,7 +179,7 @@ export const translations = {
         desc: "Generate master-level, fully customized audio and text video recaps with a single click.",
       },
       videoToSrt: {
-        title: "Video to SRT",
+        title: "SRT Generator",
         desc: "Convert any spoken video into a cleanly translated Myanmar (.srt) subtitle file.",
       },
       aiVideoVoiceActor: {
@@ -271,9 +271,9 @@ export const translations = {
       usage: "Simply upload your video file, and AI will automatically listen and transcribe the spoken words."
     },
     videoToSrt: {
-      headline: "Video to SRT",
+      headline: "SRT Generator",
       uploadTitle: "ဗီဒီယို တင်ရန်",
-      generate: "မြန်မာစာတန်းထိုး SRT ပြောင်းရန်",
+      generate: "Generate SRT",
       actionsTitle: "လုပ်ဆောင်ချက်များ:",
       usageTitle: "အသုံးပြုနည်း",
       actions: [
@@ -366,7 +366,7 @@ export const translations = {
         desc: "Generate master-level, fully customized audio and text video recaps with a single click.",
       },
       videoToSrt: {
-        title: "Video to SRT",
+        title: "SRT Generator",
         desc: "ဗီဒီယိုမှ အသံကိုခွဲထုတ်ပြီး မြန်မာဘာသာပြန် .srt စာတန်းထိုးဖိုင် အလိုအလျောက် ထုတ်ယူပေးသည်။",
       },
       aiVideoVoiceActor: {

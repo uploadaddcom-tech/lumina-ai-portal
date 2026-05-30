@@ -1501,45 +1501,31 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         </div>
 
         <AnimatePresence>
-          {result && (
+          {srtResult && (
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-              <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-border dark:border-white/5 shadow-3xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8">
-                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
-                    <Sparkles className="w-6 h-6 text-teal-400/50" />
-                  </div>
-                </div>
-                
-                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-teal-500/30">
-                  <Markdown>{result}</Markdown>
-                </div>
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => {
+                    const blob = new Blob([srtResult], { type: "text/srt;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    const originalName = file?.name || "subtitles.srt";
+                    const baseName = originalName.includes(".") 
+                      ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                      : originalName;
+                    a.download = `${baseName}.srt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-teal-500/20 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  {lang === "EN" ? "Download Subtitles (.SRT)" : ".SRT စာတန်းထိုးဖိုင် ဒေါင်းလုဒ်ဆွဲရန်"}
+                </button>
               </div>
-
-              {srtResult && (
-                <div className="flex justify-center pt-2">
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([srtResult], { type: "text/srt;charset=utf-8" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      const originalName = file?.name || "subtitles.srt";
-                      const baseName = originalName.includes(".") 
-                        ? originalName.substring(0, originalName.lastIndexOf(".")) 
-                        : originalName;
-                      a.download = `${baseName}.srt`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    }}
-                    className="h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-teal-500/20 cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    {lang === "EN" ? "Download Subtitles (.SRT)" : ".SRT စာတန်းထိုးဖိုင် ဒေါင်းလုဒ်ဆွဲရန်"}
-                  </button>
-                </div>
-              )}
             </motion.div>
           )}
          </AnimatePresence>
