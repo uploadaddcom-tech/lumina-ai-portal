@@ -4710,13 +4710,13 @@ function AppContent() {
               <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-page-bg/40 backdrop-blur-3xl">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                   <div className="flex items-center gap-12">
-                    <div className="flex items-center gap-3 group cursor-pointer transition-all hover:opacity-80" onClick={() => navigate('/')}>
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#7C3AED] via-[#6D3DF3] to-[#4F46E5] rounded-xl flex items-center justify-center shadow-2xl shadow-purple-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
-                        <Clapperboard className="w-5 h-5 text-white" />
+                    <div className="flex items-center gap-2.5 group cursor-pointer transition-all hover:opacity-80" onClick={() => navigate('/')}>
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#7C3AED] via-[#6D3DF3] to-[#4F46E5] rounded-lg flex items-center justify-center shadow-2xl shadow-purple-500/30 group-hover:scale-105 group-hover:rotate-6 transition-all duration-500">
+                        <Clapperboard className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex flex-col -gap-1">
-                        <span className="text-2xl font-black tracking-tighter text-text-primary dark:text-white leading-none">MM RECAP</span>
-                        <span className="text-[7.5px] font-tech font-black tracking-[0.25em] text-purple-400 uppercase ml-1 block mt-0.5">One Click Ai Tool</span>
+                        <span className="text-lg font-black tracking-tighter text-text-primary dark:text-white leading-none">MM RECAP</span>
+                        <span className="text-[6.5px] font-tech font-black tracking-[0.25em] text-purple-400 uppercase ml-1 block mt-0.5">One Click Ai Tool</span>
                       </div>
                     </div>
                   </div>
