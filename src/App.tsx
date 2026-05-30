@@ -500,33 +500,15 @@ function UserHeader({ onAdminClick }: { onAdminClick?: () => void }) {
             Sign In
           </button>
         ) : (
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col items-end text-right">
-              <span className="text-[10px] font-black text-text-primary dark:text-white tracking-widest uppercase mb-0.5">{user.displayName || 'Neural User'}</span>
-              <div className="flex items-center gap-2">
-                {(role === 'admin' || user.email?.toLowerCase() === 'uploadadd.com@gmail.com') && (
-                  <button 
-                    onClick={onAdminClick}
-                    className="px-2 py-0.5 rounded-md bg-emerald-500 text-[9px] font-tech font-black text-white uppercase tracking-tighter hover:bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all active:scale-95"
-                  >
-                    ADMIN-PNL
-                  </button>
-                )}
-                <div className="flex items-center gap-1.5 bg-blue-500/10 px-2 md:px-3 py-1 rounded-lg border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                  <DiamondIcon className="w-4 h-4 md:w-5 md:h-5 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)] animate-pulse" />
-                  <span className="text-[10px] md:text-[13px] font-tech font-black text-blue-500 tracking-tighter">{diamonds} Diamond</span>
-                </div>
-              </div>
+          <button 
+            onClick={() => setIsOpen(true)}
+            className="flex items-center gap-2 p-1.5 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 transition-all shadow-md"
+          >
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/10 font-sans text-xs flex items-center justify-center">
+              <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
             </div>
-            <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-red-500/10 transition-all group border border-transparent hover:border-red-500/20 active:scale-95" title="Logout">
-              <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
-            </button>
-            <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-cyan-400 to-blue-600 p-0.5 shadow-lg">
-              <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center overflow-hidden">
-                <img src={user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-full h-full object-cover" />
-              </div>
-            </div>
-          </div>
+            <Menu className="w-4 h-4 text-slate-300 mr-0.5" />
+          </button>
         )}
       </div>
 
