@@ -215,8 +215,8 @@ export const translations = {
     recapMaster: {
       headline: "Recap Master",
       uploadTitle: "Upload Video",
-      browseFiles: "ဖိုင်များကို ရွေးချယ်ရန် နှိပ်ပါ",
-      fileLimit: "MP4၊ MOV (အများဆုံး 300MB)",
+      browseFiles: "CLICK TO BROWSE FILES",
+      fileLimit: "MP4, MOV (MAX 300MB)",
       selectStyle: "Select Recap Style",
       generate: "Generate Recap",
       voiceoverTitle: "Generate AI Voiceover",

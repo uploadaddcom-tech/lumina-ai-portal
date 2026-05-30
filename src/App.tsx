@@ -1246,10 +1246,10 @@ function TranscribeView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             </div>
             <div className="space-y-0.5 text-center">
               <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400"}`}>
-                {file ? file.name : translations[lang].recapMaster.browseFiles}
+                {file ? file.name : "CLICK TO BROWSE FILES"}
               </h3>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
-                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : translations[lang].recapMaster.fileLimit}
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : "MP4, MOV (MAX 300MB)"}
               </p>
             </div>
           </div>
@@ -1431,7 +1431,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-teal-500/20 transition-colors duration-300">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1439,7 +1439,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-linear-to-br from-teal-600 to-emerald-700 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <FileText className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
@@ -1456,21 +1456,21 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
         <div className="max-w-sm mx-auto">
           <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
         </div>
-        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-teal-500/30 transition-all">
+        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/30 transition-all">
           <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
           <div 
             onClick={() => fileInputRef.current?.click()}
             className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
-              file ? "border-teal-500/50 bg-teal-50 dark:bg-teal-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-teal-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
+              file ? "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-blue-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
             }`}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-              file ? "bg-teal-600 shadow-xl shadow-teal-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/30"
+              file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/30"
             }`}>
-              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-teal-500 dark:group-hover:text-teal-400" />}
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />}
             </div>
             <div className="space-y-0.5 text-center">
-              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-teal-600 dark:group-hover:text-teal-400"}`}>
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400"}`}>
                 {file ? file.name : "CLICK TO BROWSE FILES"}
               </h3>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
@@ -1488,7 +1488,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
             className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
               !file || isGenerating 
                 ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
-                : "bg-linear-to-r from-teal-600 to-emerald-700 hover:scale-105 text-white shadow-teal-500/30"
+                : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white shadow-blue-500/30"
             }`}
           >
             {isGenerating ? (
@@ -1520,7 +1520,7 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                   }}
-                  className="h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-teal-500/20 cursor-pointer"
+                  className="h-12 px-8 rounded-2xl bg-blue-600 hover:bg-blue-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-blue-500/20 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   Download Subtitles (.SRT)
@@ -1583,8 +1583,8 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
     }
   };
 
-  const isAppApiKey = apiKeyConfig.source === "app";
-  const requiredCost = isAppApiKey && file ? Math.max(2, Math.ceil((duration || 0) / 60) * 2) : 0;
+  const isAppApiKey = true; // Force app API key
+  const requiredCost = file ? Math.max(1, Math.ceil((duration || 0) / 10)) : 10;
 
   const fileToBase64 = (f: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1651,7 +1651,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
   ];
 
   return (
-    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-emerald-500/20 transition-colors duration-300">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-blue-500/20 transition-colors duration-300">
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1659,7 +1659,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
               <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-linear-to-br from-emerald-600 to-teal-700 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Mic className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
@@ -1673,26 +1673,22 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
       </header>
 
       <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
-        <div className="max-w-sm mx-auto">
-          <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
-        </div>
-
         {/* Video Upload Section */}
-        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-emerald-500/30 transition-all">
+        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-blue-500/30 transition-all">
           <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
           <div 
             onClick={() => fileInputRef.current?.click()}
             className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
-              file ? "border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-emerald-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
+              file ? "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-blue-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
             }`}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-              file ? "bg-emerald-600 shadow-xl shadow-emerald-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/30"
+              file ? "bg-blue-600 shadow-xl shadow-blue-500/20" : "bg-slate-100 dark:bg-white/5 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/30"
             }`}>
-              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />}
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />}
             </div>
             <div className="space-y-0.5 text-center">
-              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"}`}>
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400"}`}>
                 {file ? file.name : "CLICK TO BROWSE FILES"}
               </h3>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
@@ -1717,13 +1713,13 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
                   onClick={() => setSelectedVoice(v.name)}
                   className={`relative flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border transition-all duration-300 text-left cursor-pointer select-none overflow-hidden ${
                     isActive
-                      ? "border-emerald-500 bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black"
-                      : "border-slate-200 dark:border-white/5 hover:border-emerald-500/20 hover:bg-slate-50 dark:hover:bg-white/[0.02] text-slate-700 dark:text-slate-300 font-medium"
+                      ? "border-blue-500 bg-blue-500/[0.08] text-blue-600 dark:text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)] font-black"
+                      : "border-slate-200 dark:border-white/5 hover:border-blue-500/20 hover:bg-slate-50 dark:hover:bg-white/[0.02] text-slate-700 dark:text-slate-300 font-medium"
                   }`}
                 >
                   <div className="flex items-center gap-3 relative z-10 w-full overflow-hidden">
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 ${
-                      isActive ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500"
+                      isActive ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20 scale-105" : "bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500"
                     }`}>
                       <Mic className="w-4 h-4" />
                     </div>
@@ -1737,9 +1733,9 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
 
                   {isActive && (
                     <div className="flex items-end gap-0.5 h-3.5 shrink-0 absolute right-4">
-                      <span className="w-0.5 bg-emerald-500 rounded-full animate-pulse h-3" />
-                      <span className="w-0.5 bg-emerald-500 rounded-full animate-pulse h-2" style={{ animationDelay: '150ms' }} />
-                      <span className="w-0.5 bg-emerald-500 rounded-full animate-pulse h-4" style={{ animationDelay: '300ms' }} />
+                      <span className="w-0.5 bg-blue-500 rounded-full animate-pulse h-3" />
+                      <span className="w-0.5 bg-blue-500 rounded-full animate-pulse h-2" style={{ animationDelay: '150ms' }} />
+                      <span className="w-0.5 bg-blue-500 rounded-full animate-pulse h-4" style={{ animationDelay: '300ms' }} />
                     </div>
                   )}
                 </button>
@@ -1756,7 +1752,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
             className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
               !file || isGenerating 
                 ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
-                : "bg-linear-to-r from-emerald-600 to-teal-700 hover:scale-105 text-white shadow-emerald-500/30"
+                : "bg-linear-to-r from-blue-600 to-indigo-700 hover:scale-105 text-white shadow-blue-500/30"
             }`}
           >
             {isGenerating ? (
@@ -1775,15 +1771,15 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
               <div className="bg-card-bg/40 dark:bg-[#0f172a]/40 backdrop-blur-lg rounded-[2.5rem] p-10 border border-border dark:border-white/5 shadow-3xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8">
                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
-                    <Sparkles className="w-6 h-6 text-emerald-400/50" />
+                    <Sparkles className="w-6 h-6 text-blue-400/50" />
                   </div>
                 </div>
                 
-                <h2 className="text-sm font-black uppercase tracking-widest text-emerald-500/80 mb-6">
+                <h2 className="text-sm font-black uppercase tracking-widest text-blue-500/80 mb-6">
                   Translated Burmese Script
                 </h2>
 
-                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-emerald-500/30">
+                <div className="prose dark:prose-invert prose-slate max-w-none prose-lg md:prose-xl prose-p:leading-relaxed prose-headings:text-text-primary dark:prose-headings:text-white prose-headings:font-black prose-headings:tracking-tighter dark:prose-li:text-slate-300 font-medium selection:bg-blue-500/30">
                   <Markdown>{result}</Markdown>
                 </div>
               </div>
@@ -1804,7 +1800,7 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
                       a.click();
                       document.body.removeChild(a);
                     }}
-                    className="h-14 px-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-emerald-500/20 cursor-pointer"
+                    className="h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 hover:scale-105 transition-all text-white font-black text-xs uppercase tracking-widest flex items-center gap-3 active:scale-[0.98] shadow-2xl shadow-blue-500/20 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     Download Final Video (.mp4)
@@ -2519,10 +2515,10 @@ function RecapMasterView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
               </div>
               <div className="space-y-0.5">
                 <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-text-primary dark:text-white" : "text-text-secondary dark:text-slate-400 group-hover:text-text-primary dark:group-hover:text-slate-300"}`}>
-                  {file ? file.name : t.browseFiles}
+                  {file ? file.name : "CLICK TO BROWSE FILES"}
                 </h3>
                 <p className="text-[9px] text-text-secondary/60 dark:text-slate-600 font-bold uppercase tracking-widest leading-none">
-                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : t.fileLimit}
+                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : "MP4, MOV (MAX 300MB)"}
                 </p>
               </div>
             </div>
