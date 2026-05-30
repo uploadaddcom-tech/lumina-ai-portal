@@ -1709,20 +1709,42 @@ function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProp
             {t.selectVoice}
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {voiceOptions.map((v) => (
-              <button
-                key={v.name}
-                onClick={() => setSelectedVoice(v.name)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                  selectedVoice === v.name
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/5 font-black"
-                    : "border-slate-200 dark:border-white/5 hover:border-emerald-500/20 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 font-medium"
-                }`}
-              >
-                <div className={`w-2.5 h-2.5 rounded-full transition-all ${selectedVoice === v.name ? "bg-emerald-500" : "bg-slate-300 dark:bg-white/20"}`} />
-                <span className="text-xs tracking-tight">{v.label}</span>
-              </button>
-            ))}
+            {voiceOptions.map((v) => {
+              const isActive = selectedVoice === v.name;
+              return (
+                <button
+                  key={v.name}
+                  onClick={() => setSelectedVoice(v.name)}
+                  className={`relative flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border transition-all duration-300 text-left cursor-pointer select-none overflow-hidden ${
+                    isActive
+                      ? "border-emerald-500 bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black"
+                      : "border-slate-200 dark:border-white/5 hover:border-emerald-500/20 hover:bg-slate-50 dark:hover:bg-white/[0.02] text-slate-700 dark:text-slate-300 font-medium"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 relative z-10 w-full overflow-hidden">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 ${
+                      isActive ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500"
+                    }`}>
+                      <Mic className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0 pr-6">
+                      <span className="text-xs font-black tracking-wide truncate">{v.label.split("(")[0].trim()}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate">
+                        {v.label.includes("(") ? `(${v.label.split("(")[1]}` : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isActive && (
+                    <div className="flex items-end gap-0.5 h-3.5 shrink-0 absolute right-4">
+                      <span className="w-0.5 bg-emerald-500 rounded-full animate-pulse h-3" />
+                      <span className="w-0.5 bg-emerald-500 rounded-full animate-pulse h-2" style={{ animationDelay: '150ms' }} />
+                      <span className="w-0.5 bg-emerald-500 rounded-full animate-pulse h-4" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
 
