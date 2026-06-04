@@ -5321,10 +5321,10 @@ function AppContent() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.15 }}
-                    className="text-4xl sm:text-5.5xl md:text-6.5xl lg:text-7xl font-sans font-black text-center text-white tracking-tight leading-[1.08] mb-8"
+                    className="text-4xl sm:text-5.5xl md:text-6.5xl lg:text-7xl font-sans font-black text-center text-slate-900 dark:text-white tracking-tight leading-[1.08] mb-8"
                   >
                     Boost your <br />
-                    <span className="bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">content with AI.</span>
+                    <span className="bg-gradient-to-r from-slate-900 via-indigo-600 to-[#6D3DF3] dark:from-white dark:via-indigo-100 dark:to-indigo-300 bg-clip-text text-transparent">content with AI.</span>
                   </motion.h1>
 
                   {/* Elegant professional subtitle */}
