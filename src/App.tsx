@@ -384,7 +384,7 @@ function ApiKeySelector({ config, setConfig, lang }: {
   }, [config.source]);
 
   return (
-    <div className="bg-card-bg/60 dark:bg-[#0f172a]/60 backdrop-blur-xl rounded-2xl p-6 border border-border dark:border-white/5 shadow-2xl space-y-4">
+    <div className="space-y-4 py-2">
       <div className="flex items-center justify-between">
         <label className="text-[10px] font-black text-text-primary dark:text-slate-500 uppercase tracking-[0.3em]">
           {t.title}
