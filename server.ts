@@ -307,6 +307,71 @@ async function startServer() {
     })();
   });
 
+  app.post("/api/videotorecapscript", async (req, res) => {
+    const jobId = crypto.randomBytes(12).toString("hex");
+    appJobs.set(jobId, { status: "processing" });
+    res.json({ jobId });
+
+    (async () => {
+      try {
+        const { videoBase64, mimeType, duration, lang, apiKey: customKey } = req.body;
+        const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
+        const model = "gemini-3.5-flash";
+
+        const wpm = 190;
+        const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
+
+        const promptSnippet = lang === "EN"
+          ? "Provide a chronological, real-time narration script for this video. Use the visual events and audio dialog/ambient sounds to tell a continuous narration. DO NOT include timestamps. Start directly with the story narrative without greeting."
+          : `ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေကို အခြေခံပြီး အချိန်နဲ့တပြေးညီ အသေးစိတ်ကျပြီး စိတ်ဝင်စားစရာကောင်းတဲ့ နောက်ခံစကားပြော (Narration) script တစ်ခု ရေးသားပေးပါ။ အချိန်မှတ်တမ်းများ (timestamps) မထည့်ရ။`;
+
+        const constraintPrompt = lang === "EN"
+          ? `Constraints:
+             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds. DO NOT exceed this word count).
+             - Output: Final polished narrative script ONLY.
+             - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
+             - DO NOT use numbering, bullet points, or list formatting.
+             - DO NOT include timestamps.
+             - Provide the text exactly as it should be read for a voiceover.`
+          : `ကန့်သတ်ချက်များ -
+             - Script အရှည် - စကားလုံးရေ ${wordCount} တိတိ (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် စာလုံးရေ မပိုစေဘဲ တိကျစွာ တွက်ချက်ထားသည်)။
+             - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
+             - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
+             - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
+             - အချိန်မှတ်တမ်း (Timestamps) များ မထည့်ရ။
+             - Voiceover စကားပြောစတိုင်ဖြင့် ရေးသားပါ။ "သည်" ဟု အဆုံးသတ်ခြင်းကို လုံးဝ မသုံးရ၊ "တယ်" (သို့မဟုတ်) "နေတယ်" စသည့် စကားပြောအသုံးအနှုန်းများကိုသာ သုံးရမည်။
+             - Voiceover အနေဖြင့် တိုက်ရိုက်ဖတ်ရမယ့် စာသားအတိုင်းသာ ဖော်ပြပေးပါ။`;
+
+        const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
+
+        const response = await retryWithBackoff((client) => client.models.generateContent({
+          model: model,
+          contents: [
+            {
+              parts: [
+                { text: finalPrompt },
+                { inlineData: { data: videoBase64, mimeType } }
+              ]
+            }
+          ]
+        }), customKey);
+
+        let text = response.text || "";
+
+        if (lang === "MY") {
+          text = text.replace(/သည်([။၊\s\n]|$)/g, 'တယ်$1');
+          text = text.replace(/သနည်း([။၊\s\n]|$)/g, 'သလဲ$1');
+          text = text.replace(/ခဲ့သည်([။၊\s\n]|$)/g, 'ခဲ့တယ်$1');
+        }
+
+        appJobs.set(jobId, { status: "completed", text });
+      } catch (error: any) {
+        console.error("Video To Recap Script error:", error);
+        appJobs.set(jobId, { status: "error", error: error.message });
+      }
+    })();
+  });
+
   app.post("/api/transcribe", async (req, res) => {
     const jobId = crypto.randomBytes(12).toString("hex");
     appJobs.set(jobId, { status: "processing" });

@@ -88,6 +88,15 @@ const api = {
     if (!res.ok) throw new Error("Video to SRT translation request failed");
     return (await res.json()).jobId;
   },
+  async videotorecapscript(videoBase64: string, mimeType: string, duration?: number, lang?: Language, apiKey?: string) {
+    const res = await fetch("/api/videotorecapscript", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoBase64, mimeType, duration, lang, apiKey }),
+    });
+    if (!res.ok) throw new Error("Video To Recap Script request failed");
+    return (await res.json()).jobId;
+  },
   async voiceactor(videoBase64: string, mimeType: string, voiceName: string, apiKey?: string) {
     const res = await fetch("/api/voiceactor", {
       method: "POST",
@@ -261,6 +270,17 @@ const getTools = (lang: Language) => [
     borderColor: "border-sky-500/20 hover:border-sky-500/50",
     shadowColor: "shadow-sky-500/20",
     badge: "AI EXCLUSIVE"
+  },
+  {
+    id: "videotorecapscript",
+    title: translations[lang].tools.videoToRecapScript.title,
+    description: translations[lang].tools.videoToRecapScript.desc,
+    icon: FileVideo,
+    color: "bg-emerald-600",
+    iconColor: "text-white",
+    borderColor: "border-emerald-500/20 hover:border-emerald-500/50",
+    shadowColor: "shadow-emerald-500/20",
+    badge: "AI MODE"
   }
 ];
 
@@ -2039,6 +2059,499 @@ function VideoToSrtView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
      </div>
    );
  }
+
+interface ScriptHistoryItem {
+  id: string;
+  timestamp: string;
+  fileName: string;
+  scriptResult: string;
+  status: "processing" | "completed" | "failed";
+}
+
+function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
+  const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
+  const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [freeUsesToday, setFreeUsesToday] = useState(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const stored = localStorage.getItem(`free_recapscript_uses_${todayStr}`);
+    return stored ? parseInt(stored, 10) : 0;
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig>({ source: "app", value: "" });
+  const [showDiamondModal, setShowDiamondModal] = useState(false);
+  
+  const [history, setHistory] = useState<ScriptHistoryItem[]>([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [copySuccessId, setCopySuccessId] = useState<string | null>(null);
+  const [copyOutputSuccess, setCopyOutputSuccess] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[lang].videoToRecapScript;
+
+  // Load duration of video
+  useEffect(() => {
+    if (!file) {
+      setDuration(null);
+      return;
+    }
+    if (file.size === 0 && !file.type) return;
+
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      setDuration(video.duration);
+    };
+    video.src = URL.createObjectURL(file);
+    return () => {
+      URL.revokeObjectURL(video.src);
+    };
+  }, [file]);
+
+  // Load history based on user
+  useEffect(() => {
+    const userKey = user?.uid || "guest";
+    try {
+      const saved = localStorage.getItem(`recapscript_history_${userKey}`);
+      if (saved) {
+        setHistory(JSON.parse(saved));
+      } else {
+        setHistory([]);
+      }
+    } catch (e) {
+      console.error("Failed to load recap script history:", e);
+    }
+  }, [user]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 300 * 1024 * 1024) {
+        setError("File size must be under 300MB.");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+    }
+  };
+
+  const isAppApiKey = apiKeyConfig.source === "app";
+  const requiredCost = isAppApiKey && file && file.size > 0
+    ? (freeUsesToday < 3 ? 0 : Math.max(2, Math.ceil((duration || 0) / 60) * 2)) 
+    : 0;
+
+  const fileToBase64 = (f: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.readAsDataURL(f);
+      r.onload = () => resolve((r.result as string).split(",")[1]);
+      r.onerror = (e) => reject(e);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!file) return;
+
+    if (requiredCost > 0 && diamonds < requiredCost) {
+      setShowDiamondModal(true);
+      return;
+    }
+    
+    setIsGenerating(true);
+    setError(null);
+    setResult(null);
+
+    const apiKey = apiKeyConfig.source === "own" ? apiKeyConfig.value : undefined;
+    let deducted = false;
+    const newHistoryId = Date.now().toString();
+    const userKey = user?.uid || "guest";
+
+    const newHistoryItem: ScriptHistoryItem = {
+      id: newHistoryId,
+      timestamp: new Date().toISOString(),
+      fileName: file.name,
+      scriptResult: "",
+      status: "processing"
+    };
+
+    try {
+      if (requiredCost > 0) {
+        const success = await deductDiamonds(requiredCost);
+        if (!success) {
+          setShowDiamondModal(true);
+          setIsGenerating(false);
+          return;
+        }
+        deducted = true;
+      }
+
+      setHistory(prev => {
+        const updated = [newHistoryItem, ...prev];
+        localStorage.setItem(`recapscript_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
+      const base64 = await fileToBase64(file);
+      const jobId = await api.videotorecapscript(base64, file.type, duration || undefined, lang, apiKey);
+      const jobResult = await pollForCompletion(jobId);
+      
+      await incrementUsage();
+      setResult(jobResult.text || "");
+
+      setHistory(prev => {
+        const updated = prev.map(item => {
+          if (item.id === newHistoryId) {
+            return {
+              ...item,
+              scriptResult: jobResult.text || "",
+              status: "completed" as const
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(`recapscript_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
+      if (isAppApiKey && freeUsesToday < 3) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nextVal = freeUsesToday + 1;
+        localStorage.setItem(`free_recapscript_uses_${todayStr}`, String(nextVal));
+        setFreeUsesToday(nextVal);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(`Script generation failed: ${err.message}`);
+      
+      setHistory(prev => {
+        const updated = prev.map(item => {
+          if (item.id === newHistoryId) {
+            return {
+              ...item,
+              status: "failed" as const
+            };
+          }
+          return item;
+        });
+        localStorage.setItem(`recapscript_history_${userKey}`, JSON.stringify(updated));
+        return updated;
+      });
+
+      if (deducted && requiredCost > 0) {
+        console.log(`Error occurred. Auto-refunding ${requiredCost} diamonds.`);
+        await refundDiamonds(requiredCost);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopyOutputSuccess(true);
+    setTimeout(() => setCopyOutputSuccess(false), 2000);
+  };
+
+  const downloadTxtFile = (text: string, filename: string) => {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-emerald-500/20 transition-colors duration-300">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-95 border border-transparent hover:border-border">
+              <ArrowLeft className="w-4 h-4 text-text-secondary" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-linear-to-br from-emerald-600 to-teal-700 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <FileVideo className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <UserHeader onAdminClick={onAdminClick} />
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-6 pt-28 pb-10 space-y-10">
+        <div className="max-w-sm mx-auto">
+          <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
+        </div>
+        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-emerald-500/30 transition-all">
+          <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
+              file ? "border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-emerald-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              file ? "bg-emerald-600 shadow-xl shadow-emerald-500/25" : "bg-slate-100 dark:bg-white/5 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/35"
+            }`}>
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />}
+            </div>
+            <div className="space-y-0.5 text-center">
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"}`}>
+                {file ? file.name : (lang === "EN" ? "CLICK TO BROWSE FILES" : "ဗီဒီယိုတင်ပါ")}
+              </h3>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : "MP4, MOV (MAX 300MB)"}
+              </p>
+            </div>
+          </div>
+          {error && <p className="mt-2 text-[9px] text-red-500 font-black text-center uppercase tracking-widest">{error}</p>}
+        </section>
+
+        <div className="flex flex-col items-center justify-center pt-2 gap-2">
+          <button 
+            onClick={handleGenerate}
+            disabled={!file || isGenerating}
+            className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
+              !file || isGenerating 
+                ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
+                : "bg-linear-to-r from-emerald-600 to-teal-700 hover:scale-105 text-white shadow-emerald-500/30"
+            }`}
+          >
+            {isGenerating ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {isGenerating ? "GENERATING..." : (requiredCost > 0 ? `${t.generate} (${requiredCost} Dia)` : `${t.generate} (FREE)`)}
+          </button>
+          
+          {isAppApiKey && file && (
+            <p className="text-[10px] text-emerald-500 font-extrabold uppercase tracking-wider">
+              Free Daily Uses: {Math.max(0, 3 - freeUsesToday)} of 3 left
+            </p>
+          )}
+        </div>
+
+        <AnimatePresence>
+          {result && (
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-2xl mx-auto">
+              <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4">
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    Generated Recap Script
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyToClipboard(result)}
+                      className="px-3 h-8 text-[10px] font-black tracking-wider uppercase bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-emerald-600 dark:text-emerald-400 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {copyOutputSuccess ? "COPIED!" : "COPY"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const originalName = file?.name || "script.txt";
+                        const baseName = originalName.includes(".") 
+                          ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                          : originalName;
+                        downloadTxtFile(result, `${baseName}_recap_script.txt`);
+                      }}
+                      className="px-3 h-8 text-[10px] font-black tracking-wider uppercase bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Download className="w-3 h-3" />
+                      DOWNLOAD
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="text-slate-700 dark:text-slate-200 leading-relaxed text-xs markdown-body whitespace-pre-wrap font-medium">
+                  {result}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* History Section */}
+        <div className="pt-12 border-t border-slate-200 dark:border-white/5 space-y-6 max-w-sm md:max-w-xl mx-auto md:w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <History className="w-5 h-5 text-emerald-500" />
+              <h2 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">
+                Recap Script History
+              </h2>
+            </div>
+            {history.length > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to clear script generation history?")) {
+                    const userKey = user?.uid || "guest";
+                    setHistory([]);
+                    localStorage.removeItem(`recapscript_history_${userKey}`);
+                  }
+                }}
+                className="text-[10px] text-red-500 hover:text-red-400 font-black tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                CLEAR ALL
+              </button>
+            )}
+          </div>
+
+          {history.length === 0 ? (
+            <div className="text-center p-6 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                No recap scripts logged yet. Upload a video to begin!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-2">
+                {(() => {
+                  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    const userKey = user?.uid || "guest";
+                    setHistory(prev => {
+                      const updated = prev.filter(item => item.id !== id);
+                      localStorage.setItem(`recapscript_history_${userKey}`, JSON.stringify(updated));
+                      return updated;
+                    });
+                    if (expandedHistoryId === id) setExpandedHistoryId(null);
+                  };
+
+                  const displayedHistory = showAllHistory ? history : history.slice(0, 5);
+
+                  return displayedHistory.map((item) => {
+                    const isExpanded = expandedHistoryId === item.id;
+                    const formattedTime = (() => {
+                      try {
+                        const d = new Date(item.timestamp);
+                        if (!isNaN(d.getTime())) {
+                          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                          return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+                        }
+                      } catch (e) {}
+                      return "";
+                    })();
+
+                    return (
+                      <div 
+                        key={item.id}
+                        className="bg-white dark:bg-[#130E26]/40 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500 rounded-xl overflow-hidden transition-all duration-300"
+                      >
+                        <div 
+                          onClick={() => {
+                            if (item.status === "completed") {
+                              setExpandedHistoryId(isExpanded ? null : item.id);
+                            }
+                          }}
+                          className={`p-3 flex items-center justify-between gap-3 text-left transition-all ${item.status === 'completed' ? 'cursor-pointer' : 'opacity-70'}`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20 text-emerald-500 shrink-0">
+                              <FileVideo className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-xs font-bold text-slate-700 dark:text-white truncate max-w-[150px] sm:max-w-xs">{item.fileName}</h4>
+                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider ${
+                                  item.status === "completed" 
+                                    ? "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20" 
+                                    : item.status === "failed" 
+                                      ? "text-red-500 bg-red-500/10 border border-red-500/20"
+                                      : "text-amber-500 bg-amber-500/10 border border-amber-500/20 animate-pulse"
+                                }`}>
+                                  {item.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                <span>{formattedTime}</span>
+                                {item.scriptResult && <span className="bg-emerald-500/10 text-emerald-500 px-1 rounded text-[8px] border border-emerald-500/20">SCRIPT</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) => deleteHistoryItem(item.id, e)}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all active:scale-95 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Direct-history script render to read and download script without state revert */}
+                        {isExpanded && item.scriptResult && (
+                          <div className="border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-black/20 p-4 space-y-3 transition-all">
+                            <div className="text-[11px] text-slate-700 dark:text-slate-200 leading-relaxed font-medium bg-white dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200/50 dark:border-white/5 max-h-48 overflow-y-auto whitespace-pre-wrap font-sans">
+                              {item.scriptResult}
+                            </div>
+                            <div className="flex items-center justify-end gap-2 text-[10px]">
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(item.scriptResult);
+                                  setCopySuccessId(item.id);
+                                  setTimeout(() => setCopySuccessId(null), 2000);
+                                }}
+                                className="h-7 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-emerald-600 dark:text-emerald-400 rounded-md font-black tracking-wide uppercase transition-all"
+                              >
+                                {copySuccessId === item.id ? "COPIED" : "COPY"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const originalName = item.fileName || "script.txt";
+                                  const baseName = originalName.includes(".") 
+                                    ? originalName.substring(0, originalName.lastIndexOf(".")) 
+                                    : originalName;
+                                  downloadTxtFile(item.scriptResult, `${baseName}_recap_script.txt`);
+                                }}
+                                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-black tracking-wide uppercase flex items-center gap-1.5 transition-all"
+                              >
+                                <Download className="w-3 h-3" />
+                                DOWNLOAD
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {history.length > 5 && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    onClick={() => setShowAllHistory(!showAllHistory)}
+                    className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-emerald-600 dark:text-emerald-300 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all cursor-pointer"
+                  >
+                    {showAllHistory ? "See Less" : "See More"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <OutOfDiamondsModal isOpen={showDiamondModal} onClose={() => setShowDiamondModal(false)} lang={lang} requiredCost={requiredCost} />
+      </div>
+    </div>
+  );
+}
 
 function AIVideoVoiceActorView({ onBack, lang, setLang, onAdminClick }: ViewProps) {
   const { user, incrementUsage, deductDiamonds, refundDiamonds, diamonds } = useFirebase();
@@ -4505,6 +5018,8 @@ function AppContent() {
     "video-transcribe": "transcribe",
     "videotosrt": "videotosrt",
     "aivideovoiceactor": "aivideovoiceactor",
+    "videotorecapscript": "videotorecapscript",
+    "video-to-recap-script": "videotorecapscript",
   };
 
   useEffect(() => {
@@ -4685,6 +5200,23 @@ function AppContent() {
               transition={{ duration: 0.05 }}
             >
               <AIVideoVoiceActorView 
+                onBack={() => navigate('/')} 
+                lang={lang}
+                setLang={setLang}
+                onAdminClick={handleAdminClick}
+              />
+            </motion.div>
+          } />
+
+          <Route path="/videotorecapscript" element={
+            <motion.div
+              key="video-to-recap-script"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.05 }}
+            >
+              <VideoToRecapScriptView 
                 onBack={() => navigate('/')} 
                 lang={lang}
                 setLang={setLang}

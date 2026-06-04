@@ -111,6 +111,19 @@ export const translations = {
       ],
       usage: "Upload your video, pick a starting voice, and hit generate. The AI will translate, voice-act dialogues with dramatic pauses, and yield a combined Burmese video download."
     },
+    videoToRecapScript: {
+      headline: "Video To Recap Script",
+      uploadTitle: "Upload Video",
+      generate: "Generate Recap Script",
+      actionsTitle: "Actions Performed:",
+      usageTitle: "How to Use",
+      actions: [
+        "Analyzing video sound and visual elements",
+        "Writing a complete, ready-to-voice narration recap script",
+        "Polishing flow and matching the tone with Recap Master's style"
+      ],
+      usage: "Upload your video, and the AI will analyze both your sound and visual events to craft a ready-to-use, pristine narrative script."
+    },
     styles: {
       stepByStep: {
         title: "Step-by-Step Guide",
@@ -185,6 +198,10 @@ export const translations = {
       aiVideoVoiceActor: {
         title: "AI Video Voice Actor",
         desc: "Translate, record, and align precise high-quality Burmese dubbing voice actor overlay over your video.",
+      },
+      videoToRecapScript: {
+        title: "Video To Recap Script",
+        desc: "Analyze both sound and video content to generate a complete, high-quality, voice-ready narration recap script.",
       }
     }
   },
@@ -298,6 +315,19 @@ export const translations = {
       ],
       usage: "Upload your video, pick a starting voice, and hit generate. The AI will translate, voice-act dialogues with dramatic pauses, and yield a combined Burmese video download."
     },
+    videoToRecapScript: {
+      headline: "Video To Recap Script",
+      uploadTitle: "ဗီဒီယိုတင်ပါ",
+      generate: "Recap Script ထုတ်ယူမည်",
+      actionsTitle: "လုပ်ဆောင်ပေးမည့် အဆင့်များ-",
+      usageTitle: "အသုံးပြုပုံ",
+      actions: [
+        "ဗီဒီယို၏ ရုပ်သံနှစ်ခုလုံးကို AI ဖြင့် လေ့လာဆန်းစစ်ခြင်း",
+        "တန်းဖတ်ရွတ်နိုင်မည့် အချောသတ် Narration Recap Script ကို ရေးသားခြင်း",
+        "Recap Master ၏ AI Style တိုင်း ရေးသားမှုပုံစံကို ချိန်ညှိခြင်း"
+      ],
+      usage: "သင့်ဗီဒီယိုကို တင်လုပ်ပြီး 'Recap Script ထုတ်ယူမည်' ကို နှိပ်ပါ။ AI မှ ရုပ်နှင့်အသံကို သေချာဆန်းစစ်ပြီး အကောင်းဆုံး အသံသွင်းရန်အသင့် Narrative Script ကို ရေးသားပေးပါလိမ့်မည်။"
+    },
     styles: {
       stepByStep: {
         title: "Step-by-Step Guide",
@@ -372,6 +402,10 @@ export const translations = {
       aiVideoVoiceActor: {
         title: "AI Video Voice Actor",
         desc: "ဗီဒီယိုထဲမှ အသံကိုနားထောင်ပြီး မြန်မာလို အသံနားစနစ်ဖြင့် သရုပ်ဆောင်ကာ ဗီဒီယိုအဖြစ် ပေါင်းစပ်ဒေါင်းလုဒ်လုပ်ပေးသည်။",
+      },
+      videoToRecapScript: {
+        title: "Video To Recap Script",
+        desc: "ဗီဒီယို၏ ရုပ်သံနှစ်ခုလုံးကို လေ့လာဆန်းစစ်ပြီး Narration တန်းလုပ်နိုင်မည့် အချောသတ် Recap Script တစ်ခုကို ရေးသားပေးစနစ်။",
       }
     }
   },
