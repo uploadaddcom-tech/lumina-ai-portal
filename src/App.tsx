@@ -276,11 +276,11 @@ const getTools = (lang: Language) => [
     title: translations[lang].tools.videoToRecapScript.title,
     description: translations[lang].tools.videoToRecapScript.desc,
     icon: FileVideo,
-    color: "bg-emerald-600",
+    color: "bg-[#6D3DF3]",
     iconColor: "text-white",
-    borderColor: "border-emerald-500/20 hover:border-emerald-500/50",
-    shadowColor: "shadow-emerald-500/20",
-    badge: "AI MODE"
+    borderColor: "border-purple-500/20 hover:border-[#6D3DF3]/50",
+    shadowColor: "shadow-purple-500/20",
+    badge: "FREE"
   }
 ];
 
@@ -2270,7 +2270,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
   };
 
   return (
-    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-emerald-500/20 transition-colors duration-300">
+    <div className="min-h-screen bg-page-bg text-text-secondary pb-20 selection:bg-purple-500/20 transition-colors duration-300">
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-page-bg/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -2278,7 +2278,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
               <ArrowLeft className="w-4 h-4 text-text-secondary" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-linear-to-br from-emerald-600 to-teal-700 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-8 h-8 bg-linear-to-br from-indigo-600 to-[#6D3DF3] rounded-lg flex items-center justify-center shadow-lg shadow-[#6D3DF3]/20">
                 <FileVideo className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-lg font-black text-text-primary dark:text-white tracking-tighter">{t.headline}</h1>
@@ -2295,21 +2295,21 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
         <div className="max-w-sm mx-auto">
           <ApiKeySelector config={apiKeyConfig} setConfig={setApiKeyConfig} lang={lang} />
         </div>
-        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-emerald-500/30 transition-all">
+        <section className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-xl rounded-2xl p-2 border border-slate-200 dark:border-white/5 shadow-2xl max-w-sm mx-auto group hover:border-[#6D3DF3]/30 transition-all">
           <input type="file" ref={fileInputRef} className="hidden" accept="video/mp4,video/quicktime" onChange={handleFileChange} />
           <div 
             onClick={() => fileInputRef.current?.click()}
             className={`border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group ${
-              file ? "border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-emerald-500/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
+              file ? "border-purple-500/50 bg-purple-50 dark:bg-purple-950/20" : "border-slate-200/60 dark:border-white/10 hover:border-[#6D3DF3]/30 hover:bg-slate-50 dark:hover:bg-white/[0.02]"
             }`}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-              file ? "bg-emerald-600 shadow-xl shadow-emerald-500/25" : "bg-slate-100 dark:bg-white/5 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/35"
+              file ? "bg-[#6D3DF3] shadow-xl shadow-[#6D3DF3]/25" : "bg-slate-100 dark:bg-white/5 group-hover:bg-[#6D3DF3]/5 dark:group-hover:bg-[#6D3DF3]/15"
             }`}>
-              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />}
+              {file ? <Check className="w-4 h-4 text-white" /> : <CloudUpload className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-[#6D3DF3] dark:group-hover:text-purple-400" />}
             </div>
             <div className="space-y-0.5 text-center">
-              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400"}`}>
+              <h3 className={`text-xs font-black tracking-wider uppercase transition-colors ${file ? "text-slate-800 dark:text-slate-200" : "text-slate-700 dark:text-slate-300 group-hover:text-[#6D3DF3] dark:group-hover:text-purple-400"}`}>
                 {file ? file.name : (lang === "EN" ? "CLICK TO BROWSE FILES" : "ဗီဒီယိုတင်ပါ")}
               </h3>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
@@ -2327,7 +2327,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
             className={`h-14 px-12 rounded-full font-black text-[13px] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-95 shadow-2xl ${
               !file || isGenerating 
                 ? "bg-white/5 cursor-not-allowed text-slate-600 border border-white/10" 
-                : "bg-linear-to-r from-emerald-600 to-teal-700 hover:scale-105 text-white shadow-emerald-500/30"
+                : "bg-linear-to-r from-indigo-600 to-[#6D3DF3] hover:scale-105 text-white shadow-purple-500/30"
             }`}
           >
             {isGenerating ? (
@@ -2339,7 +2339,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
           </button>
           
           {isAppApiKey && file && (
-            <p className="text-[10px] text-emerald-500 font-extrabold uppercase tracking-wider">
+            <p className="text-[10px] text-purple-500 font-extrabold uppercase tracking-wider">
               Free Daily Uses: {Math.max(0, 3 - freeUsesToday)} of 3 left
             </p>
           )}
@@ -2351,13 +2351,13 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
               <div className="bg-white dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-xl space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4">
                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    <Sparkles className="w-4 h-4 text-[#6D3DF3]" />
                     Generated Recap Script
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => copyToClipboard(result)}
-                      className="px-3 h-8 text-[10px] font-black tracking-wider uppercase bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-emerald-600 dark:text-emerald-400 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 h-8 text-[10px] font-black tracking-wider uppercase bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-indigo-600 dark:text-indigo-400 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       {copyOutputSuccess ? "COPIED!" : "COPY"}
                     </button>
@@ -2369,7 +2369,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                           : originalName;
                         downloadTxtFile(result, `${baseName}_recap_script.txt`);
                       }}
-                      className="px-3 h-8 text-[10px] font-black tracking-wider uppercase bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 h-8 text-[10px] font-black tracking-wider uppercase bg-[#6D3DF3] hover:bg-[#5b31d0] text-white rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Download className="w-3 h-3" />
                       DOWNLOAD
@@ -2389,7 +2389,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
         <div className="pt-12 border-t border-slate-200 dark:border-white/5 space-y-6 max-w-sm md:max-w-xl mx-auto md:w-full">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <History className="w-5 h-5 text-emerald-500" />
+              <History className="w-5 h-5 text-[#6D3DF3]" />
               <h2 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">
                 Recap Script History
               </h2>
@@ -2450,7 +2450,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                     return (
                       <div 
                         key={item.id}
-                        className="bg-white dark:bg-[#130E26]/40 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500 rounded-xl overflow-hidden transition-all duration-300"
+                        className="bg-white dark:bg-[#130E26]/40 border border-slate-200 dark:border-purple-500/10 hover:border-purple-500 rounded-xl overflow-hidden transition-all duration-300"
                       >
                         <div 
                           onClick={() => {
@@ -2461,7 +2461,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                           className={`p-3 flex items-center justify-between gap-3 text-left transition-all ${item.status === 'completed' ? 'cursor-pointer' : 'opacity-70'}`}
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20 text-emerald-500 shrink-0">
+                            <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20 text-[#6D3DF3] shrink-0">
                               <FileVideo className="w-4 h-4" />
                             </div>
                             <div className="min-w-0 flex-1 space-y-0.5">
@@ -2469,7 +2469,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                                 <h4 className="text-xs font-bold text-slate-700 dark:text-white truncate max-w-[150px] sm:max-w-xs">{item.fileName}</h4>
                                 <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider ${
                                   item.status === "completed" 
-                                    ? "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20" 
+                                    ? "text-purple-500 bg-purple-500/10 border border-purple-500/20" 
                                     : item.status === "failed" 
                                       ? "text-red-500 bg-red-500/10 border border-red-500/20"
                                       : "text-amber-500 bg-amber-500/10 border border-amber-500/20 animate-pulse"
@@ -2479,7 +2479,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                               </div>
                               <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
                                 <span>{formattedTime}</span>
-                                {item.scriptResult && <span className="bg-emerald-500/10 text-emerald-500 px-1 rounded text-[8px] border border-emerald-500/20">SCRIPT</span>}
+                                {item.scriptResult && <span className="bg-purple-500/10 text-purple-200 px-1 rounded text-[8px] border border-purple-500/20">SCRIPT</span>}
                               </div>
                             </div>
                           </div>
@@ -2507,7 +2507,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                                   setCopySuccessId(item.id);
                                   setTimeout(() => setCopySuccessId(null), 2000);
                                 }}
-                                className="h-7 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-emerald-600 dark:text-emerald-400 rounded-md font-black tracking-wide uppercase transition-all"
+                                className="h-7 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-indigo-600 dark:text-indigo-400 rounded-md font-black tracking-wide uppercase transition-all"
                               >
                                 {copySuccessId === item.id ? "COPIED" : "COPY"}
                               </button>
@@ -2519,7 +2519,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                                     : originalName;
                                   downloadTxtFile(item.scriptResult, `${baseName}_recap_script.txt`);
                                 }}
-                                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-black tracking-wide uppercase flex items-center gap-1.5 transition-all"
+                                className="h-7 px-3 bg-[#6D3DF3] hover:bg-[#5b31d0] text-white rounded-md font-black tracking-wide uppercase flex items-center gap-1.5 transition-all"
                               >
                                 <Download className="w-3 h-3" />
                                 DOWNLOAD
@@ -2537,7 +2537,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                 <div className="flex justify-center pt-1">
                   <button
                     onClick={() => setShowAllHistory(!showAllHistory)}
-                    className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-emerald-600 dark:text-emerald-300 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all cursor-pointer"
+                    className="px-4 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-indigo-600 dark:text-indigo-300 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all cursor-pointer"
                   >
                     {showAllHistory ? "See Less" : "See More"}
                   </button>
