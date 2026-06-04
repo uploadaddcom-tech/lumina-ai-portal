@@ -2450,7 +2450,7 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                     return (
                       <div 
                         key={item.id}
-                        className="bg-white dark:bg-[#130E26]/40 border border-slate-200 dark:border-purple-500/10 hover:border-purple-500 rounded-xl overflow-hidden transition-all duration-300"
+                        className="bg-slate-100/10 dark:bg-slate-900/10 rounded-xl overflow-hidden transition-all duration-300"
                       >
                         <div 
                           onClick={() => {
@@ -2461,25 +2461,25 @@ function VideoToRecapScriptView({ onBack, lang, setLang, onAdminClick }: ViewPro
                           className={`p-3 flex items-center justify-between gap-3 text-left transition-all ${item.status === 'completed' ? 'cursor-pointer' : 'opacity-70'}`}
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20 text-[#6D3DF3] shrink-0">
-                              <FileVideo className="w-4 h-4" />
+                            <div className="w-8 h-8 flex items-center justify-center text-slate-400 shrink-0">
+                              <FileVideo className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 flex-1 space-y-0.5">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="text-xs font-bold text-slate-700 dark:text-white truncate max-w-[150px] sm:max-w-xs">{item.fileName}</h4>
-                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider ${
+                                <span className={`text-[8px] font-black uppercase tracking-wider ${
                                   item.status === "completed" 
-                                    ? "text-purple-500 bg-purple-500/10 border border-purple-500/20" 
+                                    ? "text-emerald-500 bg-emerald-500/10 px-1 py-0.5 rounded" 
                                     : item.status === "failed" 
-                                      ? "text-red-500 bg-red-500/10 border border-red-500/20"
-                                      : "text-amber-500 bg-amber-500/10 border border-amber-500/20 animate-pulse"
+                                      ? "text-red-500 bg-red-500/10 px-1 py-0.5 rounded"
+                                      : "text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded animate-pulse"
                                 }`}>
                                   {item.status}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
                                 <span>{formattedTime}</span>
-                                {item.scriptResult && <span className="bg-purple-500/10 text-purple-200 px-1 rounded text-[8px] border border-purple-500/20">SCRIPT</span>}
+                                {item.scriptResult && <span className="text-slate-500 text-[8px]">SCRIPT</span>}
                               </div>
                             </div>
                           </div>
