@@ -318,23 +318,20 @@ async function startServer() {
         const aiClient = customKey ? new GoogleGenAI({ apiKey: customKey }) : ai;
         const model = "gemini-3.5-flash";
 
-        const wpm = 190;
-        const wordCount = duration ? Math.floor((duration / 60) * wpm) : wpm;
-
         const promptSnippet = lang === "EN"
-          ? "Provide a chronological, real-time narration script for this video. Use the visual events and audio dialog/ambient sounds to tell a continuous narration. DO NOT include timestamps. Start directly with the story narrative without greeting."
-          : `ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေကို အခြေခံပြီး အချိန်နဲ့တပြေးညီ အသေးစိတ်ကျပြီး စိတ်ဝင်စားစရာကောင်းတဲ့ နောက်ခံစကားပြော (Narration) script တစ်ခု ရေးသားပေးပါ။ အချိန်မှတ်တမ်းများ (timestamps) မထည့်ရ။`;
+          ? "Provide a detailed, chronological, real-time narration script for this video. Trace the visual events and voice comments/dialogs completely to tell a continuous, rich narrative. Cover the entire length of the video without omitting any segments. DO NOT include timestamps. Start directly with the story narrative without greeting."
+          : `ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေ၊ စကားပြောသံတွေနဲ့ အဖြစ်အပျက်တွေအားလုံးကို အကုန်အစင်ဖော်ပြပြီး အချိန်နဲ့တပြေးညီ အသေးစိတ်ကျလှတဲ့ နောက်ခံစကားပြော (Narration) script တစ်ခုကို အစအဆုံး ပြည့်ပြည့်စုံစုံ ရေးသားပေးပါ။ အချိန်မှတ်တမ်းများ (timestamps) မထည့်ရ။`;
 
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Script length: Approximately ${wordCount} words (Strictly target ${wpm} words per 60 seconds. DO NOT exceed this word count).
+             - Output Type: Generate a full, complete, and detailed real-time narration script covering the entire video length with absolutely NO word length limits or word caps.
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - Script အရှည် - စကားလုံးရေ ${wordCount} တိတိ (ဗီဒီယို ၁ မိနစ်လျှင် စကားလုံး ${wpm} နှုန်းဖြင့် စာလုံးရေ မပိုစေဘဲ တိကျစွာ တွက်ချက်ထားသည်)။
+             - ရလဒ်အမျိုးအစား - ဗီဒီယိုတစ်ခုလုံးကို လွှမ်းခြုံနိုင်သော အစအဆုံး အသေးစိတ်ကျသည့် voiceover script တစ်ခုလုံးကို စာလုံးရေကန့်သတ်ချက် (သို့မဟုတ်) စကားလုံးအရှည်ကန့်သတ်ချက် လုံးဝမရှိဘဲ အပြည့်အစုံ ရေးသားဖော်ပြပေးရပါမည်။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
