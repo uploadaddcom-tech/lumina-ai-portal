@@ -319,54 +319,40 @@ async function startServer() {
         const model = "gemini-3.5-flash";
 
         const promptSnippet = lang === "EN"
-          ? "Watch this video carefully and write a highly synchronized voiceover narration script that matches the visuals and audio exactly. Since the user will not provide any timestamps, you must automatically calculate the scene transitions and duration in seconds yourself."
-          : `ဗီဒီယိုကို သေသေချာချာ ကြည့်ပြီး ဗီဒီယိုရုပ်ထွက်နဲ့ အသံ လုံးဝကွက်တိကျမယ့် မြန်မာလို Voiceover Narration Script (အသံသွင်းဇာတ်ညွှန်း) ကို ရေးပေးပါ။
+          ? "Watch this video carefully and write an extremely engaging, dramatic, and natural voiceover narration script that matches the visuals and plot sequential flow of the video exactly, in the style of Facebook/TikTok movie/drama recaps."
+          : `ဗီဒီယိုကို သေသေချာချာ ကြည့်ပြီး ဗီဒီယိုတစ်ကားလုံး၏ ဇာတ်လမ်း ဇာတ်ကွက်၊ အဖြစ်အပျက်နှင့် ရုပ်ထွက်ပြသမှုများအားလုံးကို အံဝင်ခွင်ကျစေမည့် အလွန်ဆွဲဆောင်မှုရှိပြီး စိတ်လှုပ်ရှားစရာကောင်းသော Facebook/TikTok Movie Recap ပုံစံ မြန်မာလို Voiceover Narration Script (နောက်ခံစကားပြော ဇာတ်ညွှန်းအပြည့်အစုံ) ကို လူပြောစကားပြောစတိုင်ဖြင့် ရေးပေးပါ။
 
-အသုံးပြုသူ (User) ဘက်က ဘာ Timestamp မှ ပေးမှာ မဟုတ်တဲ့အတွက် မင်းကိုယ်တိုင် ဗီဒီယိုထဲက ပြကွက်အပြောင်းအလဲတွေနဲ့ စက္ကန့်ပိုင်း ကြာမြင့်ချိန်တွေကို အလိုအလျောက် တွက်ချက်ရပါမယ်။`;
+ယခုပြသထားသော ဗီဒီယိုအတွင်းမှ တကယ့်အဖြစ်အပျက်၊ ဇာတ်ကောင်များ၏ အပြန်အလှန် လှုပ်ရှားပြောဆိုမှုများနှင့် လျှို့ဝှက်ချက်များကို Recap စတိုင်ဖြင့် စဉ်ဆက်မပြတ် ဖော်ပြပေးရပါမည်။`;
 
         const constraintPrompt = lang === "EN"
           ? `Strictly follow these rules:
 
-             1. Time-coded Visual Sync:
-             - Do NOT write a single block of text or paragraph for the whole video.
-             - Carefully analyze the scene transitions and identify the exact timestamp/time-codes (start and end seconds) for each scene.
-             - Generate the script segmented scene-by-scene according to these calculated start and end seconds.
+             1. Style & Tonality:
+             - Exciting and dramatic Third-Person Storytelling Style (e.g. "At the beginning, we see...", "But actually, this is...", "At this moment...").
+             - Do NOT use pronouns like "I", "me", "we", or "you" under any circumstances. ONLY use character names (e.g. Leo) or relationship roles (e.g., his father, her aunt, his mother-in-law).
+             - The vocabulary must be suspenseful, high-tempo, and engaging, perfectly suited for a movie recap video voiceover.
 
-             2. Timing & Syllable/Word Control:
-             - The normal speech rate for exciting recap videos is about 3 to 4 words or syllables per second.
-             - Write a precise amount of text for each calculated scene block based on its duration. Avoid making the script too long (which causes narration to bleed into the next scene) or too short (which causes silence or disjointed pauses).
+             2. Formatting & Structure:
+             - Do NOT use any timestamps, time-codes, or brackets (like [00:00 - 00:05]).
+             - Do NOT use numbers, bullet points, list formatting, headers, or markers.
+             - Write the script as a series of continuous, natural paragraphs or plain text sentences.
+             - Each sentence should represents a sequential beat of the video plot.
+             - Absolutely NO introductions (like "Hello", "In this video", "Let's start"), no greetings, no explanations, and no summaries.
+             - Start directly with the story narrative.`
+          : `အောက်ပါ စည်းမျဉ်းများကို သေချာ တိတိကျကျ လိုက်နာပေးပါ-
 
-             3. Tonality & Style:
-             - Use an exciting, dramatic Third-Person Storytelling Style.
-             - Do NOT use pronouns like "I", "me", "we", or "you" under any circumstances. ONLY use the names of characters (e.g. Leo) or their relationships/roles (e.g., his father, her aunt).
-             - The language should be highly engaging, high-tempo, and build tension appropriately.
+             ၁။ အရေးအသားနှင့် ပြောဟန်စတိုင် (Style & Tonality):
+             - ဇာတ်လမ်းပြောပြသည့်စတိုင် (Third-Person Storytelling/Movie Recap Style) ကိုသာ သုံးပါ။
+             - "ကျွန်တော်"၊ "ကျွန်မ" သို့မဟုတ် "မင်း" ဆိုသည့် နာမ်စားများကို လုံးဝ (လုံးဝ) မသုံးပါနှင့်။ ၎င်းတို့အစား ဇာတ်ကောင်များ၏ နာမည် (ဥပမာ- လီယို) သို့မဟုတ် ၎င်းတို့၏ တော်စပ်ပုံ/အခန်းကဏ္ဍ (ဥပမာ- သူ့အဖေ၊ သူ့အဒေါ်၊ သူ့သတို့သမီးလောင်း) ကိုသာ တိုက်ရိုက်သုံး၍ ရေးပေးပါ။
+             - စကားလုံး အဆုံးသတ်များတွင် စာရေးသားသည့်ပုံစံ "သည်"၊ "ပါသည်"၊ "ခဲ့သည်" စသည်တို့ကို လုံးဝ မသုံးရပါ။ အသံသွင်းရန် အလွန်လွယ်ကူပြီး နားထောင်ကောင်းသော လူပြောစကားအသုံးအနှုန်းဖြစ်သည့် "တယ်"၊ "ပါတယ်"၊ "ပါတော့တယ်"၊ "နေတယ်" စသည်တို့ကိုသာ အသုံးပြုရပါမည်။
+             - ဗီဒီယို၏ ရုပ်ထွက်အရှိန်နှင့် လျှို့ဝှက်ဆန်းကြယ်မှုများကို ဇာတ်ရှိန်တက်အောင် စိတ်လှုပ်ရှားစွာ ရိုက်ကူးပြောဆိုဟန်ဖြင့် ရေးသားပါ။
 
-             4. Output Format:
-             - Output ONLY the clean script paired with your calculated start and end timestamps.
-             - Do NOT include any introductions, notes, greetings, summaries, or extra texts.
-             - Format each scene block exactly as follows:
-               [Start_seconds - End_seconds] - [Voiceover Script Text]`
-          : `အောက်ပါ စည်းမျဉ်းတွေကို သေချာ တိတိကျကျ လိုက်နာပေးပါ-
-
-             ၁။ ရုပ်မြင်ကွင်း စက္ကန့်အလိုက် ဇာတ်ညွှန်းခွဲရေးခြင်း (Time-coded Visual Sync):
-             - ဗီဒီယိုတစ်ခုလုံးကို ခြုံပြီး စာသားတစ်ခါတည်း ရေးချလိုက်တာမျိုး လုံးဝ မလုပ်ပါနဲ့။
-             - ဗီဒီယိုထဲမှာ ရုပ်ထွက်ပြကွက် (Scene) တစ်ခုကနေ တစ်ခုကို ကူးပြောင်းသွားတဲ့ စက္ကန့်အချိန်မှတ်တမ်း (Time-code) တွေကို အသေးစိတ် အရင်ဆုံး ရှာဖွေမှတ်သားပါ။
-             - အဲ့ဒီ ခွဲထုတ်လိုက်တဲ့ ပြကွက်တစ်ခုချင်းစီရဲ့ အစစက္ကန့်နဲ့ အဆုံးစက္ကန့် (Duration) ကန့်သတ်ချက်အတိုင်းပဲ ဇာတ်ညွှန်းစာသားကို အကွက်လိုက်၊ ပြကွက်လိုက် ခွဲခွဲပြီး ရေးပေးရပါမယ်။
-
-             ၂။ စက္ကန့်အချိန်ကိုက် စာလုံးရေ ထိန်းချုပ်မှု (Timing & Syllable Control):
-             - စိတ်လှုပ်ရှားစရာကောင်းတဲ့ Recap ဗီဒီယိုတွေရဲ့ ပုံမှန်မြန်မာစကားပြောနှုန်းဟာ ၁ စက္ကန့်ကို စာလုံး (အသံထွက်အက္ခရာ) ၃ လုံး ကနေ ၄ လုံး ဝန်းကျင်ပဲ ရှိရပါမယ်။
-             - ဒါကြောင့် အပေါ်က ခွဲထုတ်ထားတဲ့ ပြကွက်တစ်ခုချင်းစီရဲ့ စက္ကန့်အလိုက် အသံထွက်ဖတ်ရင် ကွက်တိဖြစ်မယ့် စာလုံးပမာဏကိုပဲ ချင့်ချိန်ရေးပေးပါ။ စာသားတွေ အရမ်းရှည်ထွက်သွားတာကြောင့် နောက်ပြကွက်ထဲအထိ အသံက ကျော်ထွက်သွားတာမျိုး (သို့မဟုတ်) အရမ်းတိုလွန်းလို့ အသံပြတ်တောက်သွားတာမျိုး လုံးဝ မဖြစ်ရပါဘူး။
-
-             ၃။ အရေးအသားစတိုင် (Tonality & Style):
-             - ပုံပြောပြတဲ့စတိုင် (Third-Person Storytelling Style) ကို သုံးပါ။
-             - "ကျွန်တော်" သို့မဟုတ် "မင်း" ဆိုတဲ့ စကားလုံးတွေကို လုံးဝ (လုံးဝ) မသုံးပါနဲ့။ ဇာတ်ကောင်တွေရဲ့ နာမည် (ဥပမာ- လီယို) ဒါမှမဟုတ် သူတို့ရဲ့ တော်စပ်ပုံ/အခန်းကဏ္ဍ (ဥပမာ- သူ့အဖေ၊ သူ့အဒေါ်) ကိုပဲ သုံးပြီး ရေးပေးပါ။
-             - စိတ်လှုပ်ရှားစရာကောင်းပြီး၊ ဇာတ်ရှိန်တက်မယ့်၊ နားထောင်လို့ ကောင်းမယ့် အသုံးအနှုန်းမျိုး ဖြစ်ရပါမယ်။
-
-             ၄။ ထွက်လာရမည့် ပုံစံ (Output Format):
-             - မင်း အလိုအလျောက် ခွဲထုတ်လိုက်တဲ့ စက္ကန့်မှတ်တမ်း (Timestamp) တွေနဲ့ တွဲပြီး မြန်မာလို Script ကိုပဲ သန့်သန့်လေး ထုတ်ပေးပါ။
-             - တခြား နှုတ်ဆက်စကားတွေ၊ ရှင်းလင်းချက်တွေ၊ အစအဆုံး အပိုစာသားတွေ လုံးဝ မပါရပါဘူး။
-             - အောက်ပါ ပုံစံအတိုင်းပဲ တိတိကျကျ ထုတ်ပေးပါ-
-               [စတင်ချိန်_စက္ကန့် - ပြီးဆုံးချိန်_စက္ကန့်] - [မြန်မာလို ဖတ်ရမည့် ဇာတ်ညွှန်းစာသား]`;
+             ၂။ ပုံစံနှင့် တည်ဆောက်ပုံ (Structure & Format):
+             - မည်သည့် timestamp ကုတ်များ၊ အချိန်မှတ်တမ်းများ (ဥပမာ- [00:00 - 00:05] သို့မဟုတ် [စတင်ချိန် - ပြီးဆုံးချိန်]) လုံးဝ မထည့်ပါနှင့်။
+             - အချက်အလက်ပြ Bullet point များ၊ အမှတ်စဉ်တပ်ခြင်း၊ List စာရင်းပုံစံများ သို့မဟုတ် ခေါင်းစဉ်များ လုံးဝ မသုံးပါနှင့်။
+             - ဘာသာပြန်ချက် သို့မဟုတ် ဇာတ်ညွှန်းကို သာမန်စာကြောင်းများနှင့် စာပိုဒ်များ (Plain paragraphs) ပုံစံစစ်စစ်ဖြင့်သာ စဉ်ဆက်မပြတ် စီးဆင်းအောင် ရေးပေးပါ။
+             - "စလိုက်ရအောင်"၊ "မင်္ဂလာပါ"၊ "ဒီဗီဒီယိုလေးမှာ"၊ "ပြောပြပေးသွားမှာပါ" ကဲ့သို့သော အစပျိုး နှုတ်ခွန်းဆက်စကားများ၊ အကူးအပြောင်း ရှင်းပြချက်များနှင့် အပိုစာသားများ လုံးဝ (လုံးဝ) မထည့်ရပါ။
+             - ဗီဒီယို၏ ဇာတ်လမ်းဇာတ်ကြောင်းကိုသာ ပထမဆုံးစာလုံးမှစ၍ တိုက်ရိုက် ရေးသားဖော်ပြပေးပါ။`;
 
         const finalPrompt = `${promptSnippet}\n\n${constraintPrompt}\n\nRespond in ${lang === "EN" ? "English" : "Myanmar (Burmese)"} language. Provide direct output only.`;
 
