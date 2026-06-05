@@ -319,19 +319,19 @@ async function startServer() {
         const model = "gemini-3.5-flash";
 
         const promptSnippet = lang === "EN"
-          ? "Provide a detailed, chronological, real-time narration script for this video. Trace the visual events and voice comments/dialogs completely to tell a continuous, rich narrative. Cover the entire length of the video without omitting any segments. DO NOT include timestamps. Start directly with the story narrative without greeting."
-          : `ဗီဒီယိုထဲမှာ ဖြစ်ပျက်နေတဲ့ အရာတွေ၊ စကားပြောသံတွေနဲ့ အဖြစ်အပျက်တွေအားလုံးကို အကုန်အစင်ဖော်ပြပြီး အချိန်နဲ့တပြေးညီ အသေးစိတ်ကျလှတဲ့ နောက်ခံစကားပြော (Narration) script တစ်ခုကို အစအဆုံး ပြည့်ပြည့်စုံစုံ ရေးသားပေးပါ။ အချိန်မှတ်တမ်းများ (timestamps) မထည့်ရ။`;
+          ? "Provide a direct, concise, and literal narration script for this video. Trace the actual spoken words/dialogues and physical events precisely as they occur in the video. Do not add any imaginary narrative, background explanations, or unnecessary elaboration. Keep it as brief and accurate to the video as possible."
+          : `ဗီဒီယိုထဲမှာ အမှန်တကယ် ပါဝင်ပြောဆိုနေတဲ့ စကားပြောသံတွေနဲ့ အဖြစ်အပျက်တွေကိုသာ ဗီဒီယိုထဲကအတိုင်း အတိအကျနှင့် အတိုချဉ်းဆုံး တိုက်ရိုက်ရေးသားပေးပါ။ မလိုအပ်သော စိတ်ကူးယဉ်ဇာတ်လမ်းဆင်မှု၊ အပိုအမွမ်းတင်စာသားများ သို့မဟုတ် ဇာတ်လမ်းကို ပိုမိုရှည်လျားစေမည့် စာလုံးများ လုံးဝ မထည့်ပါနှင့်။ ဗီဒီယိုထဲက ပြောစကားနှင့် တကယ့်လုပ်ဆောင်ချက်များအတိုင်းသာ တိုတိုရှင်းရှင်း တိုက်ရိုက်ရေးသားပေးပါ။`;
 
         const constraintPrompt = lang === "EN"
           ? `Constraints:
-             - Output Type: Generate a full, complete, and detailed real-time narration script covering the entire video length with absolutely NO word length limits or word caps.
+             - Output Type: Generate a script that is short, concise, and matches the video content exactly (do not write any long or unnecessary details/elaboration).
              - Output: Final polished narrative script ONLY.
              - DO NOT include ANY introductions like "Let's start", "Hello", "In this video", "စလိုက်ရအောင်", "ပြောပြမယ်နော်".
              - DO NOT use numbering, bullet points, or list formatting.
              - DO NOT include timestamps.
              - Provide the text exactly as it should be read for a voiceover.`
           : `ကန့်သတ်ချက်များ -
-             - ရလဒ်အမျိုးအစား - ဗီဒီယိုတစ်ခုလုံးကို လွှမ်းခြုံနိုင်သော အစအဆုံး အသေးစိတ်ကျသည့် voiceover script တစ်ခုလုံးကို စာလုံးရေကန့်သတ်ချက် (သို့မဟုတ်) စကားလုံးအရှည်ကန့်သတ်ချက် လုံးဝမရှိဘဲ အပြည့်အစုံ ရေးသားဖော်ပြပေးရပါမည်။
+             - ရလဒ်အမျိုးအစား - ဗီဒီယိုထဲက တကယ့်ပြောစကားနှင့် အခိုက်အတန့်အတိုင်းသာ ကြည့်ပြီး ကွက်တိဖြစ်ကာ အပိုစာသားမပါသော တိုရှင်းတိုက်ရိုက် script သာ ဖြစ်ရမည်။ စာသားများကို ရှည်လျားအောင် လုံးဝ မရေးရပါ။
              - ရလဒ် - အချောသတ်ထားသော ဇာတ်ညွှန်း (Script) သာ ဖြစ်ရမည်။
              - "စလိုက်ရအောင်"၊ "ပြောပြမယ်နော်"၊ "မင်္ဂလာပါ" "ဒီဗီဒီယိုလေးမှာ" ကဲ့သို့သော အစဦး စကားလုံးများ လုံးဝ မထည့်ရ။
              - အမှတ်စဉ်များ၊ Bullet point များ သို့မဟုတ် စာရင်းပုံစံများ လုံးဝ မသုံးရ။
