@@ -319,25 +319,27 @@ async function startServer() {
         const model = "gemini-3.5-flash";
 
         const promptSnippet = lang === "EN"
-          ? "Watch this video carefully and write an extremely engaging, dramatic, and synchronized voiceover narration script in Movie/Drama Recap style. You must automatically calculate the scene transitions and duration in minutes and seconds yourself, outputting in [MM:SS - MM:SS] format."
-          : `ဗီဒီယိုကို သေသေချာချာ ကြည့်ပြီး ဗီဒီယိုရုပ်ထွက်နဲ့ အသံ လုံးဝကွက်တိကျမည့် မြန်မာလို Voiceover Narration Script (အသံသွင်းဇာတ်ညွှန်း) ကို ရေးပေးပါ။ ဗီဒီယိုထဲက ပြကွက်အပြောင်းအလဲတွေနဲ့ စက္ကန့်ပိုင်း ကြာမြင့်ချိန်တွေကို အလိုအလျောက် တွက်ချက်ရပါမယ်။`;
+          ? "Watch this video carefully and write an extremely engaging, dramatic, and synchronized voiceover narration script in Movie/Drama Recap style. You must do Frame-by-Frame Shot Detection (identify every single camera shot change, cut, and angle switch) and split them into precise [MM:SS - MM:SS] timestamp blocks, ensuring strict timing with Burmese/English syllable/word control."
+          : `ဗီဒီယိုကို သေသေချာချာ ကြည့်ပြီး ဗီဒီယိုရုပ်ထွက်နဲ့ အသံ လုံးဝကွက်တိကျမည့် မြန်မာလို Voiceover Narration Script (အသံသွင်းဇာတ်ညွှန်း) ကို ရေးပေးပါ။ ဗီဒီယိုထဲက ကင်မရာအဖြတ်အတောက် (Shot Cuts / Angle Switches) အားလုံးနှင့် အသံကို သေသေချာချာကိုက်ကာ အလိုအလျောက် တွက်ချက်ရပါမယ်။`;
 
         const constraintPrompt = lang === "EN"
           ? `Strictly follow these rules:
 
-             1. Time-coded Visual Sync & Format:
-             - Do NOT write a single block of text or paragraph for the whole video.
-             - Format each scene block exactly as follows, matching the visual timestamps:
-               [MM:SS - MM:SS] - [Voiceover Script Text]
+             1. Frame-by-Frame Shot Detection (Time-coded Visual Sync):
+             - Watch the video and identify every single camera shot change, cut, and angle switch precisely.
+             - Even within the same conversation, if the camera switches from Ethan's face to Oscar's face, or from a close-up to a wide shot, you must split it into a new timestamp block immediately.
+             - Do not group multiple distinct camera cuts into one long timestamp.
+             - Format each block exactly as: [MM:SS - MM:SS] - [Voiceover Script Text]
                Example: [00:00 - 00:06] - Ethan managed to pick the medicinal herb from the cliff.
 
-             2. Timing & Syllable/Word Control:
-             - The normal speech rate for exciting recap videos is about 3 to 4 words or syllables per second.
-             - Write a precise amount of text for each calculated scene block based on its duration. Avoid making the script too long or too short.
+             2. Calculate Syllable/Word Count & Timing Control:
+             - For each micro-timestamp block you found in Step 1, count its exact duration in seconds.
+             - Out of the golden rule for fast-paced recap voiceovers, you must strictly write only 3 to 4 syllables/words per second.
+             - If a shot lasts 4 seconds, your text must contain exactly 12 to 16 syllables. Adjust your wording so it fits perfectly—neither too long nor too short.
 
              3. Tonality & Style:
              - Use an exciting, dramatic Third-Person Storytelling Style.
-             - Do NOT use pronouns like "I", "me", "we", or "you" under any circumstances. ONLY use character names (e.g. Leo) or relationship roles (e.g., his father, her aunt).
+             - Do NOT use pronouns like "I", "me", "we", or "you" under any circumstances. ONLY use character names (e.g. Leo, Ethan, Oscar) or relationship roles (e.g., his father, her aunt).
              - The vocabulary must be suspenseful, high-tempo, and engaging, perfectly suited for a movie recap video voiceover.
 
              4. Output Specification:
@@ -345,23 +347,24 @@ async function startServer() {
              - Do NOT include any introductions, notes, greetings, summaries, or extra texts. Start directly with the first timestamp [00:00 - 00:xx].`
           : `အောက်ပါ စည်းမျဉ်းများကို သေချာ တိတိကျကျ လိုက်နာပေးပါ-
 
-             ၁။ ရုပ်မြင်ကွင်း စက္ကန့်အလိုက် ဇာတ်ညွှန်းခွဲရေးခြင်း (Time-coded Visual Sync):
-             - ဗီဒီယိုတစ်ခုလုံးကို ခြုံပြီး စာသားတစ်ခါတည်း ရေးချလိုက်တာမျိုး လုံးဝ မလုပ်ပါနှင့်။
-             - ဗီဒီယိုထဲမှာ ရုပ်ထွက်ပြကွက် (Scene) တစ်ခုကနေ တစ်ခုကို ကူးပြောင်းသွားသည့် အချိန်မှတ်တမ်းများကို အသေးစိတ် အရင်ဆုံး ရှာဖွေတွက်ချက်ပြီး [အမိနစ်:စက္ကန့် - အမိနစ်:စက္ကန့်] သို့မဟုတ် [MM:SS - MM:SS] ပုံစံဖြင့် ခွဲထုတ်ပါ။
-             - အောက်ပါပုံစံအတိုင်း အချိန်မှတ်တမ်း (Timestamp) ဖြင့် တွဲလျက် စာကြောင်းတစ်ကြောင်းချင်းစီ ခွဲ၍ထုတ်ပေးပါ (ဥပမာ- [00:00 - 00:06] - စာသား)။
+             ၁။ Frame-by-Frame Shot Detection (ကင်မရာအဖြတ်အတောက်ကို အရင်ရှာပါ):
+             - ဗီဒီယိုကိုသေချာကြည့်ပြီး ကင်မရာအဖြတ်အတောက် (Camera Shot Change)၊ ဖြတ်တောက်မှု (Cut) နှင့် ကင်မရာအလှည့်အပြောင်း (Angle Switch) တိုင်းကို အသေးစိတ် ရှာဖွေပါ။
+             - စကားပြောနေသည့် ပြကွက်တစ်ခုတည်းဖြစ်နေလျှင်ပင် ကင်မရာမြင်ကွင်းက အီသန့်မျက်နှာမှ အော်စကာ့မျက်နှာသို့ ပြောင်းသွားလျှင်သော်လည်းကောင်း၊ အနီးကပ်ပြကွက် (Close-up) မှ အဝေးပြကွက် (Wide Shot) သို့ ပြောင်းသွားလျှင်သော်လည်းကောင်း၊ ၎င်းကို ချက်ချင်းပဲ အချိန်မှတ်တမ်း (Timestamp) အသစ်တစ်ခုအဖြစ် ခွဲထုတ်ပေးရပါမည်။
+             - ကွဲပြားခြားနားသော ကင်မရာအဖြတ်အတောက်များကို တစ်ခုတည်းအဖြစ် လုံးဝ စုမထားပါနှင့်။ ချက်ချင်း ခွဲခြားပေးပါ။
 
-             ၂။ စက္ကန့်အချိန်ကိုက် စာလုံးရေ ထိန်းချုပ်မှု (Timing & Syllable Control):
-             - စိတ်လှုပ်ရှားစရာကောင်းသည့် Recap ဗီဒီယိုများ၏ ပုံမှန်မြန်မာစကားပြောနှုန်းမှာ ၁ စက္ကန့်လျှင် စာလုံး (အသံထွက်အက္ခရာ) ၃ လုံး မှ ၄ လုံး ဝန်းကျင်သာ ရှိရပါမည်။
-             - ထို့ကြောင့် ပြကွက်တစ်ခုချင်းစီ၏ ကြာမြင့်စက္ကန့်အလိုက် အသံထွက်ဖတ်လျှင် ကွက်တိဖြစ်မည့် စာလုံးပမာဏကိုသာ ချင့်ချိန်ရေးပေးပါ။ စာသားများ အရမ်းရှည်ထွက်သွားခြင်း သို့မဟုတ် အရမ်းတိုလွန်းခြင်း လုံးဝ မရှိရပါ။
+             ၂။ Calculate Syllable Count (စက္ကန့်အလိုက် မြန်မာစာလုံးရေ တွက်ချက်ပါ):
+             - အဆင့် (၁) တွင် ရှာဖွေတွေ့ရှိထားသော micro-timestamp တစ်ခုချင်းစီ၏ ကြာမြင့်ချိန် စက္ကန့်ပိုင်းကို တိတိကျကျ တွက်ချက်ပါ။
+             - စိတ်လှုပ်ရှားစရာ Recap နောက်ခံအသံများအတွက် ရွှေစည်းမျဉ်း (Golden rule) မှာ ၁ စက္ကန့်လျှင် မြန်မာစာလုံး (အသံထွက်အက္ခရာ) ၃ လုံး မှ ၄ လုံး ဝန်းကျင်သာ တိတိကျကျ ရှိရပါမည်။
+             - ဥပမာ - ပြကွက်တစ်ခုက ၄ စက္ကန့်ကြာမြင့်ပါက ထိုပြကွက်အတွက် ခွဲထုတ်ရေးသားသော စာသားသည် မြန်မာအသံထွက် (Syllable) စုစုပေါင်း ၁၂ လုံး မှ ၁၆ လုံး အတိအကျသာ ရှိပါစေ။ စာသားများ အလွန်ရှည်ထွက်သွားခြင်း (နောက်ပြကွက်ထဲအထိ အသံကျော်သွားခြင်း) သို့မဟုတ် အလွန်တိုလွန်းခြင်း (အသံပြတ်တောက်သွားခြင်း) လုံးဝ မရှိစေရန် စာလုံးအသုံးအနှုန်းကို အတိအကျ ညှိနှိုင်းရေးသားပေးပါ။
 
              ၃။ အရေးအသားစတိုင် (Tonality & Style):
              - ပုံပြောပြသည့်စတိုင် (Third-Person Storytelling Style) ကို သုံးပါ။
-             - "ကျွန်တော်"၊ "ကျွန်မ" သို့မဟုတ် "မင်း" ဆိုသည့် နာမ်စားများကို လုံးဝ (လုံးဝ) မသုံးပါနှင့်။ ၎င်းတို့အစား ဇာတ်ကောင်များ၏ နာမည် သို့မဟုတ် ၎င်းတို့၏ တော်စပ်ပုံ/အခန်းကဏ္ဍကိုသာ သုံး၍ ရေးပေးပါ။
+             - "ကျွန်တော်"၊ "ကျွန်မ" သို့မဟုတ် "မင်း" ဆိုသည့် နာမ်စားများကို လုံးဝ (လုံးဝ) မသုံးပါနှင့်။ ၎င်းတို့အစား ဇာတ်ကောင်များ၏ နာမည် (ဥပမာ- လီယို၊ အီသန်၊ အော်စကာ) သို့မဟုတ် ၎င်းတို့၏ တော်စပ်ပုံ/အခန်းကဏ္ဍ (ဥပမာ- သူ့အဖေ၊ သူ့အဒေါ်၊ သူ့သတို့သမီးလောင်း) ကိုသာ သုံး၍ ရေးပေးပါ။
              - စကားပြောအဆုံးသတ်ရာတွင် "သည်"၊ "ပါသည်"၊ "ခဲ့သည်" စသည်တို့ကို လုံးဝ မသုံးရပါ။ အသံသွင်းရာတွင် အသုံးပြုသည့် လူပြောစကားအသုံးအနှုန်းဖြစ်သော "တယ်"၊ "ပါတယ်"၊ "ပါတော့တယ်"၊ "နေတယ်" စသည်တို့ကိုသာ မဖြစ်မနေ အသုံးပြုရပါမည်။
-             - စိတ်လှုပ်ရှားစရာကောင်းပြီး၊ ဇာတ်ရှိန်တက်မည့်၊ နားထောင်လို့ ကောင်းမည့် အသုံးအနှုန်းမျိုး ဖြစ်ရပါမည်။
+             - စိတ်လှုပ်ရှားစွာ ရိုက်ကူးပြောဆိုဟန်ဖြစ်ပြီး၊ ဇာတ်ရှိန်တက်မည့်၊ နားထောင်လို့ အဆင်ပြေမည့် အသုံးအနှုန်းမျိုး ဖြစ်ရပါမည်။
 
              ၄။ ထွက်လာရမည့် ပုံစံ (Output Format):
-             - မင်း အလိုအလျောက် ခွဲထုတ်လိုက်သည့် [MM:SS - MM:SS] ပုံစံ အချိန်မှတ်တမ်းများနှင့် တွဲဖက်ကာ မြန်မာလို Script သီးသန့်သာ ထုတ်ပေးပါ။
+             - မင်း အလိုအလျောက် ခွဲထုတ်လိုက်သည့် [MM:SS - MM:SS] သို့မဟုတ် [မိနစ်:စက္ကန့် - မိနစ်:စက္ကန့်] အချိန်မှတ်တမ်းများနှင့် တွဲဖက်ကာ မြန်မာလို Script သီးသန့်သာ ထုတ်ပေးပါ။
              - တခြား နှုတ်ဆက်စကားများ၊ ရှင်းလင်းချက်များ၊ အစအဆုံး အပိုစာသားတိုများ လုံးဝ (လုံးဝ) မပါရဘဲ ပထမဆုံး timestamp ဖြစ်သည့် [00:00 - 00:xx] ဖြင့်သာ တိုက်ရိုက်စတင်ဖော်ပြပေးပါ။
              - ထုတ်ပေးရမည့် ပုံစံအတိအကျ:
                [မိနစ်:စက္ကန့် - မိနစ်:စက္ကန့်] - [မြန်မာလို ဖတ်ရမည့် ဇာတ်ညွှန်းစာသား]
